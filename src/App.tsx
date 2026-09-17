@@ -4,6 +4,7 @@ import { useAuth } from "./AuthContext";
 import Layout from "./components/Layout";
 import LoginPage from "./pages/LoginPage";
 import DashboardPage from "./pages/DashboardPage";
+import SeguimientoPage from "./pages/SeguimientoPage";
 import ExpedientesPage from "./pages/ExpedientesPage";
 import ExpedienteDetailPage from "./pages/ExpedienteDetailPage";
 import AsignacionesPage from "./pages/AsignacionesPage";
@@ -24,6 +25,7 @@ export default function App() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/" element={<Protected><DashboardPage /></Protected>} />
+      <Route path="/seguimiento" element={<Protected><SeguimientoPage /></Protected>} />
       <Route path="/expedientes" element={<Protected><ExpedientesPage /></Protected>} />
       <Route path="/expedientes/:id" element={<Protected><ExpedienteDetailPage /></Protected>} />
       <Route path="/asignaciones" element={<Protected><AsignacionesPage /></Protected>} />

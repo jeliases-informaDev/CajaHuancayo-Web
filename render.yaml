@@ -1,0 +1,15 @@
+# Blueprint de Render para el panel web (Administrador) de Auditoría de Visitas.
+# Uso: Render Dashboard -> New -> Blueprint -> seleccionar este repositorio.
+services:
+  - type: web
+    name: caja-huancayo-web
+    runtime: static
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_API_URL
+        value: https://caja-huancayo-backend.onrender.com
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
