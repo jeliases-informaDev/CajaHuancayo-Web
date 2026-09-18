@@ -3,6 +3,15 @@ import { Link, useParams } from "react-router-dom";
 import { downloadWordExport, fetchEvidenceBlobUrl, request } from "../api";
 import { Badge, Button, Card, InfoRow, Loading } from "../components/ui";
 
+function GroupLabel({ text, tint }: { text: string; tint: string }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "22px 0 8px" }}>
+      <span style={{ width: 8, height: 8, borderRadius: 4, background: tint }} />
+      <span style={{ fontSize: 11, fontWeight: 900, letterSpacing: 1, color: tint, textTransform: "uppercase" }}>{text}</span>
+    </div>
+  );
+}
+
 const ETIQUETAS: Record<string, string> = {
   donde_realiza_pagos: "¿Dónde realiza sus pagos?",
   conyuge_conoce_prestamo: "¿Cónyuge tiene conocimiento del préstamo?",
@@ -73,9 +82,13 @@ export default function VisitaDetailPage() {
         </div>
       ) : null}
 
+      {/* 1. ESTADO — resultado de la gestión y señales de seguridad. No depende de si
+          hay fotos o no: una visita puede quedar CERRADA/OBSERVADA con o sin evidencia. */}
+      <GroupLabel text="Estado de la gestión" tint="var(--primary)" />
       <Card>
         <p className="section-title">Datos de la visita</p>
         <InfoRow k="Auditor" v={`${visita.auditor?.nombres || ""} ${visita.auditor?.apellidos || ""} (@${visita.auditor?.username})`} />
+        <InfoRow k="Resultado" v={<Badge label={visita.resultado} />} />
         <InfoRow k="Coordenadas registradas" v={`${visita.latitud}, ${visita.longitud} (±${visita.precision_metros ?? "?"} m)`} />
         <InfoRow k="Distancia al domicilio registrado" v={visita.distancia_domicilio_m != null ? `${Math.round(visita.distancia_domicilio_m)} m` : "No calculada (expediente sin coordenadas)"} />
         <InfoRow k="Ubicación simulada (Fake GPS)" v={visita.mock_location ? "SÍ — bloqueado" : "No detectada"} />
@@ -83,6 +96,9 @@ export default function VisitaDetailPage() {
         <InfoRow k="Hora recibida por el servidor" v={new Date(visita.server_received_at).toLocaleString("es-PE")} />
       </Card>
 
+      {/* 2. FICHA — lo que dijo el cliente en la entrevista, tal como en el formulario
+          físico de Caja Huancayo. No incluye fotos. */}
+      <GroupLabel text="Ficha de entrevista" tint="var(--success)" />
       <Card>
         <p className="section-title">Expediente de referencia</p>
         <InfoRow k="Documento" v={`${visita.expediente?.tipo_documento_cliente} ${visita.expediente?.numero_documento_cliente}`} />
@@ -90,14 +106,12 @@ export default function VisitaDetailPage() {
         <InfoRow k="Asesor responsable" v={visita.expediente?.asesor_responsable} />
         <p><Link to={`/expedientes/${visita.id_expediente}`}>Ver expediente completo →</Link></p>
       </Card>
-
       <Card>
         <p className="section-title">Cuestionario al cliente</p>
         {Object.entries(respuestas).map(([k, v]) => (
           <InfoRow key={k} k={ETIQUETAS[k] || k} v={typeof v === "boolean" ? (v ? "SI" : "NO") : String(v ?? "-")} />
         ))}
       </Card>
-
       <Card>
         <p className="section-title">Comentarios</p>
         <p style={{ fontWeight: 700, fontSize: 12, color: "var(--muted)" }}>Negocio</p>
@@ -105,12 +119,16 @@ export default function VisitaDetailPage() {
         <p style={{ fontWeight: 700, fontSize: 12, color: "var(--muted)", marginTop: 12 }}>Auditor</p>
         <p style={{ marginTop: 4 }}>{visita.comentario_auditor || "-"}</p>
       </Card>
+      <Button title={downloading ? "Generando…" : "Descargar ficha en Word"} onClick={descargarWord} disabled={downloading} />
 
+      {/* 3. EVIDENCIAS — fotos y firma, guardadas aparte (no van dentro del Word de la
+          ficha). Sección propia para que el supervisor confirme que sí se subieron. */}
+      <GroupLabel text="Evidencias" tint="var(--warning)" />
       <Card>
         <p className="section-title">Evidencia fotográfica</p>
         <div className="row">
           {(visita.evidencias || []).map((ev: any) => <EvidencePhoto key={ev.id_evidencia} idEvidencia={ev.id_evidencia} tipo={ev.tipo} />)}
-          {!visita.evidencias?.length ? <p className="muted">Sin fotos.</p> : null}
+          {!visita.evidencias?.length ? <p className="muted">Sin fotos subidas para esta visita.</p> : null}
         </div>
         {visita.firma_evidencia ? (
           <div style={{ marginTop: 14 }}>
@@ -119,8 +137,6 @@ export default function VisitaDetailPage() {
           </div>
         ) : null}
       </Card>
-
-      <Button title={downloading ? "Generando…" : "Descargar ficha en Word"} onClick={descargarWord} disabled={downloading} />
     </>
   );
 }
