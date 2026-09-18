@@ -13,10 +13,11 @@ import VisitaDetailPage from "./pages/VisitaDetailPage";
 import UsuariosPage from "./pages/UsuariosPage";
 import SeguridadPage from "./pages/SeguridadPage";
 
-function Protected({ children }: { children: React.ReactNode }) {
+function Protected({ children, adminOnly = false }: { children: React.ReactNode; adminOnly?: boolean }) {
   const { user, loading } = useAuth();
   if (loading) return <div className="login-screen" />;
   if (!user) return <Navigate to="/login" replace />;
+  if (adminOnly && user.rol !== "ADMINISTRADOR") return <Navigate to="/" replace />;
   return <Layout>{children}</Layout>;
 }
 
@@ -31,7 +32,7 @@ export default function App() {
       <Route path="/asignaciones" element={<Protected><AsignacionesPage /></Protected>} />
       <Route path="/visitas" element={<Protected><VisitasPage /></Protected>} />
       <Route path="/visitas/:id" element={<Protected><VisitaDetailPage /></Protected>} />
-      <Route path="/usuarios" element={<Protected><UsuariosPage /></Protected>} />
+      <Route path="/usuarios" element={<Protected adminOnly><UsuariosPage /></Protected>} />
       <Route path="/seguridad" element={<Protected><SeguridadPage /></Protected>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

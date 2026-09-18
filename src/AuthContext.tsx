@@ -16,9 +16,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const ensureAdmin = (account: any) => {
-    if (account?.rol !== "ADMINISTRADOR") {
-      throw new Error("Este panel es exclusivo para administradores.");
+  // El panel web es para Administrador (control total) y Supervisor/Auditor de Agencia
+  // (mapa en vivo, banco de clientes, evidencias y fichas). El Auditor de Campo opera
+  // exclusivamente desde la app móvil (el backend ya rechaza su login aquí).
+  const ensureAccesoWeb = (account: any) => {
+    if (account?.rol !== "ADMINISTRADOR" && account?.rol !== "SUPERVISOR") {
+      throw new Error("Este panel es para administradores y supervisores.");
     }
   };
 
@@ -28,7 +31,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!token) { setLoading(false); return; }
       try {
         const data: any = await request("/api/auth/me");
-        ensureAdmin(data.user);
+        ensureAccesoWeb(data.user);
         setUser(data.user);
       } catch {
         clearToken();
@@ -43,7 +46,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     login: async (username, password) => {
       const data: any = await request("/api/auth/login", { method: "POST", body: JSON.stringify({ username, password }) });
       if (!data.mfaRequired && !data.mfaEnrollmentRequired) {
-        ensureAdmin(data.user);
+        ensureAccesoWeb(data.user);
         setToken(data.token);
         setUser(data.user);
       }
@@ -54,7 +57,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         enroll ? "/api/auth/mfa/enroll/confirm" : "/api/auth/mfa/verify",
         { method: "POST", body: JSON.stringify({ challengeToken, code }) },
       );
-      ensureAdmin(data.user);
+      ensureAccesoWeb(data.user);
       setToken(data.token);
       setUser(data.user);
     },
