@@ -19,7 +19,7 @@ export default function VisitasPage() {
   const [soloAlertas, setSoloAlertas] = useState(false);
 
   useEffect(() => {
-    request("/api/usuarios").then((r: any) => setAuditores(r.data.filter((u: any) => u.rol === "AUDITOR" || u.rol === "SUPERVISOR"))).catch(() => {});
+    request("/api/usuarios/auditores").then((r: any) => setAuditores(r.data)).catch(() => {});
   }, []);
 
   const query = useMemo(() => {

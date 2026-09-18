@@ -16,12 +16,12 @@ export default function AsignacionesPage() {
   const load = async () => {
     setLoading(true);
     try {
-      const [usuarios, expedientes, asigs]: any[] = await Promise.all([
-        request("/api/usuarios"),
+      const [auditores, expedientes, asigs]: any[] = await Promise.all([
+        request("/api/usuarios/auditores"),
         request("/api/expedientes?estado=PENDIENTE&limit=200"),
         request("/api/asignaciones?limit=100"),
       ]);
-      setAuditores(usuarios.data.filter((u: any) => u.rol === "AUDITOR" && u.estado === "ACTIVO"));
+      setAuditores(auditores.data);
       setExpedientesDisponibles(expedientes.data);
       setAsignaciones(asigs.data);
     } catch (e: any) { setError(e.message); } finally { setLoading(false); }
