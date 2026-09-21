@@ -225,7 +225,6 @@ export default function SeguimientoPage() {
     return mapa;
   }, [asignaciones, ubicaciones]);
   const todosLosAuditores = useMemo(() => Array.from(auditorPorId.values()), [auditorPorId]);
-  const activos = useMemo(() => todosLosAuditores.filter((u) => u.enVivo), [todosLosAuditores]);
   const polyline = useMemo<[number, number][]>(() => ruta.map((p) => [p.latitud, p.longitud]), [ruta]);
 
   const auditorSeleccionado = (seleccionado && auditorPorId.get(seleccionado)?.enVivo ? auditorPorId.get(seleccionado) : null) || null;
