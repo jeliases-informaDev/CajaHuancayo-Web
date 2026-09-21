@@ -12,6 +12,7 @@ import VisitasPage from "./pages/VisitasPage";
 import VisitaDetailPage from "./pages/VisitaDetailPage";
 import UsuariosPage from "./pages/UsuariosPage";
 import SeguridadPage from "./pages/SeguridadPage";
+import PrivacyPage from "./pages/PrivacyPage";
 
 function Protected({ children, adminOnly = false }: { children: React.ReactNode; adminOnly?: boolean }) {
   const { user, loading } = useAuth();
@@ -25,6 +26,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/privacidad" element={<PrivacyPage />} />
       <Route path="/" element={<Protected><DashboardPage /></Protected>} />
       <Route path="/seguimiento" element={<Protected><SeguimientoPage /></Protected>} />
       <Route path="/expedientes" element={<Protected><ExpedientesPage /></Protected>} />
