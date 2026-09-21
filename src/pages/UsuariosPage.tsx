@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { request } from "../api";
-import { Badge, Button, Card, Field, Loading } from "../components/ui";
+import { Badge, Button, Card, Field, SkeletonTable } from "../components/ui";
 
-const emptyForm = { username: "", password: "", rol: "AUDITOR", nombres: "", apellidos: "", email: "" };
+const emptyForm = { username: "", password: "", rol: "AUDITOR", nombres: "", apellidos: "", email: "", departamento: "" };
 
 export default function UsuariosPage() {
   const [data, setData] = useState<any[]>([]);
@@ -66,13 +66,27 @@ export default function UsuariosPage() {
               <Field label="Email"><input value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></Field>
               <Field label="Nombres"><input value={form.nombres} onChange={(e) => setForm({ ...form, nombres: e.target.value })} /></Field>
               <Field label="Apellidos"><input value={form.apellidos} onChange={(e) => setForm({ ...form, apellidos: e.target.value })} /></Field>
+              {form.rol === "AUDITOR" ? (
+                <Field label="Departamento donde trabaja">
+                  <input
+                    value={form.departamento}
+                    onChange={(e) => setForm({ ...form, departamento: e.target.value })}
+                    placeholder="Ej. Junín, Lima"
+                  />
+                </Field>
+              ) : null}
             </div>
+            {form.rol === "AUDITOR" ? (
+              <p className="muted" style={{ fontSize: 11.5, marginTop: -6, marginBottom: 12 }}>
+                Si lo dejas vacío, el sistema no podrá impedir que le asignen clientes de otra ciudad.
+              </p>
+            ) : null}
             <Button type="submit" title={saving ? "Creando…" : "Crear usuario"} disabled={saving} />
           </form>
         ) : null}
       </Card>
       <Card>
-        {loading ? <Loading /> : (
+        {loading ? <SkeletonTable rows={6} cols={5} /> : (
           <table>
             <thead><tr><th>Usuario</th><th>Nombre</th><th>Rol</th><th>Estado</th><th></th></tr></thead>
             <tbody>

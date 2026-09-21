@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { API_URL, getToken, request } from "../api";
-import { Badge, Button, Card, Field, Loading } from "../components/ui";
+import { Badge, Button, Card, Empty, Field, SkeletonTable } from "../components/ui";
 
 const emptyForm = {
   codigo_expediente: "", tipo_credito: "CONSUMO", oficina: "",
@@ -72,7 +72,12 @@ export default function ExpedientesPage() {
       {error ? <div className="error-box">{error}</div> : null}
       <Card>
         <div className="row" style={{ justifyContent: "space-between" }}>
-          <input placeholder="Buscar por código, cliente, documento o asesor…" value={search} onChange={(e) => setSearch(e.target.value)} style={{ minWidth: 320, border: "1px solid var(--border)", borderRadius: 10, padding: "9px 11px" }} />
+          <input
+            placeholder="Buscar por código, cliente, documento o asesor…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            style={{ flex: "1 1 260px", minWidth: 0, maxWidth: 420, border: "1px solid var(--border)", borderRadius: 10, padding: "10px 13px", minHeight: 40, fontFamily: "inherit", fontSize: 13.5 }}
+          />
           <div className="row">
             <label className="btn ghost" style={{ cursor: "pointer" }}>
               {importing ? "Importando…" : "Importar Excel"}
@@ -117,8 +122,12 @@ export default function ExpedientesPage() {
         </Card>
       ) : null}
 
-      <Card>
-        {loading ? <Loading /> : (
+      {loading ? (
+        <Card><SkeletonTable rows={7} cols={6} /></Card>
+      ) : !data.length ? (
+        <Empty title="Sin expedientes" text="Importa un Excel o crea uno manualmente para empezar." />
+      ) : (
+        <Card>
           <table>
             <thead><tr><th>Código</th><th>Cliente</th><th>Tipo</th><th>Distrito</th><th>Asesor</th><th>Estado</th></tr></thead>
             <tbody>
@@ -132,11 +141,10 @@ export default function ExpedientesPage() {
                   <td><Badge label={item.estado} /></td>
                 </tr>
               ))}
-              {!data.length ? <tr><td colSpan={6} className="muted">Sin expedientes. Importa un Excel o crea uno manualmente.</td></tr> : null}
             </tbody>
           </table>
-        )}
-      </Card>
+        </Card>
+      )}
     </>
   );
 }

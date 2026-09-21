@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { request } from "../api";
-import { Badge, Button, Card, Field, Loading } from "../components/ui";
+import { Badge, Button, Card, Empty, Field, Skeleton, SkeletonTable } from "../components/ui";
 
 export default function AsignacionesPage() {
   const [auditores, setAuditores] = useState<any[]>([]);
@@ -52,7 +52,22 @@ export default function AsignacionesPage() {
         <p>Arma la muestra de expedientes que cada auditor debe visitar.</p>
       </div>
       {error ? <div className="error-box">{error}</div> : null}
-      {loading ? <Loading /> : (
+      {loading ? (
+        <>
+          <Card>
+            <p className="section-title">Nueva asignación</p>
+            <div className="grid grid-2">
+              <Skeleton height={40} radius={10} />
+              <Skeleton height={40} radius={10} />
+            </div>
+            <Skeleton height={140} radius={10} style={{ display: "block", marginTop: 6 }} />
+          </Card>
+          <Card>
+            <p className="section-title">Asignaciones actuales</p>
+            <SkeletonTable rows={6} cols={5} />
+          </Card>
+        </>
+      ) : (
         <>
           <Card>
             <p className="section-title">Nueva asignación</p>
@@ -90,24 +105,27 @@ export default function AsignacionesPage() {
             <Button title={saving ? "Asignando…" : "Asignar seleccionados"} onClick={asignar} disabled={saving} />
           </Card>
 
-          <Card>
-            <p className="section-title">Asignaciones actuales</p>
-            <table>
-              <thead><tr><th>Expediente</th><th>Auditor</th><th>Prioridad</th><th>Estado</th><th></th></tr></thead>
-              <tbody>
-                {asignaciones.map((a) => (
-                  <tr key={a.id_asignacion}>
-                    <td>{a.expediente?.codigo_expediente} · {a.expediente?.nombres_cliente}</td>
-                    <td>{a.auditor?.nombres || a.auditor?.username}</td>
-                    <td><Badge label={a.prioridad} /></td>
-                    <td><Badge label={a.estado} /></td>
-                    <td>{a.estado === "ACTIVA" ? <Button kind="ghost" title="Cancelar" onClick={() => cancelar(a.id_asignacion)} /> : null}</td>
-                  </tr>
-                ))}
-                {!asignaciones.length ? <tr><td colSpan={5} className="muted">Sin asignaciones todavía.</td></tr> : null}
-              </tbody>
-            </table>
-          </Card>
+          {!asignaciones.length ? (
+            <Empty title="Sin asignaciones" text="Arma una muestra arriba y asígnala a un auditor para empezar." />
+          ) : (
+            <Card>
+              <p className="section-title">Asignaciones actuales</p>
+              <table>
+                <thead><tr><th>Expediente</th><th>Auditor</th><th>Prioridad</th><th>Estado</th><th></th></tr></thead>
+                <tbody>
+                  {asignaciones.map((a) => (
+                    <tr key={a.id_asignacion}>
+                      <td>{a.expediente?.codigo_expediente} · {a.expediente?.nombres_cliente}</td>
+                      <td>{a.auditor?.nombres || a.auditor?.username}</td>
+                      <td><Badge label={a.prioridad} /></td>
+                      <td><Badge label={a.estado} /></td>
+                      <td>{a.estado === "ACTIVA" ? <Button kind="ghost" title="Cancelar" onClick={() => cancelar(a.id_asignacion)} /> : null}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </Card>
+          )}
         </>
       )}
     </>

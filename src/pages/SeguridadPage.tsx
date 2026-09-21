@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { request } from "../api";
-import { Card, Loading } from "../components/ui";
+import { Card, SkeletonKpis, SkeletonTable } from "../components/ui";
 
 export default function SeguridadPage() {
   const [metricas, setMetricas] = useState<any>(null);
@@ -23,13 +23,21 @@ export default function SeguridadPage() {
         <h1>Seguridad</h1>
         <p>Registro inmutable de operaciones y accesos (últimas 24 h y log reciente).</p>
       </div>
-      {loading ? <Loading /> : (
+      {loading ? (
+        <>
+          <SkeletonKpis />
+          <Card>
+            <p className="section-title">Log de auditoría reciente</p>
+            <SkeletonTable rows={8} cols={7} />
+          </Card>
+        </>
+      ) : (
         <>
           <div className="grid grid-4">
-            <Card><div className="value">{metricas?.total_eventos}</div><div className="label">Eventos (24 h)</div></Card>
-            <Card><div className="value">{metricas?.errores}</div><div className="label">Errores (24 h)</div></Card>
-            <Card><div className="value">{metricas?.fallos_autenticacion}</div><div className="label">Fallos de login</div></Card>
-            <Card><div className="value">{metricas?.cuentas_bloqueadas}</div><div className="label">Cuentas bloqueadas</div></Card>
+            <Card className="kpi"><div className="value">{metricas?.total_eventos}</div><div className="label">Eventos (24 h)</div></Card>
+            <Card className="kpi"><div className="value">{metricas?.errores}</div><div className="label">Errores (24 h)</div></Card>
+            <Card className="kpi"><div className="value">{metricas?.fallos_autenticacion}</div><div className="label">Fallos de login</div></Card>
+            <Card className="kpi"><div className="value">{metricas?.cuentas_bloqueadas}</div><div className="label">Cuentas bloqueadas</div></Card>
           </div>
           <Card>
             <p className="section-title">Log de auditoría reciente</p>

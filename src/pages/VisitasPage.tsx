@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { request } from "../api";
-import { Badge, Card, Field, Loading } from "../components/ui";
+import { Badge, Card, Empty, Field, SkeletonTable } from "../components/ui";
 
 const RESULTADOS = ["CONFORME", "OBSERVADO", "NO_UBICADO", "RECHAZADO"];
 
@@ -75,8 +75,12 @@ export default function VisitasPage() {
           </Field>
         </div>
       </Card>
-      <Card>
-        {loading ? <Loading /> : (
+      {loading ? (
+        <Card><SkeletonTable rows={7} cols={6} /></Card>
+      ) : !data.length ? (
+        <Empty title="Sin visitas" text="No hay visitas registradas para estos filtros. Prueba ajustándolos." />
+      ) : (
+        <Card>
           <table>
             <thead><tr><th>Fecha</th><th>Expediente</th><th>Auditor</th><th>Resultado</th><th>Distancia</th><th>Señales</th></tr></thead>
             <tbody>
@@ -90,11 +94,10 @@ export default function VisitasPage() {
                   <td>{v.mock_location ? <span className="alert-chip">FAKE GPS</span> : null}{!v.device_integrity_ok ? <span className="alert-chip">DISPOSITIVO</span> : null}{!v.evidencias?.length ? <span className="alert-chip">SIN FOTOS</span> : null}</td>
                 </tr>
               ))}
-              {!data.length ? <tr><td colSpan={6} className="muted">Sin visitas para estos filtros.</td></tr> : null}
             </tbody>
           </table>
-        )}
-      </Card>
+        </Card>
+      )}
     </>
   );
 }
