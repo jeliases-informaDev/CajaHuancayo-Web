@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { request } from "../api";
 import { Card, SkeletonKpis, SkeletonTable } from "../components/ui";
 
@@ -7,6 +7,7 @@ export default function SeguridadPage() {
   const [logs, setLogs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [expandido, setExpandido] = useState<string | null>(null);
 
   useEffect(() => {
     Promise.all([request("/api/seguridad/metricas"), request("/api/seguridad/auditoria?limit=50")])
@@ -41,20 +42,51 @@ export default function SeguridadPage() {
           </div>
           <Card>
             <p className="section-title">Log de auditoría reciente</p>
+            <p style={{ fontSize: 12, color: "var(--muted)", marginTop: -8, marginBottom: 10 }}>
+              Las filas con un cambio de negocio (crear/editar/eliminar usuarios, expedientes o asignaciones) se pueden expandir para ver el valor anterior y el nuevo.
+            </p>
             <table>
-              <thead><tr><th>Fecha</th><th>Actor</th><th>Rol</th><th>Método</th><th>Ruta</th><th>HTTP</th><th>IP</th></tr></thead>
+              <thead><tr><th></th><th>Fecha</th><th>Actor</th><th>Rol</th><th>Método</th><th>Ruta</th><th>HTTP</th><th>IP</th></tr></thead>
               <tbody>
-                {logs.map((log) => (
-                  <tr key={log.id_auditoria}>
-                    <td>{new Date(log.fecha).toLocaleString("es-PE")}</td>
-                    <td>{log.actor || "anónimo"}</td>
-                    <td>{log.rol || "-"}</td>
-                    <td>{log.metodo}</td>
-                    <td style={{ maxWidth: 260, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{log.ruta}</td>
-                    <td style={{ color: log.estado_http >= 400 ? "var(--danger)" : "var(--success)" }}>{log.estado_http}</td>
-                    <td>{log.ip_address || "-"}</td>
-                  </tr>
-                ))}
+                {logs.map((log) => {
+                  const tieneDiff = Boolean(log.entidad);
+                  const abierto = expandido === log.id_auditoria;
+                  return (
+                    <Fragment key={log.id_auditoria}>
+                      <tr
+                        onClick={() => tieneDiff && setExpandido(abierto ? null : log.id_auditoria)}
+                        style={{ cursor: tieneDiff ? "pointer" : "default" }}
+                      >
+                        <td style={{ color: "var(--primary)", fontWeight: 800 }}>{tieneDiff ? (abierto ? "▾" : "▸") : ""}</td>
+                        <td>{new Date(log.fecha).toLocaleString("es-PE")}</td>
+                        <td>{log.actor || "anónimo"}</td>
+                        <td>{log.rol || "-"}</td>
+                        <td>{log.metodo}</td>
+                        <td style={{ maxWidth: 260, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {log.ruta}{tieneDiff ? ` · ${log.entidad} #${log.entidad_id}` : ""}
+                        </td>
+                        <td style={{ color: log.estado_http >= 400 ? "var(--danger)" : "var(--success)" }}>{log.estado_http}</td>
+                        <td>{log.ip_address || "-"}</td>
+                      </tr>
+                      {abierto ? (
+                        <tr>
+                          <td colSpan={8} style={{ background: "var(--bg)" }}>
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, padding: "10px 4px" }}>
+                              <div>
+                                <p style={{ fontSize: 11, fontWeight: 800, color: "var(--muted)", textTransform: "uppercase", marginBottom: 4 }}>Valor anterior</p>
+                                <pre style={{ fontSize: 11.5, whiteSpace: "pre-wrap", margin: 0 }}>{log.valor_anterior ? JSON.stringify(log.valor_anterior, null, 2) : "(no existía)"}</pre>
+                              </div>
+                              <div>
+                                <p style={{ fontSize: 11, fontWeight: 800, color: "var(--muted)", textTransform: "uppercase", marginBottom: 4 }}>Valor nuevo</p>
+                                <pre style={{ fontSize: 11.5, whiteSpace: "pre-wrap", margin: 0 }}>{log.valor_nuevo ? JSON.stringify(log.valor_nuevo, null, 2) : "(eliminado)"}</pre>
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      ) : null}
+                    </Fragment>
+                  );
+                })}
               </tbody>
             </table>
           </Card>
