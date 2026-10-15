@@ -281,3 +281,33 @@ tr.clickable:hover { background: var(--surface2); }
   .content { padding: 16px 12px 30px; }
   .card { padding: 16px; border-radius: var(--radius-md); }
 }
+
+/* ---------- Pestañas y piezas de la ficha ---------- */
+.tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--border); margin: 0 0 16px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.tab { background: none; border: none; border-bottom: 2.5px solid transparent; padding: 10px 14px; font: inherit; font-size: 13px; font-weight: 700; color: var(--muted); cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; gap: 7px; }
+.tab:hover { color: var(--text); }
+.tab.on { color: var(--primary); border-bottom-color: var(--primary); }
+.tab .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--warning); }
+.tag { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 8px; font-size: 10.5px; font-weight: 800; letter-spacing: 0.2px; }
+.tag.base { background: #eaf1ff; color: var(--info); }
+.tag.campo { background: #eafbf5; color: var(--success); }
+.tag.aviso { background: #fff6e5; color: #b97500; }
+.tag.alerta { background: #fff1f2; color: var(--danger); }
+.callout { border-radius: var(--radius-sm); padding: 11px 14px; font-size: 12.5px; font-weight: 600; margin-bottom: 12px; line-height: 1.45; }
+.callout.aviso { background: #fff6e5; color: #8a5a00; }
+.callout.info { background: #eaf1ff; color: #1d4fb0; }
+.callout.ok { background: #eafbf5; color: #0a7a56; }
+.fieldgrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 28px; }
+@media (max-width: 760px) { .fieldgrid { grid-template-columns: 1fr; } }
+.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.subtle { color: var(--muted); font-size: 12px; }
+table.compact { min-width: 0; font-size: 12px; }
+table.compact th, table.compact td { padding: 6px 8px; }
+tr.strong td { font-weight: 800; background: var(--surface2); }
+.timeline { list-style: none; margin: 0; padding: 0 0 0 4px; }
+.timeline li { position: relative; padding: 0 0 14px 22px; border-left: 2px solid var(--border); margin-left: 6px; font-size: 12.5px; }
+.timeline li::before { content: ""; position: absolute; left: -7px; top: 2px; width: 12px; height: 12px; border-radius: 50%; background: var(--primary); border: 2px solid var(--surface); }
+.timeline li:last-child { border-left-color: transparent; padding-bottom: 0; }
+.timeline .when { color: var(--muted); font-size: 11.5px; font-weight: 600; }
+.diff-old { color: var(--danger); text-decoration: line-through; }
+.diff-new { color: var(--success); font-weight: 700; }

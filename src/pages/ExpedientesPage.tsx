@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { API_URL, getToken, request } from "../api";
 import { Badge, Button, Card, Empty, Field, SkeletonTable } from "../components/ui";
+import { ADVERTENCIAS, fechaHora } from "../lib/format";
 
 const emptyForm = {
   codigo_expediente: "", tipo_credito: "CONSUMO", oficina: "",
@@ -21,17 +22,25 @@ export default function ExpedientesPage() {
   const [error, setError] = useState("");
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<any>(null);
+  const [tipo, setTipo] = useState("");
+  const [sinUbicacion, setSinUbicacion] = useState(false);
+  const [historial, setHistorial] = useState<any[] | null>(null);
 
   const load = async () => {
     setLoading(true);
     try {
-      const q = new URLSearchParams({ limit: "50", ...(search ? { search } : {}) });
+      const q = new URLSearchParams({ limit: "50", ...(search ? { search } : {}), ...(tipo ? { tipo_credito: tipo } : {}), ...(sinUbicacion ? { sin_ubicacion: "true" } : {}) });
       const r: any = await request(`/api/expedientes?${q}`);
       setData(r.data); setTotal(r.pagination.total);
     } catch (e: any) { setError(e.message); } finally { setLoading(false); }
   };
 
-  useEffect(() => { load(); }, [search]);
+  useEffect(() => { load(); }, [search, tipo, sinUbicacion]);
+
+  const verHistorial = async () => {
+    if (historial) { setHistorial(null); return; }
+    try { const r: any = await request("/api/expedientes/importaciones?limit=15"); setHistorial(r.data); } catch (e: any) { setError(e.message); }
+  };
 
   const crear = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -86,9 +95,56 @@ export default function ExpedientesPage() {
             <Button title={showForm ? "Cancelar" : "Nuevo expediente"} onClick={() => setShowForm((v) => !v)} />
           </div>
         </div>
+        <div className="row" style={{ marginTop: 12 }}>
+          <button type="button" className={`tag ${tipo === "" ? "base" : ""}`} style={{ border: "1px solid var(--border)", cursor: "pointer" }} onClick={() => setTipo("")}>Todos</button>
+          <button type="button" className={`tag ${tipo === "OTROS" ? "aviso" : ""}`} style={{ border: "1px solid var(--border)", cursor: "pointer" }} onClick={() => setTipo(tipo === "OTROS" ? "" : "OTROS")}>MYPE (Otros)</button>
+          <button type="button" className={`tag ${tipo === "CONSUMO" ? "base" : ""}`} style={{ border: "1px solid var(--border)", cursor: "pointer" }} onClick={() => setTipo(tipo === "CONSUMO" ? "" : "CONSUMO")}>Consumo</button>
+          <button type="button" className={`tag ${sinUbicacion ? "alerta" : ""}`} style={{ border: "1px solid var(--border)", cursor: "pointer" }} onClick={() => setSinUbicacion((v) => !v)}>Sin coordenadas</button>
+          <button type="button" className="tag" style={{ border: "1px solid var(--border)", cursor: "pointer", marginLeft: "auto" }} onClick={verHistorial}>{historial ? "Ocultar importaciones" : "Historial de importaciones"}</button>
+        </div>
         {importResult ? (
-          <div className="error-box" style={{ background: "#eafbf5", color: "var(--success)" }}>
-            Import: {importResult.insertadas} nuevos, {importResult.actualizadas} actualizados, {importResult.omitidas} omitidos, {importResult.errores} con error.
+          <div style={{ marginTop: 12 }}>
+            <div className="callout ok">
+              Importación terminada ({importResult.formato === "CORE_262" ? "base MYPE del core" : "plantilla simple"}): {importResult.insertadas} nuevos · {importResult.actualizadas} actualizados · {importResult.sin_cambios ?? 0} sin cambios · {importResult.omitidas} omitidos · {importResult.errores} con error.
+            </div>
+            {Object.keys(importResult.advertencias || {}).length ? (
+              <div className="callout aviso">
+                <b>Avisos de calidad del dato</b>
+                {Object.entries(importResult.advertencias).map(([codigo, cantidad]: any) => (
+                  <div key={codigo}>• {cantidad} fila(s): {ADVERTENCIAS[codigo] || codigo}</div>
+                ))}
+              </div>
+            ) : null}
+            {importResult.detalle?.filter((d: any) => d.resultado === "ERROR" || d.resultado === "OMITIDA").length ? (
+              <details>
+                <summary className="subtle" style={{ cursor: "pointer" }}>Ver filas omitidas o con error</summary>
+                <table className="compact" style={{ marginTop: 8 }}>
+                  <thead><tr><th>Hoja</th><th>Fila</th><th>Crédito</th><th>Resultado</th><th>Motivo</th></tr></thead>
+                  <tbody>
+                    {importResult.detalle.filter((d: any) => d.resultado === "ERROR" || d.resultado === "OMITIDA").slice(0, 30).map((d: any, i: number) => (
+                      <tr key={i}><td>{d.hoja}</td><td>{d.fila}</td><td>{d.codigo || "-"}</td><td>{d.resultado}</td><td>{d.motivo}</td></tr>
+                    ))}
+                  </tbody>
+                </table>
+              </details>
+            ) : null}
+          </div>
+        ) : null}
+        {historial ? (
+          <div style={{ marginTop: 12 }}>
+            <table className="compact">
+              <thead><tr><th>Fecha</th><th>Archivo</th><th>Por</th><th className="num">Filas</th><th className="num">Nuevos</th><th className="num">Actualiz.</th><th className="num">Omitidos</th><th className="num">Errores</th><th>Huella</th></tr></thead>
+              <tbody>
+                {historial.map((h) => (
+                  <tr key={h.id_importacion}>
+                    <td>{fechaHora(h.fecha_creacion)}</td><td>{h.archivo}</td><td>{h.actor || "-"}</td><td className="num">{h.total_filas}</td>
+                    <td className="num">{h.insertadas}</td><td className="num">{h.actualizadas}</td><td className="num">{h.omitidas}</td><td className="num">{h.errores}</td>
+                    <td><code style={{ fontSize: 11 }}>{h.archivo_sha256 ? h.archivo_sha256.slice(0, 10) : "-"}</code></td>
+                  </tr>
+                ))}
+                {!historial.length ? <tr><td colSpan={9} className="subtle">Aún no hay importaciones.</td></tr> : null}
+              </tbody>
+            </table>
           </div>
         ) : null}
       </Card>
@@ -129,15 +185,16 @@ export default function ExpedientesPage() {
       ) : (
         <Card>
           <table>
-            <thead><tr><th>Código</th><th>Cliente</th><th>Tipo</th><th>Distrito</th><th>Asesor</th><th>Estado</th></tr></thead>
+            <thead><tr><th>Código</th><th>Cliente</th><th>Tipo</th><th>Distrito</th><th>Asesor</th><th>Ubicación</th><th>Estado</th></tr></thead>
             <tbody>
               {data.map((item) => (
                 <tr key={item.id_expediente} className="clickable" onClick={() => navigate(`/expedientes/${item.id_expediente}`)}>
                   <td>{item.codigo_expediente}</td>
                   <td>{item.nombres_cliente}</td>
-                  <td>{item.tipo_credito}</td>
+                  <td><span className={`tag ${item.tipo_credito === "OTROS" ? "aviso" : "base"}`}>{item.tipo_credito === "OTROS" ? "MYPE" : "Consumo"}</span></td>
                   <td>{item.distrito || "-"}</td>
                   <td>{item.asesor_responsable}</td>
+                  <td>{item.latitud != null && item.longitud != null ? <span className="tag campo">Con coordenadas</span> : <span className="tag alerta">Sin coordenadas</span>}</td>
                   <td><Badge label={item.estado} /></td>
                 </tr>
               ))}

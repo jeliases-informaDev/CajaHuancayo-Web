@@ -109,3 +109,22 @@ export function SkeletonTable({ rows = 5, cols = 4 }: { rows?: number; cols?: nu
     </table>
   );
 }
+
+// Pestañas simples: cada formulario/ficha se muestra por secciones, no en una sola página larga.
+export function Tabs({ tabs, value, onChange }: { tabs: { id: string; label: string; badge?: boolean }[]; value: string; onChange: (id: string) => void }) {
+  return (
+    <div className="tabs" role="tablist">
+      {tabs.map((t) => (
+        <button key={t.id} type="button" role="tab" aria-selected={value === t.id} className={`tab${value === t.id ? " on" : ""}`} onClick={() => onChange(t.id)}>
+          {t.label}
+          {t.badge ? <span className="dot" aria-label="con avisos" /> : null}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// Marca el origen de un dato: lo trajo la base de Caja Huancayo o lo registró el auditor en campo.
+export function Origen({ tipo }: { tipo: "base" | "campo" }) {
+  return <span className={`tag ${tipo}`}>{tipo === "base" ? "Dato de la base" : "Verificado en campo"}</span>;
+}
