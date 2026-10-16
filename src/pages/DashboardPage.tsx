@@ -32,9 +32,10 @@ export default function DashboardPage() {
 
   return (
     <>
-      <div className="page-header">
-        <h1>Dashboard</h1>
-        <p>Resumen general de la operación de auditoría.</p>
+      <div className="hero">
+        <div className="eyebrow">{new Date().toLocaleDateString("es-PE", { weekday: "long", day: "numeric", month: "long" })}</div>
+        <h1>Resumen de la operación</h1>
+        <p>Seguimiento de la muestra, las visitas en campo y las observaciones que requieren tu revisión.</p>
       </div>
       {!stats ? (
         <>
@@ -47,10 +48,10 @@ export default function DashboardPage() {
       ) : (
         <>
           <div className="grid grid-4">
-            <Card className="kpi"><div className="value">{stats.expedientes}</div><div className="label">Expedientes totales</div></Card>
-            <Card className="kpi"><div className="value">{stats.asignacionesActivas}</div><div className="label">Asignaciones activas</div></Card>
-            <Card className="kpi"><div className="value">{stats.visitas.length}</div><div className="label">Visitas recientes</div></Card>
-            <Card className="kpi"><div className="value">{conObservaciones}</div><div className="label">Con observaciones</div></Card>
+            <Card className="kpi"><div className="kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z" /></svg></div><div className="value">{stats.expedientes}</div><div className="label">Expedientes totales</div></Card>
+            <Card className="kpi"><div className="kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="5" y="4" width="14" height="17" rx="2.2" /><path d="M9 4h6v3H9zM9 14l2 2 4-4" /></svg></div><div className="value">{stats.asignacionesActivas}</div><div className="label">Asignaciones activas</div></Card>
+            <Card className="kpi"><div className="kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><path d="M8 12.5l2.7 2.7L16 9.8" /></svg></div><div className="value">{stats.visitas.length}</div><div className="label">Visitas recientes</div></Card>
+            <Card className="kpi"><div className="kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l9.5 17h-19L12 3z" /><path d="M12 10v4.5M12 17.5v.01" /></svg></div><div className="value">{conObservaciones}</div><div className="label">Con observaciones</div></Card>
           </div>
           {!stats.visitas.length ? (
             <Empty title="Sin visitas todavía" text="Cuando los auditores registren visitas en campo, aparecerán aquí." />

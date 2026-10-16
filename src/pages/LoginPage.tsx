@@ -57,6 +57,22 @@ export default function LoginPage() {
 
   return (
     <div className="login-screen">
+      <section className="login-hero" aria-hidden="true">
+        <div className="brand">
+          <div className="mark">CH</div>
+          <div><b>Auditoría de Visitas</b><span>CAJA HUANCAYO</span></div>
+        </div>
+        <div>
+          <h2>Cada visita, <em>verificada</em> y trazable.</h2>
+          <ul>
+            <li><i>◎</i><span>Ubicación y dispositivo validados en cada visita, con detección de GPS falso.</span></li>
+            <li><i>✎</i><span>Fichas de entrevista MYPE y Consumo, con firma del cliente y fotos como evidencia.</span></li>
+            <li><i>⌁</i><span>Del archivo de origen a la ficha cerrada: todo el camino del dato queda registrado.</span></li>
+          </ul>
+        </div>
+        <small>Plataforma de control interno · acceso solo para personal autorizado</small>
+      </section>
+      <div className="login-panel">
       <form className="login-card" onSubmit={submit}>
         <h1 className="login-title">{challenge ? "Verificación" : "Panel de Administración"}</h1>
         <p className="login-sub">
@@ -105,6 +121,7 @@ export default function LoginPage() {
         {error ? <div className="error-box">{error}</div> : null}
         <Button type="submit" title={busy ? "Validando…" : challenge ? "Verificar acceso" : "Ingresar"} disabled={busy} />
       </form>
+      </div>
     </div>
   );
 }
