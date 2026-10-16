@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { request } from "../api";
-import { Badge, Empty, Skeleton } from "../components/ui";
+import { Badge, Empty, Field, Skeleton } from "../components/ui";
 import { ActionMenu, Drawer, Seg } from "../components/kit";
 import { dash, fechaHora } from "../lib/format";
+import { useQueryParam } from "../lib/useQueryParam";
 
 const emptyForm = { username: "", password: "", rol: "AUDITOR", nombres: "", apellidos: "", email: "", departamento: "" };
 const nombreDe = (u: any) => `${u.nombres || ""} ${u.apellidos || ""}`.trim();
@@ -15,14 +16,19 @@ export default function UsuariosPage() {
   const [nuevo, setNuevo] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
-  const [rol, setRol] = useState<string>("");
-  const [busqueda, setBusqueda] = useState("");
+  const [rol, setRol] = useQueryParam("rol");
+  const [busqueda, setBusqueda] = useQueryParam("q");
 
   const cargar = async () => {
     try { const r: any = await request("/api/usuarios"); setData(r.data); setError(""); }
     catch (e: any) { setError(e.message); } finally { setLoading(false); }
   };
   useEffect(() => { cargar(); }, []);
+
+  const cerrarNuevo = () => {
+    if (JSON.stringify(form) !== JSON.stringify(emptyForm) && !window.confirm("Hay datos sin guardar. ¿Cerrar y descartarlos?")) return;
+    setNuevo(false); setForm(emptyForm);
+  };
 
   const crear = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,7 +51,7 @@ export default function UsuariosPage() {
   );
 
   const campo = (k: keyof typeof emptyForm, etiqueta: string, tipo = "text", extra: Partial<React.InputHTMLAttributes<HTMLInputElement>> = {}) => (
-    <div className="field"><label>{etiqueta}</label><input type={tipo} value={form[k]} onChange={(e) => setForm({ ...form, [k]: e.target.value })} {...extra} /></div>
+    <Field label={etiqueta}><input name={k} type={tipo} autoComplete="off" spellCheck={false} value={form[k]} onChange={(e) => setForm({ ...form, [k]: e.target.value })} {...extra} /></Field>
   );
 
   return (
@@ -57,11 +63,11 @@ export default function UsuariosPage() {
         </div>
         <div className="actions"><button className="btn" onClick={() => { setNuevo(true); setOk(""); }}>Nuevo usuario</button></div>
       </div>
-      {error ? <div className="error-box">{error}</div> : null}
-      {ok ? <div className="callout ok">{ok}</div> : null}
+      {error ? <div role="alert" className="error-box">{error}</div> : null}
+      {ok ? <div role="status" className="callout ok">{ok}</div> : null}
 
       <div className="filters">
-        <div className="fgroup grow"><label className="lbl" htmlFor="b-user">Buscar</label><input id="b-user" className="input" placeholder="Usuario, nombre o correo" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} /></div>
+        <div className="fgroup grow"><label className="lbl" htmlFor="b-user">Buscar</label><input id="b-user" name="q" type="search" autoComplete="off" spellCheck={false} className="input" placeholder="Usuario, nombre o correo…" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} /></div>
         <div className="fgroup"><span className="lbl">Rol</span>
           <Seg label="Rol" value={rol} onChange={setRol} options={[{ value: "", label: "Todos" }, { value: "AUDITOR", label: "Auditores" }, { value: "SUPERVISOR", label: "Supervisores" }, { value: "ADMINISTRADOR", label: "Administradores" }]} />
         </div>
@@ -74,7 +80,7 @@ export default function UsuariosPage() {
       ) : (
         <div className="table-wrap">
           <table>
-            <thead><tr><th>Usuario</th><th>Rol</th><th>Zona</th><th>Estado</th><th>Último acceso</th><th style={{ width: 48 }}></th></tr></thead>
+            <thead><tr><th scope="col">Usuario</th><th scope="col">Rol</th><th scope="col">Zona</th><th scope="col">Estado</th><th scope="col">Último acceso</th><th scope="col" style={{ width: 48 }}></th></tr></thead>
             <tbody>
               {visibles.map((u) => (
                 <tr key={u.id}>
@@ -87,7 +93,7 @@ export default function UsuariosPage() {
                     <ActionMenu
                       header={{ title: nombreDe(u) || u.username, sub: `@${u.username}` }}
                       items={[
-                        { label: "Liberar dispositivo", hidden: u.rol === "ADMINISTRADOR", onClick: () => accion(() => request(`/api/usuarios/${u.id}/device/reset`, { method: "POST" }), "Dispositivo liberado: podrá iniciar sesión desde otro teléfono.") },
+                        { label: "Liberar dispositivo", hidden: u.rol === "ADMINISTRADOR", onClick: () => { if (window.confirm(`¿Liberar el dispositivo de @${u.username}? Podrá iniciar sesión desde otro teléfono.`)) accion(() => request(`/api/usuarios/${u.id}/device/reset`, { method: "POST" }), "Dispositivo liberado: podrá iniciar sesión desde otro teléfono."); } },
                         { label: "Restablecer verificación en dos pasos", onClick: () => { if (window.confirm(`¿Restablecer la verificación en dos pasos de @${u.username}? Tendrá que configurarla de nuevo.`)) accion(() => request(`/api/usuarios/${u.id}/mfa/reset`, { method: "POST" }), "Verificación en dos pasos restablecida."); } },
                         u.estado === "ACTIVO"
                           ? { label: "Desactivar usuario", tone: "bad", separatorBefore: true, onClick: () => { if (window.confirm(`¿Desactivar a @${u.username}? No podrá iniciar sesión y sus casos activos se liberan.`)) accion(() => request(`/api/usuarios/${u.id}`, { method: "PATCH", body: JSON.stringify({ estado: "INACTIVO" }) }), "Usuario desactivado."); } }
@@ -103,14 +109,14 @@ export default function UsuariosPage() {
       )}
 
       {nuevo ? (
-        <Drawer title="Nuevo usuario" subtitle="La contraseña debe tener al menos 12 caracteres." onClose={() => setNuevo(false)}
-          footer={<><button className="btn ghost" onClick={() => setNuevo(false)}>Cancelar</button><button className="btn" type="submit" form="form-usuario" disabled={saving}>{saving ? "Creando…" : "Crear usuario"}</button></>}>
+        <Drawer title="Nuevo usuario" subtitle="La contraseña debe tener al menos 12 caracteres." onClose={cerrarNuevo}
+          footer={<><button className="btn ghost" onClick={cerrarNuevo}>Cancelar</button><button className="btn" type="submit" form="form-usuario" disabled={saving}>{saving ? "Creando…" : "Crear usuario"}</button></>}>
           <form id="form-usuario" onSubmit={crear}>
             {campo("username", "Usuario", "text", { required: true, autoCapitalize: "none" })}
-            {campo("password", "Contraseña", "password", { required: true, minLength: 12, autoComplete: "new-password" })}
-            <div className="field"><label>Rol</label>
-              <select value={form.rol} onChange={(e) => setForm({ ...form, rol: e.target.value })}><option value="AUDITOR">Auditor de campo</option><option value="SUPERVISOR">Supervisor</option><option value="ADMINISTRADOR">Administrador</option></select>
-            </div>
+            {campo("password", "Contraseña", "password", { required: true, minLength: 12, autoComplete: "new-password", spellCheck: false })}
+            <Field label="Rol">
+              <select name="rol" value={form.rol} onChange={(e) => setForm({ ...form, rol: e.target.value })}><option value="AUDITOR">Auditor de campo</option><option value="SUPERVISOR">Supervisor</option><option value="ADMINISTRADOR">Administrador</option></select>
+            </Field>
             {campo("nombres", "Nombres")}
             {campo("apellidos", "Apellidos")}
             {campo("email", "Correo electrónico", "email")}

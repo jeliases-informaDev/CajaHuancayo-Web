@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { request } from "../api";
-import { Badge, Button, Card, InfoRow, Loading, Tabs } from "../components/ui";
+import { Badge, Button, Card, InfoRow, Loading, TabPanel, Tabs } from "../components/ui";
+import { useQueryParam } from "../lib/useQueryParam";
 import { ClienteSeccion, CreditoSeccion, EndeudamientoSeccion, EvaluacionMype, IngresosConsumo, NegocioSeccion } from "../components/ficha/Secciones";
 import { ADVERTENCIAS, ORIGEN_UBICACION, dash, fecha, fechaHora } from "../lib/format";
 
@@ -26,9 +27,9 @@ function TodosLosCampos({ e }: { e: any }) {
     <Card>
       <p className="section-title">Todos los campos de la base ({filas.length})</p>
       {extra ? <div className="callout aviso">{extra} campo(s) vinieron en el archivo sin un destino conocido; se guardaron en «datos_credito.campos_adicionales».</div> : <div className="callout ok">Todas las columnas del archivo tienen destino: no hay campos sueltos.</div>}
-      <input placeholder="Buscar campo o valor…" value={filtro} onChange={(ev) => setFiltro(ev.target.value)} style={{ border: "1px solid var(--border)", borderRadius: 10, padding: "9px 12px", minHeight: 38, width: "100%", maxWidth: 360, fontFamily: "inherit", marginBottom: 10 }} />
+      <input className="input" type="search" name="campo" aria-label="Buscar un campo o un valor" autoComplete="off" spellCheck={false} placeholder="Buscar campo o valor…" value={filtro} onChange={(ev) => setFiltro(ev.target.value)} style={{ maxWidth: 360, marginBottom: 10 }} />
       <table className="compact">
-        <thead><tr><th>Campo</th><th>Valor</th></tr></thead>
+        <thead><tr><th scope="col">Campo</th><th scope="col">Valor</th></tr></thead>
         <tbody>{visibles.slice(0, 600).map(([k, v]) => <tr key={k}><td className="subtle">{k}</td><td>{v}</td></tr>)}</tbody>
       </table>
     </Card>
@@ -89,11 +90,11 @@ function TrazabilidadDato({ e, onSaved }: { e: any; onSaved: () => void }) {
           </div>
         ) : null}
         <div className="row" style={{ marginTop: 10 }}>
-          <input placeholder="Latitud" value={lat} onChange={(ev) => setLat(ev.target.value)} style={{ border: "1px solid var(--border)", borderRadius: 10, padding: "9px 12px", minHeight: 38, width: 150, fontFamily: "inherit" }} />
-          <input placeholder="Longitud" value={lng} onChange={(ev) => setLng(ev.target.value)} style={{ border: "1px solid var(--border)", borderRadius: 10, padding: "9px 12px", minHeight: 38, width: 150, fontFamily: "inherit" }} />
+          <input className="input" name="latitud" aria-label="Latitud" inputMode="decimal" autoComplete="off" spellCheck={false} placeholder="Ej. -12.119400…" value={lat} onChange={(ev) => setLat(ev.target.value)} style={{ width: 170 }} />
+          <input className="input" name="longitud" aria-label="Longitud" inputMode="decimal" autoComplete="off" spellCheck={false} placeholder="Ej. -77.029500…" value={lng} onChange={(ev) => setLng(ev.target.value)} style={{ width: 170 }} />
           <Button title={saving ? "Guardando…" : tieneUbicacion ? "Corregir ubicación" : "Fijar ubicación"} onClick={guardar} disabled={saving} />
         </div>
-        {error ? <div className="error-box" style={{ marginTop: 10 }}>{error}</div> : null}
+        {error ? <div role="alert" className="error-box" style={{ marginTop: 10 }}>{error}</div> : null}
       </Card>
 
       <Card>
@@ -140,7 +141,7 @@ export default function ExpedienteDetailPage() {
   const { id } = useParams();
   const [expediente, setExpediente] = useState<any>(null);
   const [error, setError] = useState("");
-  const [tab, setTab] = useState("resumen");
+  const [tab, setTab] = useQueryParam("tab", "resumen");
 
   const cargar = () => request(`/api/expedientes/${id}`).then((r: any) => setExpediente(r.data)).catch((e) => setError(e.message));
   useEffect(() => { cargar(); }, [id]);
@@ -171,7 +172,8 @@ export default function ExpedienteDetailPage() {
           </p>
         </div>
       </div>
-      <Tabs tabs={tabs} value={tab} onChange={setTab} />
+      <Tabs name="expediente" tabs={tabs} value={tab} onChange={setTab} />
+      <TabPanel name="expediente" id={tab}>
       {tab === "resumen" ? <ClienteSeccion e={expediente} /> : null}
       {tab === "credito" ? <CreditoSeccion e={expediente} /> : null}
       {tab === "negocio" && esMype ? <NegocioSeccion e={expediente} /> : null}
@@ -179,6 +181,7 @@ export default function ExpedienteDetailPage() {
       {tab === "deuda" ? <EndeudamientoSeccion e={expediente} /> : null}
       {tab === "campos" ? <TodosLosCampos e={expediente} /> : null}
       {tab === "trazabilidad" ? <TrazabilidadDato e={expediente} onSaved={cargar} /> : null}
+      </TabPanel>
     </>
   );
 }

@@ -28,7 +28,7 @@ export default function SeguridadPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  if (error) return <div className="error-box">{error}</div>;
+  if (error) return <div role="alert" className="error-box">{error}</div>;
 
   const visibles = logs.filter((l) => (!soloCambios || l.entidad) && (!soloErrores || l.estado_http >= 400));
 
@@ -59,9 +59,9 @@ export default function SeguridadPage() {
         {loading ? <Skeleton height={260} radius={3} style={{ display: "block", marginTop: 14 }} /> : !visibles.length ? (
           <Empty title="Sin registros" text="Ningún registro coincide con estos filtros." />
         ) : (
-          <div className="table-wrap">
+          <div className="table-wrap long">
             <table>
-              <thead><tr><th style={{ width: 28 }}></th><th>Fecha</th><th>Quién</th><th>Operación</th><th className="num">Resultado</th><th>IP</th></tr></thead>
+              <thead><tr><th scope="col" style={{ width: 28 }}></th><th scope="col">Fecha</th><th scope="col">Quién</th><th scope="col">Operación</th><th scope="col" className="num">Resultado</th><th scope="col">IP</th></tr></thead>
               <tbody>
                 {visibles.map((log) => {
                   const tieneDiff = Boolean(log.entidad);
@@ -69,12 +69,12 @@ export default function SeguridadPage() {
                   return (
                     <Fragment key={log.id_auditoria}>
                       <tr className={tieneDiff ? "clickable" : undefined} onClick={() => tieneDiff && setExpandido(abierto ? null : log.id_auditoria)}>
-                        <td style={{ color: "var(--blue)" }}>{tieneDiff ? (abierto ? "−" : "+") : ""}</td>
+                        <td>{tieneDiff ? <button type="button" className="kebab" aria-expanded={abierto} aria-label={abierto ? "Ocultar el detalle del cambio" : "Ver el detalle del cambio"} onClick={(e) => { e.stopPropagation(); setExpandido(abierto ? null : log.id_auditoria); }}>{abierto ? "−" : "+"}</button> : null}</td>
                         <td style={{ whiteSpace: "nowrap" }}>{fechaHora(log.fecha)}</td>
                         <td>{log.actor || "Sin sesión"}<span className="sub">{log.rol || ""}</span></td>
                         <td><span className="code">{log.metodo}</span> {log.ruta}{tieneDiff ? <span className="sub">{log.entidad} #{log.entidad_id}</span> : null}</td>
                         <td className="num"><span className={`state ${log.estado_http >= 400 ? "bad" : "ok"}`}>{log.estado_http}</span></td>
-                        <td className="code">{log.ip_address || "-"}</td>
+                        <td className="code" translate="no">{log.ip_address || "-"}</td>
                       </tr>
                       {abierto ? (
                         <tr>

@@ -81,12 +81,12 @@ export default function LoginPage() {
         {!challenge ? (
           <>
             <div className="field">
-              <label>Usuario</label>
-              <input value={username} onChange={(e) => setUsername(e.target.value)} autoCapitalize="none" autoCorrect="off" disabled={busy} />
+              <label htmlFor="login-usuario">Usuario</label>
+              <input id="login-usuario" name="username" autoComplete="username" spellCheck={false} required value={username} onChange={(e) => setUsername(e.target.value)} autoCapitalize="none" autoCorrect="off" disabled={busy} />
             </div>
             <div className="field">
-              <label>Contraseña</label>
-              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} disabled={busy} />
+              <label htmlFor="login-clave">Contraseña</label>
+              <input id="login-clave" name="password" type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} disabled={busy} />
             </div>
           </>
         ) : (
@@ -113,12 +113,12 @@ export default function LoginPage() {
               </div>
             ) : null}
             <div className="field">
-              <label>Código de 6 dígitos</label>
-              <input value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))} maxLength={6} disabled={busy} />
+              <label htmlFor="login-codigo">Código de 6 dígitos</label>
+              <input id="login-codigo" name="codigo" inputMode="numeric" autoComplete="one-time-code" spellCheck={false} pattern="[0-9]{6}" required value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))} maxLength={6} disabled={busy} />
             </div>
           </>
         )}
-        {error ? <div className="error-box">{error}</div> : null}
+        {error ? <div role="alert" className="error-box">{error}</div> : null}
         <Button type="submit" title={busy ? "Validando…" : challenge ? "Verificar acceso" : "Ingresar"} disabled={busy} />
       </form>
       </div>

@@ -95,7 +95,7 @@ h1, h2, h3, p { margin: 0; }
 .topsearch { position: relative; width: 250px; }
 .topsearch input { width: 100%; height: 34px; padding: 0 12px 0 34px; border-radius: var(--r); border: 1px solid rgba(255, 255, 255, 0.14); background: rgba(255, 255, 255, 0.07); color: #fff; font: inherit; font-size: 13px; }
 .topsearch input::placeholder { color: #8e99cc; }
-.topsearch input:focus { outline: none; background: rgba(255, 255, 255, 0.12); border-color: rgba(255, 255, 255, 0.3); }
+.topsearch input:focus-visible { outline: 2px solid #fff; outline-offset: 1px; background: rgba(255, 255, 255, 0.12); border-color: rgba(255, 255, 255, 0.3); }
 .topsearch svg { position: absolute; left: 10px; top: 9px; width: 16px; height: 16px; color: #8e99cc; }
 .usermenu { position: relative; }
 .userbtn { display: flex; align-items: center; gap: 9px; height: 36px; padding: 0 8px 0 4px; border-radius: 999px; border: 1px solid transparent; background: transparent; color: #fff; font: inherit; cursor: pointer; }
@@ -181,7 +181,7 @@ tr.strong td { font-weight: 600; background: var(--wash); }
 }
 .field textarea { height: auto; min-height: 84px; padding: 9px 11px; resize: vertical; }
 .field input::placeholder, .input::placeholder { color: var(--faint); }
-.field input:focus, .field select:focus, .field textarea:focus, .select:focus, .input:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 3px rgba(31, 63, 168, 0.14); }
+.field input:focus-visible, .field select:focus-visible, .field textarea:focus-visible, .select:focus-visible, .input:focus-visible { outline: none; border-color: var(--blue); box-shadow: 0 0 0 3px rgba(31, 63, 168, 0.22); }
 .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
 
 .filters { display: flex; flex-wrap: wrap; gap: 16px 20px; align-items: flex-end; padding: 16px 0; border-bottom: 1px solid var(--rule); }
@@ -371,3 +371,18 @@ tr.strong td { font-weight: 600; background: var(--wash); }
 @media (max-width: 480px) { .card, .panel { padding: 16px; } }
 
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+
+/* ---------- Accesibilidad y tacto ---------- */
+html { color-scheme: light; }
+button, a, [role="button"], [role="tab"], tr.clickable, .chip, .seg button, .tab, label { touch-action: manipulation; }
+.drawer, .drawer-body, .modal-body, .menu { overscroll-behavior: contain; }
+h1, h2 { text-wrap: balance; }
+h1, h2, h3, [id] { scroll-margin-top: 72px; }
+.skip-link { position: absolute; left: 12px; top: -48px; z-index: 100; padding: 10px 16px; border-radius: var(--r); background: #fff; color: var(--ink); font-weight: 600; box-shadow: 0 6px 20px rgba(15, 26, 74, 0.3); }
+.skip-link:focus { top: 10px; text-decoration: none; }
+main:focus { outline: none; }
+.tabpanel:focus-visible { outline-offset: 4px; }
+.linklike { background: none; border: none; padding: 0; font: inherit; font-weight: 500; color: var(--ink); text-align: left; cursor: pointer; }
+.linklike:hover { color: var(--blue); text-decoration: underline; text-underline-offset: 3px; }
+.table-wrap.long tbody tr { content-visibility: auto; contain-intrinsic-size: auto 56px; }
+.sr-only:focus-within { position: static; width: auto; height: auto; margin: 0; clip: auto; }

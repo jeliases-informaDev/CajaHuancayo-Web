@@ -111,8 +111,8 @@ export function CreditoSeccion({ e }: { e: any }) {
           <table className="compact">
             <thead>
               <tr>
-                <th>Línea</th><th>Tipo</th><th>Desembolso</th><th className="num">Monto</th><th>Solicitud</th><th>N.º de crédito</th>
-                <th className="num">Plazo</th><th className="num">Cuota</th><th>Condición</th><th className="num">Saldo</th><th>Asesor</th><th>Cuota más atrasada</th>
+                <th scope="col">Línea</th><th scope="col">Tipo</th><th scope="col">Desembolso</th><th scope="col" className="num">Monto</th><th scope="col">Solicitud</th><th scope="col">N.º de crédito</th>
+                <th scope="col" className="num">Plazo</th><th scope="col" className="num">Cuota</th><th scope="col">Condición</th><th scope="col" className="num">Saldo</th><th scope="col">Asesor</th><th scope="col">Cuota más atrasada</th>
               </tr>
             </thead>
             <tbody>
@@ -151,10 +151,10 @@ function Comparativo({ titulo, filas, bloque, reeval, anterior }: { titulo: stri
       <table className="compact">
         <thead>
           <tr>
-            <th>Concepto</th>
-            <th className="num">Reevaluación<br /><span className="subtle">{reeval ? `${dash(reeval.numero_evaluacion)} · ${fecha(reeval.fecha)}` : "sin evaluación"}</span></th>
-            <th className="num">Anterior<br /><span className="subtle">{anterior ? `${dash(anterior.numero_evaluacion)} · ${fecha(anterior.fecha)}` : "sin evaluación"}</span></th>
-            <th className="num">Variación</th>
+            <th scope="col">Concepto</th>
+            <th scope="col" className="num">Reevaluación<br /><span className="subtle">{reeval ? `${dash(reeval.numero_evaluacion)} · ${fecha(reeval.fecha)}` : "sin evaluación"}</span></th>
+            <th scope="col" className="num">Anterior<br /><span className="subtle">{anterior ? `${dash(anterior.numero_evaluacion)} · ${fecha(anterior.fecha)}` : "sin evaluación"}</span></th>
+            <th scope="col" className="num">Variación</th>
           </tr>
         </thead>
         <tbody>
@@ -200,12 +200,12 @@ export function EvaluacionMype({ e, conformidad }: { e: any; conformidad?: any }
           <table className="compact">
             <thead>
               <tr>
-                <th rowSpan={2}>Descripción</th><th rowSpan={2} className="num">Frec./mes</th>
-                <th colSpan={2} className="num">Días buenos</th><th colSpan={2} className="num">Días malos</th><th colSpan={2} className="num">Días estándar</th>
-                <th rowSpan={2} className="num">P. compra</th><th rowSpan={2} className="num">P. venta</th><th rowSpan={2} className="num">Total mercad.</th>
-                <th rowSpan={2} className="num">Total compras</th><th rowSpan={2} className="num">Total ventas</th>
+                <th scope="col" rowSpan={2}>Descripción</th><th scope="col" rowSpan={2} className="num">Frec./mes</th>
+                <th scope="col" colSpan={2} className="num">Días buenos</th><th scope="col" colSpan={2} className="num">Días malos</th><th scope="col" colSpan={2} className="num">Días estándar</th>
+                <th scope="col" rowSpan={2} className="num">P. compra</th><th scope="col" rowSpan={2} className="num">P. venta</th><th scope="col" rowSpan={2} className="num">Total mercad.</th>
+                <th scope="col" rowSpan={2} className="num">Total compras</th><th scope="col" rowSpan={2} className="num">Total ventas</th>
               </tr>
-              <tr><th className="num">Cant</th><th className="num">Días</th><th className="num">Cant</th><th className="num">Días</th><th className="num">Cant</th><th className="num">Días</th></tr>
+              <tr><th scope="col" className="num">Cant</th><th scope="col" className="num">Días</th><th scope="col" className="num">Cant</th><th scope="col" className="num">Días</th><th scope="col" className="num">Cant</th><th scope="col" className="num">Días</th></tr>
             </thead>
             <tbody>
               {ingresos.map((l, i) => (
@@ -240,7 +240,7 @@ export function IngresosConsumo({ e }: { e: any }) {
       <p className="section-title">Ingresos registrados en la evaluación <Origen tipo="base" /></p>
       {ingresos.length ? (
         <table className="compact">
-          <thead><tr><th>Descripción</th><th>Relación</th><th>Moneda</th><th className="num">Monto</th><th>Tipo de ingreso</th></tr></thead>
+          <thead><tr><th scope="col">Descripción</th><th scope="col">Relación</th><th scope="col">Moneda</th><th scope="col" className="num">Monto</th><th scope="col">Tipo de ingreso</th></tr></thead>
           <tbody>{ingresos.map((x, i) => <tr key={i}><td>{dash(x.descripcion)}</td><td>{dash(x.relacion)}</td><td>{dash(x.moneda)}</td><td className="num">{n2(x.monto)}</td><td>{dash(x.tipo_ingreso)}</td></tr>)}</tbody>
         </table>
       ) : <p className="subtle">Sin ingresos registrados.</p>}
@@ -252,7 +252,7 @@ export function EndeudamientoSeccion({ e }: { e: any }) {
   const d = e.endeudamiento || {};
   const tabla = (lista: any[]) => (
     <table className="compact">
-      <thead><tr><th>Entidad</th><th className="num">Saldo S/</th><th>Calificación</th><th>Tipo de crédito</th></tr></thead>
+      <thead><tr><th scope="col">Entidad</th><th scope="col" className="num">Saldo S/</th><th scope="col">Calificación</th><th scope="col">Tipo de crédito</th></tr></thead>
       <tbody>{lista.map((x, i) => <tr key={i}><td>{dash(x.entidad)}</td><td className="num">{n2(x.saldo)}</td><td>{dash(x.calificacion)}</td><td>{dash(x.tipo_credito)}</td></tr>)}</tbody>
     </table>
   );

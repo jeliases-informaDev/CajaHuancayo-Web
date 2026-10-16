@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useId } from "react";
 
 // Un estado = un color en toda la interfaz (definido en index.css: ok, warn, bad, neutral, blue, plum).
 type Tono = "ok" | "warn" | "bad" | "neutral" | "blue" | "plum";
@@ -33,8 +33,12 @@ export function Button({ title, onClick, kind = "primary", disabled, type = "but
   );
 }
 
+// La etiqueta queda asociada al control (clic en la etiqueta enfoca el campo y los lectores de pantalla la leen).
 export function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return <div className="field"><label>{label}</label>{children}</div>;
+  const generado = useId();
+  const hijo = React.isValidElement(children) ? (children as React.ReactElement<any>) : null;
+  const id = hijo?.props?.id ?? generado;
+  return <div className="field"><label htmlFor={id}>{label}</label>{hijo ? React.cloneElement(hijo, { id }) : children}</div>;
 }
 
 export function InfoRow({ k, v }: { k: string; v: React.ReactNode }) {
@@ -43,7 +47,7 @@ export function InfoRow({ k, v }: { k: string; v: React.ReactNode }) {
 
 export function Loading() {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 2px", color: "var(--muted)", fontSize: 13, fontWeight: 600 }}>
+    <div role="status" aria-live="polite" style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 2px", color: "var(--muted)", fontSize: 13, fontWeight: 600 }}>
       <span
         style={{
           width: 16, height: 16, borderRadius: "50%", flexShrink: 0,
@@ -61,7 +65,7 @@ export function Empty({ text, title }: { text: string; title?: string }) {
   return (
     <Card>
       <div className="empty-state">
-        <span className="icon">
+        <span className="icon" aria-hidden="true">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
             <path d="M4 13V7a1 1 0 0 1 1-1h3.5l1.5 2h5l1.5-2H20a1 1 0 0 1 1 1v6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
             <path d="M4 13l1.4 5.6A1 1 0 0 0 6.36 19h11.28a1 1 0 0 0 .97-.76L20 13" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
@@ -111,18 +115,37 @@ export function SkeletonTable({ rows = 5, cols = 4 }: { rows?: number; cols?: nu
   );
 }
 
-// Pestañas simples: cada formulario/ficha se muestra por secciones, no en una sola página larga.
-export function Tabs({ tabs, value, onChange }: { tabs: { id: string; label: string; badge?: boolean }[]; value: string; onChange: (id: string) => void }) {
+// Pestañas: cada ficha se muestra por secciones. Teclado: ← → Inicio Fin cambian de pestaña.
+export function Tabs({ tabs, value, onChange, name = "tabs" }: { tabs: { id: string; label: string; badge?: boolean }[]; value: string; onChange: (id: string) => void; name?: string }) {
+  const mover = (e: React.KeyboardEvent) => {
+    const i = tabs.findIndex((t) => t.id === value);
+    let destino = -1;
+    if (e.key === "ArrowRight") destino = (i + 1) % tabs.length;
+    else if (e.key === "ArrowLeft") destino = (i - 1 + tabs.length) % tabs.length;
+    else if (e.key === "Home") destino = 0;
+    else if (e.key === "End") destino = tabs.length - 1;
+    if (destino < 0) return;
+    e.preventDefault();
+    onChange(tabs[destino].id);
+    requestAnimationFrame(() => document.getElementById(`${name}-tab-${tabs[destino].id}`)?.focus());
+  };
   return (
-    <div className="tabs" role="tablist">
+    <div className="tabs" role="tablist" onKeyDown={mover}>
       {tabs.map((t) => (
-        <button key={t.id} type="button" role="tab" aria-selected={value === t.id} className={`tab${value === t.id ? " on" : ""}`} onClick={() => onChange(t.id)}>
+        <button
+          key={t.id} id={`${name}-tab-${t.id}`} type="button" role="tab" aria-selected={value === t.id} aria-controls={`${name}-panel-${t.id}`}
+          tabIndex={value === t.id ? 0 : -1} className={`tab${value === t.id ? " on" : ""}`} onClick={() => onChange(t.id)}
+        >
           {t.label}
-          {t.badge ? <span className="dot" aria-label="con avisos" /> : null}
+          {t.badge ? <><span className="dot" aria-hidden="true" /><span className="sr-only"> (con avisos)</span></> : null}
         </button>
       ))}
     </div>
   );
+}
+
+export function TabPanel({ name = "tabs", id, children }: { name?: string; id: string; children: React.ReactNode }) {
+  return <div role="tabpanel" id={`${name}-panel-${id}`} aria-labelledby={`${name}-tab-${id}`} tabIndex={0} className="tabpanel">{children}</div>;
 }
 
 // Marca el origen de un dato: lo trajo la base de Caja Huancayo o lo registró el auditor en campo.

@@ -40,7 +40,7 @@ export default function DashboardPage() {
 
   const fecha = new Date().toLocaleDateString("es-PE", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 
-  if (error) return <div className="error-box">{error}</div>;
+  if (error) return <div role="alert" className="error-box">{error}</div>;
 
   const e = r?.expedientes.por_estado;
   const visitados = (e?.VISITADO || 0) + (e?.CERRADO || 0);
@@ -96,11 +96,11 @@ export default function DashboardPage() {
               ) : (
                 <div className="table-wrap">
                   <table>
-                    <thead><tr><th>Cliente</th><th>Motivo</th><th>Auditor</th><th>Fecha</th></tr></thead>
+                    <thead><tr><th scope="col">Cliente</th><th scope="col">Motivo</th><th scope="col">Auditor</th><th scope="col">Fecha</th></tr></thead>
                     <tbody>
                       {r.cola_revision.map((x) => (
                         <tr key={x.id_visita} className="clickable" onClick={() => navigate(`/visitas/${x.id_visita}`)}>
-                          <td><b style={{ fontWeight: 500 }}>{x.cliente}</b><span className="sub">{x.codigo}</span></td>
+                          <td><Link to={`/visitas/${x.id_visita}`} onClick={(e) => e.stopPropagation()}>{x.cliente}</Link><span className="sub" translate="no">{x.codigo}</span></td>
                           <td><Badge label={x.resultado} />{x.motivos.length ? <span className="sub">{x.motivos.slice(0, 2).join("; ")}</span> : null}</td>
                           <td>{x.auditor}</td>
                           <td style={{ whiteSpace: "nowrap" }}>{new Date(x.fecha).toLocaleDateString("es-PE", { day: "numeric", month: "short" })}</td>
@@ -119,7 +119,7 @@ export default function DashboardPage() {
               <div className="section-head" style={{ marginTop: 28 }}><h2>Carga por auditor</h2></div>
               {!r.auditores.length ? <p className="subtle" style={{ padding: "14px 0" }}>No hay auditores activos.</p> : (
                 <table>
-                  <thead><tr><th>Auditor</th><th className="num">Asignados</th><th className="num">Visitas, 30 días</th></tr></thead>
+                  <thead><tr><th scope="col">Auditor</th><th scope="col" className="num">Asignados</th><th scope="col" className="num">Visitas, 30 días</th></tr></thead>
                   <tbody>
                     {r.auditores.slice(0, 8).map((a) => (
                       <tr key={a.id}>

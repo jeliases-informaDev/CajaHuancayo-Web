@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../AuthContext";
+import { useMenuKeys } from "./kit";
 
 const LINKS = [
   { to: "/", label: "Resumen", end: true },
@@ -23,6 +24,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const [userMenu, setUserMenu] = useState(false);
   const [busqueda, setBusqueda] = useState("");
   const userRef = useRef<HTMLDivElement>(null);
+  const userBtn = useRef<HTMLButtonElement>(null);
+  const userMenuEl = useRef<HTMLDivElement>(null);
+  useMenuKeys(userMenu, userMenuEl, userBtn, () => setUserMenu(false));
 
   useEffect(() => { setMenuOpen(false); setUserMenu(false); }, [location.pathname]);
   useEffect(() => {
@@ -50,8 +54,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="shell">
+      <a className="skip-link" href="#contenido">Saltar al contenido</a>
       <header className="topnav">
-        <Link to="/" className="brand" aria-label="Ir al resumen">
+        <Link to="/" className="brand" aria-label="Ir al resumen" translate="no">
           <div className="mark">CH</div>
           <div><b>Auditoría de Visitas</b><span>Caja Huancayo</span></div>
         </Link>
@@ -66,17 +71,17 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         <div className="topspacer" />
         <form className="topsearch" onSubmit={buscar} role="search">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" /></svg>
-          <input value={busqueda} onChange={(e) => setBusqueda(e.target.value)} placeholder="Buscar cliente, documento o crédito" aria-label="Buscar expedientes" />
+          <input type="search" name="buscar" autoComplete="off" spellCheck={false} value={busqueda} onChange={(e) => setBusqueda(e.target.value)} placeholder="Buscar cliente, documento o crédito…" aria-label="Buscar expedientes" />
         </form>
         <div className="usermenu" ref={userRef}>
-          <button className="userbtn" onClick={() => setUserMenu((v) => !v)} aria-haspopup="menu" aria-expanded={userMenu}>
+          <button ref={userBtn} className="userbtn" onClick={() => setUserMenu((v) => !v)} aria-haspopup="menu" aria-expanded={userMenu}>
             <span className="avatar">{initialsOf(nombre)}</span>
             <span className="u">{nombre}</span>
           </button>
           {userMenu ? (
-            <div className="menu" role="menu" style={{ color: "var(--ink)" }}>
+            <div className="menu" role="menu" ref={userMenuEl} style={{ color: "var(--ink)" }}>
               <div className="head"><b>{nombre}</b><span>{user?.rol === "ADMINISTRADOR" ? "Administrador" : user?.rol === "SUPERVISOR" ? "Supervisor" : user?.rol} · @{user?.username}</span></div>
-              <button role="menuitem" onClick={doLogout}>Cerrar sesión</button>
+              <button role="menuitem" tabIndex={-1} onClick={doLogout}>Cerrar sesión</button>
             </div>
           ) : null}
         </div>
@@ -84,7 +89,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           <svg width="16" height="12" viewBox="0 0 18 14" fill="none"><path d="M0 1h18M0 7h18M0 13h18" stroke="currentColor" strokeWidth="2" /></svg>
         </button>
       </header>
-      <main className="page">{children}</main>
+      <main className="page" id="contenido" tabIndex={-1}>{children}</main>
     </div>
   );
 }

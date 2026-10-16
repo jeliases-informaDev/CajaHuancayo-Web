@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { downloadWordExport, fetchEvidenceBlobUrl, request } from "../api";
-import { Badge, Card, InfoRow, Loading, Origen, Tabs } from "../components/ui";
+import { Badge, Card, InfoRow, Loading, Origen, TabPanel, Tabs } from "../components/ui";
+import { useQueryParam } from "../lib/useQueryParam";
 import { Check } from "../components/kit";
 import { ClienteSeccion, CreditoSeccion, EndeudamientoSeccion, EvaluacionMype, IngresosConsumo, NegocioSeccion } from "../components/ficha/Secciones";
 import { ESTADO_NEGOCIO, PLANTILLA_NOMBRE, PROPIEDAD_LOCAL, ORIGEN_UBICACION, dash, fechaHora, n2 } from "../lib/format";
@@ -48,7 +49,7 @@ function EvidencePhoto({ idEvidencia, tipo }: { idEvidencia: string; tipo: strin
   if (!url) return <p className="muted">Cargando {tipo}…</p>;
   return (
     <div>
-      <img src={url} alt={tipo} className="photo-thumb" />
+      <img src={url} alt={tipo} className="photo-thumb" width={1024} height={768} loading="lazy" decoding="async" />
       <p className="muted" style={{ fontSize: 11, marginTop: 4 }}>{tipo}</p>
     </div>
   );
@@ -110,7 +111,7 @@ function FichaEntrevista({ visita, esMype }: { visita: any; esMype: boolean }) {
         <p className="section-title">Otros clientes que domician en la vivienda <Origen tipo="campo" /></p>
         {visita.otros_clientes_domicilio?.length ? (
           <table className="compact">
-            <thead><tr><th>Nombre</th><th>Parentesco</th><th>Actividad</th><th>Antigüedad del negocio</th></tr></thead>
+            <thead><tr><th scope="col">Nombre</th><th scope="col">Parentesco</th><th scope="col">Actividad</th><th scope="col">Antigüedad del negocio</th></tr></thead>
             <tbody>{visita.otros_clientes_domicilio.map((x: any, i: number) => <tr key={i}><td>{dash(x.nombre)}</td><td>{dash(x.parentesco)}</td><td>{dash(x.actividad)}</td><td>{dash(x.antiguedad_negocio)}</td></tr>)}</tbody>
           </table>
         ) : <p className="subtle">Ninguno registrado.</p>}
@@ -143,7 +144,7 @@ function DatosBase({ e, esMype, conformidad }: { e: any; esMype: boolean; confor
   return (
     <>
       <div className="callout info">Estos son los datos de la base tal como los vio el auditor al hacer la visita. Si el expediente se reimporta después, esta ficha no cambia.</div>
-      <Tabs tabs={tabs} value={sub} onChange={setSub} />
+      <Tabs name="base" tabs={tabs} value={sub} onChange={setSub} />
       {sub === "cliente" ? <ClienteSeccion e={e} /> : null}
       {sub === "credito" ? <CreditoSeccion e={e} /> : null}
       {sub === "negocio" ? <NegocioSeccion e={e} /> : null}
@@ -259,7 +260,7 @@ function Evidencias({ visita }: { visita: any }) {
       {visita.firma_evidencia ? (
         <div className="evidence" style={{ marginTop: 22 }}>
           <p className="lbl" style={{ marginBottom: 6 }}>Firma del cliente</p>
-          <div className="signature"><img src={visita.firma_evidencia} alt="Firma del cliente" /></div>
+          <div className="signature"><img src={visita.firma_evidencia} alt="Firma del cliente" width={520} height={260} /></div>
         </div>
       ) : null}
       <div className="evidence" style={{ marginTop: 22 }}>
@@ -277,7 +278,7 @@ export default function VisitaDetailPage() {
   const [visita, setVisita] = useState<any>(null);
   const [error, setError] = useState("");
   const [downloading, setDownloading] = useState(false);
-  const [tab, setTab] = useState("ficha");
+  const [tab, setTab] = useQueryParam("tab", "ficha");
 
   useEffect(() => {
     request(`/api/visitas/${id}`).then((r: any) => setVisita(r.data)).catch((e) => setError(e.message));
@@ -291,7 +292,7 @@ export default function VisitaDetailPage() {
   };
 
   const e = useMemo(() => (visita ? visita.expediente_snapshot || visita.expediente : null), [visita]);
-  if (error) return <div className="error-box">{error}</div>;
+  if (error) return <div role="alert" className="error-box">{error}</div>;
   if (!visita || !e) return <Loading />;
 
   const esMype = (visita.plantilla || (e.tipo_credito === "OTROS" ? "MYPE_V1" : "CONSUMO_V1")) === "MYPE_V1";
@@ -336,10 +337,12 @@ export default function VisitaDetailPage() {
       <div className="workbench">
         <aside><Evidencias visita={visita} /></aside>
         <div>
-          <Tabs tabs={tabs} value={tab} onChange={setTab} />
-          {tab === "ficha" ? <FichaEntrevista visita={visita} esMype={esMype} /> : null}
-          {tab === "base" ? <DatosBase e={e} esMype={esMype} conformidad={visita.conformidad_financiera} /> : null}
-          {tab === "trazabilidad" ? <Trazabilidad visita={visita} e={e} /> : null}
+          <Tabs name="visita" tabs={tabs} value={tab} onChange={setTab} />
+          <TabPanel name="visita" id={tab}>
+            {tab === "ficha" ? <FichaEntrevista visita={visita} esMype={esMype} /> : null}
+            {tab === "base" ? <DatosBase e={e} esMype={esMype} conformidad={visita.conformidad_financiera} /> : null}
+            {tab === "trazabilidad" ? <Trazabilidad visita={visita} e={e} /> : null}
+          </TabPanel>
         </div>
       </div>
     </>

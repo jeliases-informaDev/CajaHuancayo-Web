@@ -336,7 +336,7 @@ export default function SeguimientoPage() {
         <h1>Seguimiento en vivo</h1>
         <p>Filtra por zona para ver qué auditores y qué clientes hay en cada bloque geográfico. Elige un auditor para ver su ruta sugerida del día.</p>
       </div>
-      {error ? <div className="error-box">{error}</div> : null}
+      {error ? <div role="alert" className="error-box">{error}</div> : null}
       <div className="grid seguimiento-grid" style={{ alignItems: "start" }}>
         <Card>
           <p className="section-title">Zona</p>
@@ -390,7 +390,9 @@ export default function SeguimientoPage() {
                 padding: "8px 6px", borderBottom: "1px solid var(--border)", cursor: "pointer", borderRadius: 8,
                 background: seleccionado === u.id ? "var(--surface2)" : "transparent",
               }}
+              role="button" tabIndex={0} aria-pressed={seleccionado === u.id}
               onClick={() => setSeleccionado(u.id === seleccionado ? null : u.id)}
+              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSeleccionado(u.id === seleccionado ? null : u.id); } }}
             >
               <div style={{ fontWeight: 700 }}>{u.nombres || u.username} {u.apellidos}</div>
               <div className="row" style={{ gap: 6, marginTop: 3 }}>
@@ -423,12 +425,12 @@ export default function SeguimientoPage() {
                 </div>
               ) : null}
               {rutaBloqueadaPorAlcance ? (
-                <div className="error-box" style={{ background: "#fff7e6", color: "#9a6300" }}>
+                <div role="alert" className="error-box" style={{ background: "#fff7e6", color: "#9a6300" }}>
                   Este auditor tiene clientes en {departamentosDelAuditorSeleccionado.length} departamentos distintos ({departamentosDelAuditorSeleccionado.join(", ")}).
                   Elige uno arriba para planificar su ruta del día — no tiene sentido sugerir una ruta que cruce ciudades tan alejadas.
                 </div>
               ) : !origenRuta ? (
-                <div className="error-box" style={{ background: "#eef2ff", color: "var(--primary)" }}>
+                <div role="alert" className="error-box" style={{ background: "#eef2ff", color: "var(--primary)" }}>
                   Este auditor no está transmitiendo ubicación en vivo ahora mismo. Toca un punto en el mapa para fijar un inicio y planificar su ruta desde ahí.
                 </div>
               ) : (

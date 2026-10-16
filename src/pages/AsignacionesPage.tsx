@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { useQueryParam } from "../lib/useQueryParam";
 import { request } from "../api";
 import { Badge, Empty, Skeleton } from "../components/ui";
 import { ActionMenu, Seg } from "../components/kit";
@@ -14,12 +15,13 @@ export default function AsignacionesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [aviso, setAviso] = useState("");
-  const [auditorId, setAuditorId] = useState("");
+  const [auditorId, setAuditorId] = useQueryParam("auditor");
   const [seleccion, setSeleccion] = useState<number[]>([]);
   const [prioridad, setPrioridad] = useState("MEDIA");
   const [guardando, setGuardando] = useState(false);
-  const [busqueda, setBusqueda] = useState("");
-  const [tipo, setTipo] = useState<"" | "OTROS" | "CONSUMO">("");
+  const [busqueda, setBusqueda] = useQueryParam("q");
+  const [tipoRaw, setTipo] = useQueryParam("tipo");
+  const tipo = tipoRaw as "" | "OTROS" | "CONSUMO";
 
   const cargar = async () => {
     try {
@@ -73,8 +75,8 @@ export default function AsignacionesPage() {
           <p>Elige un auditor y marca los expedientes que debe visitar.</p>
         </div>
       </div>
-      {error ? <div className="error-box">{error}</div> : null}
-      {aviso ? <div className="callout ok">{aviso}</div> : null}
+      {error ? <div role="alert" className="error-box">{error}</div> : null}
+      {aviso ? <div role="status" className="callout ok">{aviso}</div> : null}
 
       <div className="planner">
         <div>
@@ -97,20 +99,20 @@ export default function AsignacionesPage() {
         <div>
           <div className="section-head"><h2>Expedientes sin asignar</h2><span className="meta">{visibles.length} de {pool.length}</span></div>
           <div className="filters">
-            <div className="fgroup grow"><label className="lbl" htmlFor="b-asig">Buscar</label><input id="b-asig" className="input" placeholder="Crédito, cliente, documento o distrito" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} /></div>
+            <div className="fgroup grow"><label className="lbl" htmlFor="b-asig">Buscar</label><input id="b-asig" name="q" type="search" autoComplete="off" spellCheck={false} className="input" placeholder="Crédito, cliente, documento o distrito…" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} /></div>
             <div className="fgroup"><span className="lbl">Tipo de crédito</span><Seg label="Tipo de crédito" value={tipo} onChange={setTipo} options={[{ value: "", label: "Todos" }, { value: "OTROS", label: "MYPE" }, { value: "CONSUMO", label: "Consumo" }]} /></div>
           </div>
           {loading ? <Skeleton height={240} radius={3} style={{ display: "block", marginTop: 12 }} /> : !visibles.length ? (
             <Empty title="No hay expedientes por asignar" text={pool.length ? "Ninguno coincide con la búsqueda." : "Todos los expedientes ya tienen auditor o aún no cargaste ninguno."} />
           ) : (
-            <div className="table-wrap" style={{ maxHeight: 420, overflowY: "auto" }}>
+            <div className="table-wrap long" style={{ maxHeight: 420, overflowY: "auto" }}>
               <table>
-                <thead><tr><th className="check-col"><input type="checkbox" checked={todosMarcados} onChange={alternarTodos} aria-label="Marcar todos los visibles" /></th><th>Crédito</th><th>Cliente</th><th>Tipo</th><th>Distrito</th></tr></thead>
+                <thead><tr><th scope="col" className="check-col"><input type="checkbox" checked={todosMarcados} onChange={alternarTodos} aria-label="Marcar todos los visibles" /></th><th scope="col">Crédito</th><th scope="col">Cliente</th><th scope="col">Tipo</th><th scope="col">Distrito</th></tr></thead>
                 <tbody>
                   {visibles.map((x) => (
                     <tr key={x.id_expediente} className={`clickable${seleccion.includes(x.id_expediente) ? " selected" : ""}`} onClick={() => alternar(x.id_expediente)}>
                       <td className="check-col"><input type="checkbox" checked={seleccion.includes(x.id_expediente)} onChange={() => alternar(x.id_expediente)} onClick={(e) => e.stopPropagation()} aria-label={`Marcar ${x.nombres_cliente}`} /></td>
-                      <td className="code">{x.codigo_expediente}</td>
+                      <td className="code" translate="no">{x.codigo_expediente}</td>
                       <td>{x.nombres_cliente}</td>
                       <td>{x.tipo_credito === "OTROS" ? "MYPE" : "Consumo"}</td>
                       <td>{dash(x.distrito)}</td>
@@ -124,7 +126,7 @@ export default function AsignacionesPage() {
           <div className="stickybar">
             <span className="grow">{seleccion.length ? <><b style={{ fontWeight: 600 }}>{seleccion.length}</b> {seleccion.length === 1 ? "expediente marcado" : "expedientes marcados"}{auditor ? <> para <b style={{ fontWeight: 600 }}>{nombreDe(auditor)}</b></> : <>: elige un auditor a la izquierda</>}</> : "Marca los expedientes que quieres asignar"}</span>
             <label className="sr-only" htmlFor="prio">Prioridad de los casos</label>
-            <select id="prio" value={prioridad} onChange={(e) => setPrioridad(e.target.value)} aria-label="Prioridad"><option value="ALTA">Prioridad alta</option><option value="MEDIA">Prioridad media</option><option value="BAJA">Prioridad baja</option></select>
+            <select id="prio" name="prioridad" value={prioridad} onChange={(e) => setPrioridad(e.target.value)}><option value="ALTA">Prioridad alta</option><option value="MEDIA">Prioridad media</option><option value="BAJA">Prioridad baja</option></select>
             <button className="btn" style={{ background: "#fff", color: "var(--ink)", borderColor: "#fff" }} disabled={guardando || !auditorId || !seleccion.length} onClick={asignar}>{guardando ? "Asignando…" : "Asignar"}</button>
           </div>
 
@@ -133,7 +135,7 @@ export default function AsignacionesPage() {
             {!activas.length ? <Empty title="Sin asignaciones" text="Cuando asignes expedientes aparecerán aquí." /> : (
               <div className="table-wrap">
                 <table>
-                  <thead><tr><th>Expediente</th><th>Auditor</th><th>Asignado</th><th>Prioridad</th><th>Estado</th><th></th></tr></thead>
+                  <thead><tr><th scope="col">Expediente</th><th scope="col">Auditor</th><th scope="col">Asignado</th><th scope="col">Prioridad</th><th scope="col">Estado</th><th scope="col"></th></tr></thead>
                   <tbody>
                     {activas.map((a) => (
                       <tr key={a.id_asignacion}>
@@ -142,7 +144,7 @@ export default function AsignacionesPage() {
                         <td>{fecha(a.fecha_asignacion)}<span className="sub">{a.origen === "AUTOASIGNADA" ? "La tomó el auditor" : "Asignada por supervisor"}</span></td>
                         <td><Badge label={a.prioridad} /></td>
                         <td><Badge label={a.estado} /></td>
-                        <td style={{ textAlign: "right" }}>{a.estado === "ACTIVA" ? <ActionMenu items={[{ label: "Cancelar asignación", tone: "bad", onClick: () => cancelar(a.id_asignacion) }]} /> : null}</td>
+                        <td style={{ textAlign: "right" }}>{a.estado === "ACTIVA" ? <ActionMenu items={[{ label: "Cancelar asignación", tone: "bad", onClick: () => { if (window.confirm("¿Cancelar esta asignación? El expediente vuelve a quedar sin asignar.")) cancelar(a.id_asignacion); } }]} /> : null}</td>
                       </tr>
                     ))}
                   </tbody>

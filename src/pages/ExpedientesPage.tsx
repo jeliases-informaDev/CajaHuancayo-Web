@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link } from "react-router-dom";
+import { useQueryParam } from "../lib/useQueryParam";
 import { request } from "../api";
-import { Badge, Empty, Skeleton } from "../components/ui";
+import { Badge, Empty, Field, Skeleton } from "../components/ui";
 import { Drawer, Seg } from "../components/kit";
 import ImportModal from "../components/ImportModal";
 import { dash, fechaHora, n2 } from "../lib/format";
@@ -25,7 +26,7 @@ function Vista({ id, onClose }: { id: number; onClose: () => void }) {
       onClose={onClose}
       footer={e ? <Link className="btn" to={`/expedientes/${id}`}>Abrir expediente completo</Link> : null}
     >
-      {error ? <div className="error-box">{error}</div> : null}
+      {error ? <div role="alert" className="error-box">{error}</div> : null}
       {!e && !error ? <Skeleton height={160} radius={4} style={{ display: "block" }} /> : null}
       {e ? (
         <>
@@ -49,14 +50,22 @@ function Vista({ id, onClose }: { id: number; onClose: () => void }) {
 }
 
 export default function ExpedientesPage() {
-  const [params, setParams] = useSearchParams();
   const [data, setData] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
-  const [pagina, setPagina] = useState(1);
-  const [search, setSearch] = useState(params.get("q") || "");
-  const [tipo, setTipo] = useState<"" | "OTROS" | "CONSUMO">("");
-  const [estado, setEstado] = useState("");
-  const [sinUbicacion, setSinUbicacion] = useState(false);
+  // Filtros y página en la URL (se comparten, sobreviven a recargar y al botón "atrás"). Cambiar un filtro vuelve a la página 1.
+  const [search, fijarBusqueda] = useQueryParam("q");
+  const [tipoRaw, fijarTipo] = useQueryParam("tipo");
+  const [estado, fijarEstado] = useQueryParam("estado");
+  const [sinRaw, fijarSin] = useQueryParam("sin_coordenadas");
+  const [paginaRaw, fijarPagina] = useQueryParam("pagina", "1");
+  const tipo = tipoRaw as "" | "OTROS" | "CONSUMO";
+  const sinUbicacion = sinRaw === "1";
+  const pagina = Math.max(1, Number(paginaRaw) || 1);
+  const setPagina = (siguiente: (p: number) => number) => fijarPagina(String(siguiente(pagina)));
+  const setSearch = (v: string) => { fijarBusqueda(v); fijarPagina("1"); };
+  const setTipo = (v: "" | "OTROS" | "CONSUMO") => { fijarTipo(v); fijarPagina("1"); };
+  const setEstado = (v: string) => { fijarEstado(v); fijarPagina("1"); };
+  const setSinUbicacion = (v: boolean) => { fijarSin(v ? "1" : ""); fijarPagina("1"); };
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [vista, setVista] = useState<number | null>(null);
@@ -81,11 +90,6 @@ export default function ExpedientesPage() {
   }, [search, tipo, estado, sinUbicacion, pagina]);
 
   useEffect(() => { cargar(); }, [cargar]);
-  useEffect(() => { setPagina(1); }, [search, tipo, estado, sinUbicacion]);
-  useEffect(() => {
-    const q = params.get("q");
-    if (q !== null && q !== search) setSearch(q);
-  }, [params]);
 
   const crear = async (ev: React.FormEvent) => {
     ev.preventDefault();
@@ -103,9 +107,13 @@ export default function ExpedientesPage() {
     try { const r: any = await request("/api/expedientes/importaciones?limit=20"); setHistorial(r.data); } catch (e: any) { setError(e.message); }
   };
 
+  const cerrarNuevo = () => {
+    if (JSON.stringify(form) !== JSON.stringify(emptyForm) && !window.confirm("Hay datos sin guardar. ¿Cerrar y descartarlos?")) return;
+    setNuevo(false); setForm(emptyForm);
+  };
   const paginas = Math.max(1, Math.ceil(total / LIMITE));
   const campo = (k: keyof typeof emptyForm, etiqueta: string, requerido = false, tipoInput = "text") => (
-    <div className="field"><label>{etiqueta}</label><input required={requerido} type={tipoInput} value={form[k]} onChange={(e) => setForm({ ...form, [k]: e.target.value })} /></div>
+    <Field label={etiqueta}><input name={k} required={requerido} type={tipoInput} autoComplete="off" spellCheck={false} inputMode={["latitud", "longitud", "monto_desembolso"].includes(k) ? "decimal" : undefined} value={form[k]} onChange={(e) => setForm({ ...form, [k]: e.target.value })} /></Field>
   );
 
   return (
@@ -122,12 +130,12 @@ export default function ExpedientesPage() {
         </div>
       </div>
 
-      {error ? <div className="error-box">{error}</div> : null}
+      {error ? <div role="alert" className="error-box">{error}</div> : null}
 
       <div className="filters">
         <div className="fgroup grow">
           <label className="lbl" htmlFor="buscar-exp">Buscar</label>
-          <input id="buscar-exp" className="input" placeholder="Crédito, cliente, documento o asesor" value={search} onChange={(e) => { setSearch(e.target.value); if (params.get("q") !== null) setParams({}); }} />
+          <input id="buscar-exp" name="q" type="search" autoComplete="off" spellCheck={false} className="input" placeholder="Crédito, cliente, documento o asesor…" value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
         <div className="fgroup">
           <span className="lbl">Tipo de crédito</span>
@@ -135,7 +143,7 @@ export default function ExpedientesPage() {
         </div>
         <div className="fgroup">
           <label className="lbl" htmlFor="estado-exp">Estado</label>
-          <select id="estado-exp" className="select" value={estado} onChange={(e) => setEstado(e.target.value)}>
+          <select id="estado-exp" name="estado" className="select" value={estado} onChange={(e) => setEstado(e.target.value)}>
             <option value="">Todos</option><option value="PENDIENTE">Pendiente</option><option value="ASIGNADO">Asignado</option><option value="VISITADO">Visitado</option><option value="CERRADO">Cerrado</option>
           </select>
         </div>
@@ -150,12 +158,12 @@ export default function ExpedientesPage() {
         <>
           <div className="table-wrap" style={{ opacity: loading ? 0.55 : 1 }}>
             <table>
-              <thead><tr><th>Crédito</th><th>Cliente</th><th>Tipo</th><th>Distrito</th><th>Asesor</th><th>Ubicación</th><th>Estado</th></tr></thead>
+              <thead><tr><th scope="col">Crédito</th><th scope="col">Cliente</th><th scope="col">Tipo</th><th scope="col">Distrito</th><th scope="col">Asesor</th><th scope="col">Ubicación</th><th scope="col">Estado</th></tr></thead>
               <tbody>
                 {data.map((x) => (
                   <tr key={x.id_expediente} className={`clickable${vista === x.id_expediente ? " selected" : ""}`} onClick={() => setVista(x.id_expediente)}>
-                    <td className="code">{x.codigo_expediente}</td>
-                    <td><b style={{ fontWeight: 500 }}>{x.nombres_cliente}</b><span className="sub">{x.numero_documento_cliente}</span></td>
+                    <td className="code" translate="no">{x.codigo_expediente}</td>
+                    <td><button type="button" className="linklike" onClick={(e) => { e.stopPropagation(); setVista(x.id_expediente); }}>{x.nombres_cliente}</button><span className="sub" translate="no">{x.numero_documento_cliente}</span></td>
                     <td>{x.tipo_credito === "OTROS" ? "MYPE" : "Consumo"}</td>
                     <td>{dash(x.distrito)}</td>
                     <td>{x.asesor_responsable}</td>
@@ -178,13 +186,13 @@ export default function ExpedientesPage() {
       {importando ? <ImportModal onClose={() => setImportando(false)} onDone={cargar} /> : null}
 
       {nuevo ? (
-        <Drawer title="Nuevo expediente" subtitle="Para cargas grandes usa «Cargar archivo»." onClose={() => setNuevo(false)}
-          footer={<><button className="btn ghost" onClick={() => setNuevo(false)}>Cancelar</button><button className="btn" form="form-expediente" type="submit" disabled={guardando}>{guardando ? "Guardando…" : "Guardar expediente"}</button></>}>
+        <Drawer title="Nuevo expediente" subtitle="Para cargas grandes usa «Cargar archivo»." onClose={cerrarNuevo}
+          footer={<><button className="btn ghost" onClick={cerrarNuevo}>Cancelar</button><button className="btn" form="form-expediente" type="submit" disabled={guardando}>{guardando ? "Guardando…" : "Guardar expediente"}</button></>}>
           <form id="form-expediente" onSubmit={crear}>
             {campo("codigo_expediente", "Número de crédito", true)}
-            <div className="field"><label>Tipo de crédito</label>
-              <select value={form.tipo_credito} onChange={(e) => setForm({ ...form, tipo_credito: e.target.value })}><option value="CONSUMO">Consumo</option><option value="OTROS">MYPE (Otros)</option></select>
-            </div>
+            <Field label="Tipo de crédito">
+              <select name="tipo_credito" value={form.tipo_credito} onChange={(e) => setForm({ ...form, tipo_credito: e.target.value })}><option value="CONSUMO">Consumo</option><option value="OTROS">MYPE (Otros)</option></select>
+            </Field>
             {campo("nombres_cliente", "Nombres del cliente", true)}
             {campo("numero_documento_cliente", "Documento del cliente", true)}
             {campo("asesor_responsable", "Asesor responsable", true)}
@@ -203,7 +211,7 @@ export default function ExpedientesPage() {
         <Drawer title="Historial de cargas" subtitle="Cada archivo importado o validado queda registrado." onClose={() => setHistorial(null)}>
           {!historial.length ? <p className="subtle">Aún no hay cargas.</p> : (
             <table className="compact">
-              <thead><tr><th>Cuándo</th><th>Archivo</th><th className="num">Filas</th><th className="num">Nuevos</th><th className="num">Error</th></tr></thead>
+              <thead><tr><th scope="col">Cuándo</th><th scope="col">Archivo</th><th scope="col" className="num">Filas</th><th scope="col" className="num">Nuevos</th><th scope="col" className="num">Error</th></tr></thead>
               <tbody>
                 {historial.map((h) => (
                   <tr key={h.id_importacion}>

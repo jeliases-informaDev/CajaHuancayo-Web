@@ -75,7 +75,7 @@ export default function ImportModal({ onClose, onDone }: { onClose: () => void; 
         </tbody>
       </table>
       {avisos.length ? (
-        <div className="callout aviso">
+        <div role="status" className="callout aviso">
           <b>Avisos de calidad del dato</b>
           {avisos.map(([codigo, n]) => <div key={codigo}>{n} fila(s): {ADVERTENCIAS[codigo] || codigo}</div>)}
         </div>
@@ -84,7 +84,7 @@ export default function ImportModal({ onClose, onDone }: { onClose: () => void; 
         <details>
           <summary className="subtle" style={{ cursor: "pointer" }}>Ver filas omitidas o con error ({errores.length})</summary>
           <table className="compact" style={{ marginTop: 8 }}>
-            <thead><tr><th>Hoja</th><th>Fila</th><th>Crédito</th><th>Motivo</th></tr></thead>
+            <thead><tr><th scope="col">Hoja</th><th scope="col">Fila</th><th scope="col">Crédito</th><th scope="col">Motivo</th></tr></thead>
             <tbody>{errores.slice(0, 40).map((d: any, i: number) => <tr key={i}><td>{d.hoja || "-"}</td><td>{d.fila ?? "-"}</td><td>{d.codigo || "-"}</td><td>{d.motivo}</td></tr>)}</tbody>
           </table>
         </details>
@@ -111,7 +111,7 @@ export default function ImportModal({ onClose, onDone }: { onClose: () => void; 
         )
       }
     >
-      {error ? <div className="error-box">{error}</div> : null}
+      {error ? <div role="alert" className="error-box">{error}</div> : null}
 
       {estado === "elegir" ? (
         <>
@@ -119,7 +119,7 @@ export default function ImportModal({ onClose, onDone }: { onClose: () => void; 
             <b>Elegir archivo de Excel (.xlsx)</b>
             <span>{archivo ? archivo.name : "La base MYPE del core o la plantilla de expedientes"}</span>
           </div>
-          <input ref={entrada} type="file" accept=".xlsx" hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) { setArchivo(f); ejecutar(f, true); } }} />
+          <input ref={entrada} type="file" accept=".xlsx" aria-label="Archivo de Excel" hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) { setArchivo(f); ejecutar(f, true); } }} />
           <p className="subtle" style={{ marginTop: 14 }}>Primero se revisa todo el archivo sin guardar nada. Después decides si importarlo.</p>
           <label className="check-inline" style={{ height: "auto", marginTop: 12, alignItems: "flex-start" }}>
             <input type="checkbox" checked={autoasignable} onChange={(e) => setAutoasignable(e.target.checked)} style={{ marginTop: 3 }} />
@@ -129,7 +129,7 @@ export default function ImportModal({ onClose, onDone }: { onClose: () => void; 
       ) : null}
 
       {trabajando ? (
-        <div style={{ padding: "26px 0", textAlign: "center" }}>
+        <div role="status" aria-live="polite" style={{ padding: "26px 0", textAlign: "center" }}>
           <div className="figure" style={{ fontSize: 38 }}>{avance.toLocaleString("es-PE")}</div>
           <p className="subtle" style={{ marginTop: 8 }}>{estado === "validando" ? "filas revisadas. No se está guardando nada." : "filas procesadas. No cierres esta ventana."}</p>
         </div>
@@ -137,7 +137,7 @@ export default function ImportModal({ onClose, onDone }: { onClose: () => void; 
 
       {estado === "revision" && reporte ? (
         <>
-          {repetido ? <div className="callout aviso">Este mismo archivo ya se importó el {fechaHora(repetido.fecha_creacion)}. Si no cambió, todo saldrá como «sin cambios».</div> : null}
+          {repetido ? <div role="status" className="callout aviso">Este mismo archivo ya se importó el {fechaHora(repetido.fecha_creacion)}. Si no cambió, todo saldrá como «sin cambios».</div> : null}
           <p style={{ marginBottom: 12 }}>Así quedaría la importación de <b style={{ fontWeight: 600 }}>{archivo?.name}</b>. Aún no se guardó nada.</p>
           {resumen}
         </>
@@ -148,7 +148,7 @@ export default function ImportModal({ onClose, onDone }: { onClose: () => void; 
           <div className={`callout ${reporte.errores ? "aviso" : "ok"}`}>Importación terminada: {reporte.insertadas} nuevos y {reporte.actualizadas} actualizados.</div>
           {resumen}
           {reporte.insertadas > 0 && !autoasignable ? (
-            <div className="callout info">
+            <div role="status" className="callout info">
               Los expedientes nuevos solo los asigna un supervisor.{" "}
               {liberados != null ? `Se liberaron ${liberados} para que los auditores los tomen.` : <button className="btn quiet small" onClick={liberar}>Liberarlos a los auditores</button>}
             </div>

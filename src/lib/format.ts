@@ -12,7 +12,7 @@ export const entero = (v: any) =>
 export function fecha(v: any) {
   if (!v) return "-";
   const m = String(v).match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (m) return `${m[3]}/${m[2]}/${m[1]}`;
+  if (m) return new Intl.DateTimeFormat("es-PE", { timeZone: "UTC", day: "2-digit", month: "2-digit", year: "numeric" }).format(new Date(`${m[1]}-${m[2]}-${m[3]}T00:00:00Z`));
   const d = new Date(v);
   return Number.isNaN(d.getTime()) ? String(v) : d.toLocaleDateString("es-PE");
 }
