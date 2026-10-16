@@ -4,7 +4,7 @@ import L from "leaflet";
 import { io, Socket } from "socket.io-client";
 import "leaflet/dist/leaflet.css";
 import { API_URL, getToken, request } from "../api";
-import { Badge, Card, Field } from "../components/ui";
+import { Avatar, Field } from "../components/ui";
 
 type Ubicacion = {
   id: string; username: string; nombres: string; apellidos: string; rol: string;
@@ -21,8 +21,8 @@ type AuditorInfo = {
 };
 
 const CENTER: [number, number] = [-12.0687, -75.2094]; // Huancayo, Junín
-const RUTA_COLOR = "#0ead7a";
-const INICIO_COLOR = "#1236c7";
+const RUTA_COLOR = "#0f9d6c";
+const INICIO_COLOR = "#2d41c4";
 const DISPONIBLE_COLOR = "#334155";
 const PRIORIDAD_COLORS: Record<string, string> = { ALTA: "#ef4444", MEDIA: "#f59e0b", BAJA: "#6d788a" };
 
@@ -330,23 +330,26 @@ export default function SeguimientoPage() {
     ...clientesEnZona.map((a) => [a.latitud, a.longitud] as [number, number]),
   ], [auditoresConMapa, clientesEnZona]);
 
+  const enVivo = auditoresConMapa.length;
+
   return (
     <>
-      <div className="page-header">
-        <h1>Seguimiento en vivo</h1>
-        <p>Filtra por zona para ver qué auditores y qué clientes hay en cada bloque geográfico. Elige un auditor para ver su ruta sugerida del día.</p>
+      <div className="page-head">
+        <div>
+          <h1>Seguimiento <em>en vivo</em></h1>
+          <p>Filtra por zona para ver qué auditores y qué clientes hay en cada bloque geográfico. Elige un auditor para ver su ruta sugerida del día.</p>
+        </div>
+        <div className="actions"><span className={`live${enVivo ? " on" : ""}`} role="status">{enVivo ? `${enVivo} ${enVivo === 1 ? "auditor transmite" : "auditores transmiten"} su ubicación` : "Nadie transmite ubicación ahora"}</span></div>
       </div>
       {error ? <div role="alert" className="error-box">{error}</div> : null}
-      <div className="grid seguimiento-grid" style={{ alignItems: "start" }}>
-        <Card>
-          <p className="section-title">Zona</p>
+
+      <div className="seg-layout">
+        <aside className="seg-side" aria-label="Zona, auditores y ruta">
+          <h2 className="section-title">Zona</h2>
           {departamentos.length ? (
-            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 14 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
               <Field label="Departamento">
-                <select
-                  value={departamentoFiltro}
-                  onChange={(e) => { setDepartamentoFiltro(e.target.value); setProvinciaFiltro("TODOS"); setDistritoFiltro("TODOS"); }}
-                >
+                <select name="departamento" value={departamentoFiltro} onChange={(e) => { setDepartamentoFiltro(e.target.value); setProvinciaFiltro("TODOS"); setDistritoFiltro("TODOS"); }}>
                   <option value="TODOS">Todos ({todosLosClientes.length})</option>
                   {departamentos.map((d) => (
                     <option key={d} value={d}>{d} ({todosLosClientes.filter((a) => a.expediente.departamento === d).length})</option>
@@ -355,10 +358,7 @@ export default function SeguimientoPage() {
               </Field>
               {provincias.length > 1 ? (
                 <Field label="Provincia">
-                  <select
-                    value={provinciaFiltro}
-                    onChange={(e) => { setProvinciaFiltro(e.target.value); setDistritoFiltro("TODOS"); }}
-                  >
+                  <select name="provincia" value={provinciaFiltro} onChange={(e) => { setProvinciaFiltro(e.target.value); setDistritoFiltro("TODOS"); }}>
                     <option value="TODOS">Todas ({enDepartamento.length})</option>
                     {provincias.map((p) => (
                       <option key={p} value={p}>{p} ({enDepartamento.filter((a) => a.expediente.provincia === p).length})</option>
@@ -368,7 +368,7 @@ export default function SeguimientoPage() {
               ) : null}
               {distritos.length > 1 ? (
                 <Field label="Distrito">
-                  <select value={distritoFiltro} onChange={(e) => setDistritoFiltro(e.target.value)}>
+                  <select name="distrito" value={distritoFiltro} onChange={(e) => setDistritoFiltro(e.target.value)}>
                     <option value="TODOS">Todos ({enProvincia.length})</option>
                     {distritos.map((d) => (
                       <option key={d} value={d}>{d} ({enProvincia.filter((a) => a.expediente.distrito === d).length})</option>
@@ -377,77 +377,57 @@ export default function SeguimientoPage() {
                 </Field>
               ) : null}
             </div>
-          ) : <p className="muted" style={{ marginBottom: 14 }}>Aún no hay expedientes asignados con ubicación registrada.</p>}
+          ) : <p className="subtle">Aún no hay expedientes asignados con ubicación registrada.</p>}
 
-          <p className="section-title">Auditores{zonaActiva ? ` en ${departamentoFiltro}` : ""} ({auditoresVisibles.length})</p>
+          <h2 className="section-title">Auditores{zonaActiva ? ` en ${departamentoFiltro}` : ""} ({auditoresVisibles.length})</h2>
           {!auditoresVisibles.length ? (
-            <p className="muted">{zonaActiva ? "Ningún auditor tiene clientes en esta zona." : "Nadie está transmitiendo ubicación ahora mismo."}</p>
+            <p className="subtle">{zonaActiva ? "Ningún auditor tiene clientes en esta zona." : "Nadie tiene casos asignados con ubicación todavía."}</p>
           ) : null}
-          {auditoresVisibles.map((u) => (
-            <div
-              key={u.id}
-              style={{
-                padding: "8px 6px", borderBottom: "1px solid var(--border)", cursor: "pointer", borderRadius: 8,
-                background: seleccionado === u.id ? "var(--surface2)" : "transparent",
-              }}
-              role="button" tabIndex={0} aria-pressed={seleccionado === u.id}
-              onClick={() => setSeleccionado(u.id === seleccionado ? null : u.id)}
-              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSeleccionado(u.id === seleccionado ? null : u.id); } }}
-            >
-              <div style={{ fontWeight: 700 }}>{u.nombres || u.username} {u.apellidos}</div>
-              <div className="row" style={{ gap: 6, marginTop: 3 }}>
-                <Badge label={u.rol} />
-                <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10, fontWeight: 800, color: u.enVivo ? "var(--success)" : "var(--muted-soft)" }}>
-                  <span style={{ width: 6, height: 6, borderRadius: "50%", background: u.enVivo ? "var(--success)" : "#c7cedb", display: "inline-block" }} />
-                  {u.enVivo ? "En línea" : "Sin GPS ahora"}
-                </span>
-                {zonaActiva ? <span className="muted" style={{ fontSize: 11 }}>{clientesPorAuditor.get(u.id) || 0} cliente(s) aquí</span> : null}
-              </div>
-            </div>
-          ))}
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            {auditoresVisibles.map((u) => {
+              const nombreU = `${u.nombres || u.username} ${u.apellidos}`.trim();
+              return (
+                <button key={u.id} type="button" className={`pick${seleccionado === u.id ? " on" : ""}`} aria-pressed={seleccionado === u.id} onClick={() => setSeleccionado(u.id === seleccionado ? null : u.id)}>
+                  <Avatar nombre={nombreU} />
+                  <span>
+                    <b>{nombreU}</b>
+                    <span className={`live${u.enVivo ? " on" : ""}`}>{u.enVivo ? "En línea" : "Sin GPS ahora"}{zonaActiva ? ` · ${clientesPorAuditor.get(u.id) || 0} aquí` : ""}</span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
 
           {seleccionado ? (
             <>
-              <div style={{ height: 1, background: "var(--border)", margin: "12px 0" }} />
+              <h2 className="section-title">Ruta del día</h2>
               {puntoManual ? (
-                <div style={{
-                  display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8,
-                  background: "#EAF1FF", border: `1px solid ${INICIO_COLOR}33`, borderRadius: 8, padding: "6px 8px", marginBottom: 10, fontSize: 11,
-                }}>
+                <div className="callout info" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
                   <span>Ruta simulada desde un punto de partida manual.</span>
-                  <button
-                    type="button"
-                    onClick={() => setPuntoManual(null)}
-                    style={{ border: 0, background: "none", color: INICIO_COLOR, fontWeight: 800, cursor: "pointer", whiteSpace: "nowrap" }}
-                  >
-                    Usar ubicación en vivo
-                  </button>
+                  <button type="button" className="btn quiet small" onClick={() => setPuntoManual(null)}>Usar ubicación en vivo</button>
                 </div>
               ) : null}
               {rutaBloqueadaPorAlcance ? (
-                <div role="alert" className="error-box" style={{ background: "#fff7e6", color: "#9a6300" }}>
+                <div role="alert" className="callout aviso">
                   Este auditor tiene clientes en {departamentosDelAuditorSeleccionado.length} departamentos distintos ({departamentosDelAuditorSeleccionado.join(", ")}).
-                  Elige uno arriba para planificar su ruta del día — no tiene sentido sugerir una ruta que cruce ciudades tan alejadas.
+                  Elige uno arriba para planificar su ruta del día: no tiene sentido sugerir una ruta que cruce ciudades tan alejadas.
                 </div>
               ) : !origenRuta ? (
-                <div role="alert" className="error-box" style={{ background: "#eef2ff", color: "var(--primary)" }}>
+                <div role="alert" className="callout info">
                   Este auditor no está transmitiendo ubicación en vivo ahora mismo. Toca un punto en el mapa para fijar un inicio y planificar su ruta desde ahí.
                 </div>
               ) : (
                 <>
-                  <p className="section-title">En ruta ({enRuta.length})</p>
-                  {!clientesDelAuditorSeleccionado.length ? <p className="muted">Sin clientes asignados en esta zona.</p> : null}
-                  <div style={{ maxHeight: 260, overflowY: "auto" }}>
+                  <p className="subtle" style={{ marginBottom: 6 }}>En ruta ({enRuta.length}), del más cercano al más lejano</p>
+                  {!clientesDelAuditorSeleccionado.length ? <p className="subtle">Sin clientes asignados en esta zona.</p> : null}
+                  <div>
                     {enRuta.map((a) => (
-                      <div key={a.id_asignacion} style={{ padding: "7px 4px", borderBottom: "1px solid var(--border)", display: "flex", gap: 8 }}>
-                        <span style={{
-                          flexShrink: 0, width: 20, height: 20, borderRadius: "50%", background: RUTA_COLOR, color: "#fff",
-                          fontSize: 10, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", marginTop: 1,
-                        }}>{a.orden}</span>
+                      <div key={a.id_asignacion} className="stop">
+                        <span className="n">{a.orden}</span>
                         <div>
-                          <div style={{ fontWeight: 700, fontSize: 13 }}>{a.expediente.nombres_cliente}</div>
-                          <div className="muted" style={{ fontSize: 11 }}>{a.expediente.codigo_expediente} · {a.expediente.distrito || "-"}</div>
-                          <div style={{ fontSize: 11, color: "var(--primary)", fontWeight: 700 }}>{fmtDistancia(a.distanciaDesdeAsesor)} desde el punto de partida</div>
+                          <b>{a.expediente.nombres_cliente}</b>
+                          <small><span translate="no">{a.expediente.codigo_expediente}</span> · {a.expediente.distrito || "-"}</small>
+                          <em>{fmtDistancia(a.distanciaDesdeAsesor)} desde el punto de partida</em>
                         </div>
                       </div>
                     ))}
@@ -456,18 +436,10 @@ export default function SeguimientoPage() {
               )}
             </>
           ) : null}
+        </aside>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: 5, marginTop: 14, fontSize: 11 }}>
-            <span style={{ display: "flex", alignItems: "center", gap: 6 }}><i style={{ width: 10, height: 10, borderRadius: "50%", background: INICIO_COLOR, display: "inline-block" }} /> Inicio de ruta (arrastrable)</span>
-            <span style={{ display: "flex", alignItems: "center", gap: 6 }}><i style={{ width: 10, height: 10, borderRadius: "50%", background: RUTA_COLOR, display: "inline-block" }} /> En ruta</span>
-            <span style={{ display: "flex", alignItems: "center", gap: 6 }}><i style={{ width: 10, height: 10, borderRadius: "50%", background: PRIORIDAD_COLORS.ALTA, display: "inline-block" }} /> Prioridad alta</span>
-            <span style={{ display: "flex", alignItems: "center", gap: 6 }}><i style={{ width: 10, height: 10, borderRadius: "50%", background: PRIORIDAD_COLORS.MEDIA, display: "inline-block" }} /> Prioridad media</span>
-            <span style={{ display: "flex", alignItems: "center", gap: 6 }}><i style={{ width: 10, height: 10, borderRadius: "50%", background: PRIORIDAD_COLORS.BAJA, display: "inline-block" }} /> Prioridad baja</span>
-            <span style={{ display: "flex", alignItems: "center", gap: 6 }}><i style={{ width: 10, height: 2, background: "#94a3b8", display: "inline-block" }} /> Recorrido real de hoy</span>
-          </div>
-        </Card>
-        <Card style={{ padding: 0, overflow: "hidden" }} className="seguimiento-map-card">
-          <MapContainer center={CENTER} zoom={12} className="seguimiento-map" style={{ height: 560, width: "100%" }}>
+        <div className="seg-mapcard">
+          <MapContainer center={CENTER} zoom={12} className="seguimiento-map">
             <TileLayer attribution="&copy; OpenStreetMap" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
             <FitBounds coords={fitCoords} />
             <ClickParaIniciar activo={Boolean(seleccionado && !origenRuta)} onClick={setPuntoManual} />
@@ -528,10 +500,18 @@ export default function SeguimientoPage() {
                 </Marker>
               );
             })}
-            {rutaSugerida.length > 1 ? <Polyline positions={rutaSugerida} pathOptions={{ color: RUTA_COLOR, weight: 4, opacity: 0.8 }} /> : null}
-            {polyline.length > 1 ? <Polyline positions={polyline} pathOptions={{ color: "#94a3b8", weight: 2, opacity: 0.6, dashArray: "4 6" }} /> : null}
+            {rutaSugerida.length > 1 ? <Polyline positions={rutaSugerida} pathOptions={{ color: RUTA_COLOR, weight: 4, opacity: 0.85 }} /> : null}
+            {polyline.length > 1 ? <Polyline positions={polyline} pathOptions={{ color: "#94a3b8", weight: 2, opacity: 0.7, dashArray: "4 6" }} /> : null}
           </MapContainer>
-        </Card>
+          <div className="maplegend" aria-label="Leyenda del mapa">
+            <span style={{ ["--c" as any]: INICIO_COLOR }}><i />Inicio de ruta (arrastrable)</span>
+            <span style={{ ["--c" as any]: RUTA_COLOR }}><i />En ruta</span>
+            <span style={{ ["--c" as any]: PRIORIDAD_COLORS.ALTA }}><i />Prioridad alta</span>
+            <span style={{ ["--c" as any]: PRIORIDAD_COLORS.MEDIA }}><i />Media</span>
+            <span style={{ ["--c" as any]: PRIORIDAD_COLORS.BAJA }}><i />Baja</span>
+            <span style={{ ["--c" as any]: "#94a3b8" }}><i className="ln" />Recorrido real de hoy</span>
+          </div>
+        </div>
       </div>
     </>
   );

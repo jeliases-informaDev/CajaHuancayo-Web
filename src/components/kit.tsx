@@ -1,4 +1,7 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useId, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { Icon } from "./icons";
+import { resumenSenales, type Senal } from "../lib/senales";
 
 // Piezas de interfaz del panel. Se usan en varias pantallas y siguen el sistema de index.css.
 
@@ -35,7 +38,7 @@ export function Drawer({ title, subtitle, onClose, children, footer }: {
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [onClose]);
-  return (
+  return createPortal(
     <>
       <div className="drawer-overlay" onClick={onClose} aria-hidden="true" />
       <aside className="drawer" ref={ref} tabIndex={-1} role="dialog" aria-modal="true" aria-label={typeof title === "string" ? title : undefined}>
@@ -44,12 +47,13 @@ export function Drawer({ title, subtitle, onClose, children, footer }: {
             <h2>{title}</h2>
             {subtitle ? <p className="subtle" style={{ marginTop: 4 }}>{subtitle}</p> : null}
           </div>
-          <button className="btn quiet small" onClick={onClose}>Cerrar</button>
+          <button className="iconbtn" onClick={onClose} aria-label="Cerrar"><Icon name="cerrar" size={18} /></button>
         </div>
         <div className="drawer-body">{children}</div>
         {footer ? <div className="drawer-foot">{footer}</div> : null}
       </aside>
-    </>
+    </>,
+    document.body,
   );
 }
 
@@ -63,7 +67,7 @@ export function Modal({ title, steps, step, onClose, children, footer }: {
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [onClose]);
-  return (
+  return createPortal(
     <>
       <div className="drawer-overlay" onClick={onClose} aria-hidden="true" />
       <div className="modal" ref={ref} tabIndex={-1} role="dialog" aria-modal="true" aria-label={title}>
@@ -78,7 +82,8 @@ export function Modal({ title, steps, step, onClose, children, footer }: {
         <div className="modal-body">{children}</div>
         {footer ? <div className="modal-foot">{footer}</div> : null}
       </div>
-    </>
+    </>,
+    document.body,
   );
 }
 
@@ -86,7 +91,7 @@ export function Modal({ title, steps, step, onClose, children, footer }: {
 export function useMenuKeys(abierto: boolean, menu: React.RefObject<HTMLElement | null>, disparador: React.RefObject<HTMLElement | null>, cerrar: () => void) {
   useEffect(() => {
     if (!abierto) return;
-    const items = () => [...(menu.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? [])];
+    const items = () => [...(menu.current?.querySelectorAll<HTMLElement>('[role^="menuitem"]') ?? [])];
     items()[0]?.focus();
     const onKey = (e: KeyboardEvent) => {
       const lista = items();
@@ -138,11 +143,11 @@ export function ActionMenu({ header, items, label = "Acciones" }: { header?: { t
   );
 }
 
-export function Seg<T extends string>({ options, value, onChange, label }: { options: { value: T; label: string }[]; value: T; onChange: (v: T) => void; label?: string }) {
+export function Seg<T extends string>({ options, value, onChange, label }: { options: { value: T; label: string; n?: number }[]; value: T; onChange: (v: T) => void; label?: string }) {
   return (
     <div className="seg" role="group" aria-label={label}>
       {options.map((o) => (
-        <button key={o.value} type="button" className={o.value === value ? "on" : ""} aria-pressed={o.value === value} onClick={() => onChange(o.value)}>{o.label}</button>
+        <button key={o.value} type="button" className={o.value === value ? "on" : ""} aria-pressed={o.value === value} onClick={() => onChange(o.value)}>{o.label}{o.n != null ? <span className="n">{o.n.toLocaleString("es-PE")}</span> : null}</button>
       ))}
     </div>
   );
@@ -169,10 +174,75 @@ export function Bars({ data }: { data: { dia: string; total: number }[] }) {
   return (
     <>
       <div className="bars" role="img" aria-label={`Visitas por día, últimos ${data.length} días: ${data.map((d) => `${etiqueta(d.dia)} ${d.total}`).join(", ")}`}>
-        {data.map((d, i) => <div key={d.dia} className={i === data.length - 1 ? "today" : ""} style={{ height: `${Math.max(4, (d.total / max) * 100)}%` }} title={`${etiqueta(d.dia)}: ${d.total}`} />)}
+        {data.map((d, i) => <div key={d.dia} className={i === data.length - 1 ? "today" : ""} style={{ height: `${Math.max(5, (d.total / max) * 100)}%` }} title={`${etiqueta(d.dia)}: ${d.total}`} />)}
       </div>
       <div className="bars-axis" aria-hidden="true"><span>{data[0] ? etiqueta(data[0].dia) : ""}</span><span>hoy</span></div>
     </>
+  );
+}
+
+// Anillo de avance con degradado: muestra qué parte del total ya está hecha.
+export function Ring({ value, total, small, light, caption }: { value: number; total: number; small?: boolean; light?: boolean; caption?: string }) {
+  const id = useId().replace(/:/g, "");
+  const R = 52;
+  const C = 2 * Math.PI * R;
+  const pct = total > 0 ? Math.min(1, value / total) : 0;
+  const [dibujado, setDibujado] = useState(0);
+  useEffect(() => { const t = requestAnimationFrame(() => setDibujado(pct)); return () => cancelAnimationFrame(t); }, [pct]);
+  return (
+    <div className={`ring${small ? " sm" : ""}${light ? " light" : ""}`} role="img" aria-label={`${value} de ${total}${caption ? ` ${caption}` : ""}, ${Math.round(pct * 100)} %`}>
+      <svg viewBox="0 0 120 120" aria-hidden="true">
+        <defs><linearGradient id={id} x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#ff6ec4" /><stop offset=".5" stopColor="#b07cff" /><stop offset="1" stopColor="#7f93ff" /></linearGradient></defs>
+        <circle className="track" cx="60" cy="60" r={R} fill="none" strokeWidth="11" />
+        <circle className="val" cx="60" cy="60" r={R} fill="none" strokeWidth="11" strokeLinecap="round" stroke={`url(#${id})`} strokeDasharray={C} strokeDashoffset={C * (1 - dibujado)} />
+      </svg>
+      <div className="center"><b>{Math.round(pct * 100)}%</b>{caption ? <span>{caption}</span> : null}</div>
+    </div>
+  );
+}
+
+// Una barrita por señal de verificación: verde cumple, roja falla, gris no aplica.
+export function Pips({ senales }: { senales: Senal[] }) {
+  const r = resumenSenales(senales);
+  const detalle = senales.map((x) => `${x.label}${x.tone === "na" ? " (no aplica)" : x.tone === "ok" ? "" : " (alerta)"}`).join("; ");
+  return (
+    <span title={detalle}>
+      <span className="pips" role="img" aria-label={`${r.bien} de ${r.total} señales en regla. ${detalle}`}>
+        {senales.map((x, i) => <i key={i} className={x.tone === "na" ? "" : x.tone} />)}
+      </span>
+      <span className="pips-t" aria-hidden="true">{r.bien}/{r.total}</span>
+    </span>
+  );
+}
+
+// Visor de fotografías a pantalla completa: ← → cambian de foto, Esc cierra.
+export function Lightbox({ items, index, onIndex, onClose }: { items: { url: string; titulo: string }[]; index: number; onIndex: (i: number) => void; onClose: () => void }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useDialogFocus(ref);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+      else if (e.key === "ArrowLeft" && index > 0) onIndex(index - 1);
+      else if (e.key === "ArrowRight" && index < items.length - 1) onIndex(index + 1);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [index, items.length, onClose, onIndex]);
+  const actual = items[index];
+  if (!actual) return null;
+  return createPortal(
+    <div className="lightbox" ref={ref} role="dialog" aria-modal="true" aria-label="Visor de fotografías" tabIndex={-1}>
+      <div className="lb-bar">
+        <span>{actual.titulo} · {index + 1} de {items.length}</span>
+        <button className="lb-close" onClick={onClose} aria-label="Cerrar el visor"><Icon name="cerrar" size={18} /></button>
+      </div>
+      <div className="lb-stage" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+        <button className="lb-nav lb-prev" onClick={() => onIndex(index - 1)} disabled={index === 0} aria-label="Foto anterior"><Icon name="izquierda" /></button>
+        <img src={actual.url} alt={actual.titulo} />
+        <button className="lb-nav lb-next" onClick={() => onIndex(index + 1)} disabled={index >= items.length - 1} aria-label="Foto siguiente"><Icon name="derecha" /></button>
+      </div>
+    </div>,
+    document.body,
   );
 }
 

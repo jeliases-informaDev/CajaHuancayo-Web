@@ -1,4 +1,6 @@
 import React, { useId } from "react";
+import { Ilustracion } from "./icons";
+import { iniciales, tonoAvatar } from "../lib/format";
 
 // Un estado = un color en toda la interfaz (definido en index.css: ok, warn, bad, neutral, blue, plum).
 type Tono = "ok" | "warn" | "bad" | "neutral" | "blue" | "plum";
@@ -47,33 +49,27 @@ export function InfoRow({ k, v }: { k: string; v: React.ReactNode }) {
 
 export function Loading() {
   return (
-    <div role="status" aria-live="polite" style={{ display: "flex", alignItems: "center", gap: 10, padding: "6px 2px", color: "var(--muted)", fontSize: 13, fontWeight: 600 }}>
-      <span
-        style={{
-          width: 16, height: 16, borderRadius: "50%", flexShrink: 0,
-          border: "2.5px solid var(--border)", borderTopColor: "var(--primary)",
-          animation: "ch-spin 0.7s linear infinite",
-        }}
-      />
-      Cargando…
-      <style>{"@keyframes ch-spin{to{transform:rotate(360deg)}}"}</style>
+    <div role="status" aria-live="polite" style={{ display: "flex", flexDirection: "column", gap: 14, padding: "6px 0" }}>
+      <Skeleton width={220} height={34} radius={8} />
+      <Skeleton width="100%" height={120} radius={16} style={{ display: "block" }} />
+      <Skeleton width="100%" height={220} radius={16} style={{ display: "block" }} />
+      <span className="sr-only">Cargando…</span>
     </div>
   );
 }
 
-export function Empty({ text, title }: { text: string; title?: string }) {
+export function Avatar({ nombre, size, className = "" }: { nombre?: string | null; size?: "sm" | "lg"; className?: string }) {
+  return <span className={`avatar ${size || ""} ${tonoAvatar(nombre)} ${className}`.trim()} aria-hidden="true">{iniciales(nombre)}</span>;
+}
+
+export function Empty({ text, title, tipo = "vacio", action }: { text: string; title?: string; tipo?: "vacio" | "busqueda" | "visitas" | "asignar"; action?: React.ReactNode }) {
   return (
     <Card>
       <div className="empty-state">
-        <span className="icon" aria-hidden="true">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-            <path d="M4 13V7a1 1 0 0 1 1-1h3.5l1.5 2h5l1.5-2H20a1 1 0 0 1 1 1v6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-            <path d="M4 13l1.4 5.6A1 1 0 0 0 6.36 19h11.28a1 1 0 0 0 .97-.76L20 13" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-            <path d="M4 13h5l1 2h4l1-2h5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </span>
-        {title ? <p style={{ margin: 0, fontWeight: 800, color: "var(--text)", fontSize: 13.5 }}>{title}</p> : null}
-        <p style={{ margin: 0 }}>{text}</p>
+        <Ilustracion tipo={tipo} />
+        {title ? <p className="t">{title}</p> : null}
+        <p>{text}</p>
+        {action ? <div style={{ marginTop: 18 }}>{action}</div> : null}
       </div>
     </Card>
   );

@@ -5,9 +5,9 @@ import { fechaHora } from "../lib/format";
 
 function Metrica({ valor, etiqueta, alerta }: { valor?: number; etiqueta: string; alerta?: boolean }) {
   return (
-    <div>
-      <div className="figure" style={{ fontSize: 34, color: alerta && valor ? "var(--bad)" : undefined }}>{(valor ?? 0).toLocaleString("es-PE")}</div>
-      <p className="subtle" style={{ marginTop: 6 }}>{etiqueta}</p>
+    <div className={`metric${alerta && valor ? " alert" : ""}`}>
+      <div className="figure">{(valor ?? 0).toLocaleString("es-PE")}</div>
+      <p>{etiqueta}</p>
     </div>
   );
 }
@@ -41,8 +41,8 @@ export default function SeguridadPage() {
         </div>
       </div>
 
-      {loading ? <Skeleton height={90} radius={3} style={{ display: "block" }} /> : (
-        <div className="cols" style={{ gridTemplateColumns: "repeat(4, minmax(0, 1fr))" }}>
+      {loading ? <Skeleton height={120} radius={20} style={{ display: "block" }} /> : (
+        <div className="metrics">
           <Metrica valor={metricas?.total_eventos} etiqueta="Eventos en las últimas 24 horas" />
           <Metrica valor={metricas?.errores} etiqueta="Peticiones con error" alerta />
           <Metrica valor={metricas?.fallos_autenticacion} etiqueta="Intentos de acceso fallidos" alerta />
@@ -56,8 +56,8 @@ export default function SeguridadPage() {
           <label className="check-inline"><input type="checkbox" checked={soloCambios} onChange={(e) => setSoloCambios(e.target.checked)} />Solo cambios de datos (con valor anterior y nuevo)</label>
           <label className="check-inline"><input type="checkbox" checked={soloErrores} onChange={(e) => setSoloErrores(e.target.checked)} />Solo errores</label>
         </div>
-        {loading ? <Skeleton height={260} radius={3} style={{ display: "block", marginTop: 14 }} /> : !visibles.length ? (
-          <Empty title="Sin registros" text="Ningún registro coincide con estos filtros." />
+        {loading ? <Skeleton height={260} radius={16} style={{ display: "block" }} /> : !visibles.length ? (
+          <Empty tipo="busqueda" title="Sin registros" text="Ningún registro coincide con estos filtros." />
         ) : (
           <div className="table-wrap long">
             <table>

@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { downloadWordExport, fetchEvidenceBlobUrl, request } from "../api";
-import { Badge, Card, InfoRow, Loading, Origen, TabPanel, Tabs } from "../components/ui";
+import { Avatar, Badge, Card, InfoRow, Loading, Origen, TabPanel, Tabs } from "../components/ui";
 import { useQueryParam } from "../lib/useQueryParam";
-import { Check } from "../components/kit";
+import { Check, Lightbox, Ring } from "../components/kit";
+import { Icon } from "../components/icons";
 import { ClienteSeccion, CreditoSeccion, EndeudamientoSeccion, EvaluacionMype, IngresosConsumo, NegocioSeccion } from "../components/ficha/Secciones";
 import { ESTADO_NEGOCIO, PLANTILLA_NOMBRE, PROPIEDAD_LOCAL, ORIGEN_UBICACION, dash, fechaHora, n2 } from "../lib/format";
 
@@ -36,24 +37,6 @@ const GRUPOS_CUESTIONARIO: { titulo: string; items: [string, string][] }[] = [
     ],
   },
 ];
-
-function EvidencePhoto({ idEvidencia, tipo }: { idEvidencia: string; tipo: string }) {
-  const [url, setUrl] = useState("");
-  const [error, setError] = useState(false);
-  useEffect(() => {
-    let objectUrl = "";
-    fetchEvidenceBlobUrl(idEvidencia).then((u) => { objectUrl = u; setUrl(u); }).catch(() => setError(true));
-    return () => { if (objectUrl) URL.revokeObjectURL(objectUrl); };
-  }, [idEvidencia]);
-  if (error) return <p className="muted">No se pudo cargar {tipo}.</p>;
-  if (!url) return <p className="muted">Cargando {tipo}…</p>;
-  return (
-    <div>
-      <img src={url} alt={tipo} className="photo-thumb" width={1024} height={768} loading="lazy" decoding="async" />
-      <p className="muted" style={{ fontSize: 11, marginTop: 4 }}>{tipo}</p>
-    </div>
-  );
-}
 
 const respuesta = (v: any) => (typeof v === "boolean" ? <span className={`tag ${v ? "campo" : "aviso"}`}>{v ? "SI" : "NO"}</span> : dash(v));
 
@@ -244,45 +227,104 @@ function controlesDe(visita: any, esMype: boolean) {
 }
 
 function Evidencias({ visita }: { visita: any }) {
+  const evid: any[] = visita.evidencias || [];
+  const [urls, setUrls] = useState<Record<string, string>>({});
+  const [fallos, setFallos] = useState<Record<string, boolean>>({});
+  const [visor, setVisor] = useState<number | null>(null);
   const lat = Number(visita.latitud);
   const lng = Number(visita.longitud);
+
+  // Las fotos exigen el token de sesión, así que se piden con fetch y se muestran desde una URL local.
+  useEffect(() => {
+    let vivo = true;
+    const creadas: string[] = [];
+    setUrls({}); setFallos({});
+    evid.forEach((ev) => {
+      fetchEvidenceBlobUrl(ev.id_evidencia)
+        .then((u) => { creadas.push(u); if (vivo) setUrls((p) => ({ ...p, [ev.id_evidencia]: u })); else URL.revokeObjectURL(u); })
+        .catch(() => { if (vivo) setFallos((p) => ({ ...p, [ev.id_evidencia]: true })); });
+    });
+    return () => { vivo = false; creadas.forEach((u) => URL.revokeObjectURL(u)); };
+  }, [visita.id_visita]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const titulo = (ev: any) => (ev.tipo === "FOTO_PRINCIPAL" ? "Fotografía principal" : "Fotografía adicional");
+  const listos = evid.filter((ev) => urls[ev.id_evidencia]).map((ev) => ({ url: urls[ev.id_evidencia], titulo: titulo(ev) }));
+
   return (
     <>
-      <div className="section-head" style={{ borderBottom: "none", paddingBottom: 0 }}><h2>Evidencia</h2></div>
-      <div style={{ marginTop: 14 }}>
-        {(visita.evidencias || []).map((ev: any) => (
-          <figure key={ev.id_evidencia} className="evidence" style={{ margin: 0 }}>
-            <EvidencePhoto idEvidencia={ev.id_evidencia} tipo={ev.tipo === "FOTO_PRINCIPAL" ? "Fotografía principal" : "Fotografía adicional"} />
-          </figure>
-        ))}
-        {!visita.evidencias?.length ? <p className="subtle">Esta visita no tiene fotografías.</p> : null}
-      </div>
+      <div className="rail-title"><h2>Evidencia</h2><span className="meta subtle">{evid.length} {evid.length === 1 ? "foto" : "fotos"}</span></div>
+      {evid.length ? (
+        <div className={`gallery${evid.length === 1 ? " one" : ""}`}>
+          {evid.map((ev) => {
+            const url = urls[ev.id_evidencia];
+            if (fallos[ev.id_evidencia]) return <div key={ev.id_evidencia} className="shot loading">No se pudo cargar la foto</div>;
+            if (!url) return <div key={ev.id_evidencia} className="shot loading" role="status">Cargando…</div>;
+            return (
+              <button key={ev.id_evidencia} type="button" className="shot" onClick={() => setVisor(listos.findIndex((l) => l.url === url))} aria-label={`Ampliar: ${titulo(ev)}`}>
+                <img src={url} alt={titulo(ev)} width={640} height={480} loading="lazy" decoding="async" />
+                <span>{titulo(ev)}</span>
+              </button>
+            );
+          })}
+        </div>
+      ) : <p className="subtle">Esta visita no tiene fotografías.</p>}
+
       {visita.firma_evidencia ? (
-        <div className="evidence" style={{ marginTop: 22 }}>
-          <p className="lbl" style={{ marginBottom: 6 }}>Firma del cliente</p>
+        <div className="railblock">
+          <span className="lbl">Firma del cliente</span>
           <div className="signature"><img src={visita.firma_evidencia} alt="Firma del cliente" width={520} height={260} /></div>
         </div>
       ) : null}
-      <div className="evidence" style={{ marginTop: 22 }}>
-        <p className="lbl" style={{ marginBottom: 6 }}>Ubicación registrada</p>
-        <p style={{ fontVariantNumeric: "tabular-nums" }}>{Number.isFinite(lat) ? `${lat.toFixed(6)}, ${lng.toFixed(6)}` : "-"}</p>
-        <p className="subtle">Precisión de ±{visita.precision_metros != null ? Math.round(visita.precision_metros) : "?"} m</p>
-        {Number.isFinite(lat) ? <a href={`https://www.google.com/maps?q=${lat},${lng}`} target="_blank" rel="noreferrer">Ver en el mapa</a> : null}
+
+      <div className="railblock">
+        <span className="lbl">Ubicación registrada</span>
+        <div className="locbox">
+          <span className="pin"><Icon name="seguimiento" size={20} /></span>
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <b>{Number.isFinite(lat) ? `${lat.toFixed(6)}, ${lng.toFixed(6)}` : "-"}</b>
+            <span className="subtle">Precisión de ±{visita.precision_metros != null ? Math.round(visita.precision_metros) : "?"} m</span>
+          </div>
+          {Number.isFinite(lat) ? <a className="iconbtn" href={`https://www.google.com/maps?q=${lat},${lng}`} target="_blank" rel="noreferrer" aria-label="Abrir la ubicación en el mapa (se abre en otra pestaña)"><Icon name="externo" size={17} /></a> : null}
+        </div>
       </div>
+      {visor !== null && listos.length ? <Lightbox items={listos} index={Math.min(visor, listos.length - 1)} onIndex={setVisor} onClose={() => setVisor(null)} /> : null}
     </>
   );
 }
 
+function leerCola(): number[] {
+  try { const v = JSON.parse(sessionStorage.getItem("ch_cola_visitas") || "[]"); return Array.isArray(v) ? v.map(Number) : []; } catch { return []; }
+}
+
 export default function VisitaDetailPage() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [visita, setVisita] = useState<any>(null);
   const [error, setError] = useState("");
   const [downloading, setDownloading] = useState(false);
   const [tab, setTab] = useQueryParam("tab", "ficha");
 
   useEffect(() => {
+    setVisita(null);
     request(`/api/visitas/${id}`).then((r: any) => setVisita(r.data)).catch((e) => setError(e.message));
   }, [id]);
+
+  // Anterior / siguiente dentro de la lista que se estaba revisando (atajos: K y J).
+  const cola = useMemo(leerCola, [id]);
+  const posicion = cola.indexOf(Number(id));
+  const anterior = posicion > 0 ? cola[posicion - 1] : null;
+  const siguiente = posicion >= 0 && posicion < cola.length - 1 ? cola[posicion + 1] : null;
+  useEffect(() => {
+    const onKey = (ev: KeyboardEvent) => {
+      const t = ev.target as HTMLElement | null;
+      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.isContentEditable)) return;
+      if (ev.ctrlKey || ev.metaKey || ev.altKey) return;
+      if (ev.key === "j" && siguiente) navigate(`/visitas/${siguiente}`);
+      if (ev.key === "k" && anterior) navigate(`/visitas/${anterior}`);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [anterior, siguiente, navigate]);
 
   const descargarWord = async () => {
     setDownloading(true);
@@ -299,6 +341,8 @@ export default function VisitaDetailPage() {
   const controles = controlesDe(visita, esMype);
   const fallan = controles.filter((c) => c.tone === "bad").length;
   const avisos = controles.filter((c) => c.tone === "warn").length;
+  const aplican = controles.filter((c) => c.tone !== "na").length;
+  const enRegla = controles.filter((c) => c.tone === "ok").length;
   const tabs = [
     { id: "ficha", label: "Ficha de entrevista" },
     { id: "base", label: "Datos de la base" },
@@ -309,33 +353,52 @@ export default function VisitaDetailPage() {
     <>
       <div className="page-head">
         <div>
-          <p style={{ marginTop: 0, marginBottom: 8 }}><Link to="/visitas">Visitas</Link></p>
-          <h1>{e.nombres_cliente}</h1>
-          <p className="row" style={{ marginTop: 10, gap: 14 }}>
-            <span className="code" style={{ color: "var(--ink-2)", fontVariantNumeric: "tabular-nums" }}>{e.codigo_expediente}</span>
-            <span>{fechaHora(visita.fecha_hora_checkin)}</span>
-            <Badge label={visita.resultado} />
-            <span className={`tag ${esMype ? "aviso" : "base"}`}>{esMype ? "Ficha MYPE" : "Ficha Consumo"}</span>
-          </p>
+          <p className="eyebrow"><Link to="/visitas"><Icon name="volver" size={14} /> Visitas</Link></p>
+          <div className="who-cell" style={{ gap: 18 }}>
+            <Avatar nombre={e.nombres_cliente} size="lg" />
+            <div>
+              <h1>{e.nombres_cliente}</h1>
+              <p className="row" style={{ marginTop: 10, gap: 12 }}>
+                <span className="code" translate="no" style={{ color: "var(--ink-2)" }}>{e.codigo_expediente}</span>
+                <span>{fechaHora(visita.fecha_hora_checkin)}</span>
+                <Badge label={visita.resultado} />
+                <span className={`tag ${esMype ? "aviso" : "base"}`}>{esMype ? "Ficha MYPE" : "Ficha Consumo"}</span>
+              </p>
+            </div>
+          </div>
         </div>
         <div className="actions">
-          <Link to={`/expedientes/${visita.id_expediente}`} className="btn ghost">Ver expediente</Link>
-          <button className="btn" onClick={descargarWord} disabled={downloading}>{downloading ? "Generando…" : "Descargar ficha en Word"}</button>
+          {posicion >= 0 && cola.length > 1 ? (
+            <div className="stepnav" role="group" aria-label="Recorrer las visitas de la lista">
+              <button className="iconbtn" disabled={!anterior} onClick={() => anterior && navigate(`/visitas/${anterior}`)} aria-label="Visita anterior (K)" title="Anterior (K)"><Icon name="izquierda" size={18} /></button>
+              <span className="pos">{posicion + 1} de {cola.length}</span>
+              <button className="iconbtn" disabled={!siguiente} onClick={() => siguiente && navigate(`/visitas/${siguiente}`)} aria-label="Visita siguiente (J)" title="Siguiente (J)"><Icon name="derecha" size={18} /></button>
+            </div>
+          ) : null}
+          <Link to={`/expedientes/${visita.id_expediente}`} className="btn ghost"><Icon name="expedientes" size={17} />Ver expediente</Link>
+          <button className="btn" onClick={descargarWord} disabled={downloading}><Icon name="descargar" size={17} />{downloading ? "Generando…" : "Ficha en Word"}</button>
         </div>
       </div>
 
-      <section className="verdict" aria-label="Controles de la visita">
-        <div className="verdict-head">
-          <h2>Controles de la visita</h2>
-          <span className={`state ${fallan ? "bad" : avisos ? "warn" : "ok"}`}>
-            {fallan ? `${fallan} ${fallan === 1 ? "control no se cumple" : "controles no se cumplen"}` : avisos ? `${avisos} ${avisos === 1 ? "punto" : "puntos"} por revisar` : "Todos los controles en orden"}
-          </span>
+      <section className="scorecard" aria-label="Señales de verificación de la visita">
+        <div className="score-side">
+          <div>
+            <h2>Señales de verificación</h2>
+            <p>Lo que el sistema comprobó por su cuenta, sin depender de lo que declaró el auditor.</p>
+          </div>
+          <div className="row" style={{ gap: 16, flexWrap: "nowrap" }}>
+            <Ring value={enRegla} total={aplican} small caption="en regla" />
+            <div className={fallan ? "tone-bad" : avisos ? "tone-warn" : "tone-ok"} style={{ fontWeight: 500, fontSize: 14, lineHeight: 1.35 }}>
+              {fallan ? `${fallan} ${fallan === 1 ? "control no se cumple" : "controles no se cumplen"}` : avisos ? `${avisos} ${avisos === 1 ? "punto" : "puntos"} por revisar` : "Todo en orden"}
+              <span style={{ display: "block", fontWeight: 400, color: "#b3bbe6", fontSize: 12.5 }}>{enRegla} de {aplican} controles</span>
+            </div>
+          </div>
         </div>
         <div className="checks">{controles.map((c) => <Check key={c.title} {...c} />)}</div>
       </section>
 
       <div className="workbench">
-        <aside><Evidencias visita={visita} /></aside>
+        <aside aria-label="Evidencia de la visita"><Evidencias visita={visita} /></aside>
         <div>
           <Tabs name="visita" tabs={tabs} value={tab} onChange={setTab} />
           <TabPanel name="visita" id={tab}>

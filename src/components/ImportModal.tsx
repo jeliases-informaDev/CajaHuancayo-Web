@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { API_URL, getToken, request } from "../api";
 import { Modal } from "./kit";
+import { Icon } from "./icons";
 import { ADVERTENCIAS, fechaHora } from "../lib/format";
 
 // Carga de expedientes en tres pasos: elegir el archivo, revisar el reporte de validación (no guarda
@@ -116,7 +117,7 @@ export default function ImportModal({ onClose, onDone }: { onClose: () => void; 
       {estado === "elegir" ? (
         <>
           <div className="dropzone" role="button" tabIndex={0} onClick={() => entrada.current?.click()} onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && entrada.current?.click()}>
-            <b>Elegir archivo de Excel (.xlsx)</b>
+            <Icon name="subir" size={26} /><b style={{ marginTop: 8 }}>Elegir archivo de Excel (.xlsx)</b>
             <span>{archivo ? archivo.name : "La base MYPE del core o la plantilla de expedientes"}</span>
           </div>
           <input ref={entrada} type="file" accept=".xlsx" aria-label="Archivo de Excel" hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) { setArchivo(f); ejecutar(f, true); } }} />

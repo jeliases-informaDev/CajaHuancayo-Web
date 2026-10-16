@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { request } from "../api";
-import { Badge, Button, Card, InfoRow, Loading, TabPanel, Tabs } from "../components/ui";
+import { Avatar, Badge, Button, Card, InfoRow, Loading, TabPanel, Tabs } from "../components/ui";
+import { Icon } from "../components/icons";
 import { useQueryParam } from "../lib/useQueryParam";
 import { ClienteSeccion, CreditoSeccion, EndeudamientoSeccion, EvaluacionMype, IngresosConsumo, NegocioSeccion } from "../components/ficha/Secciones";
 import { ADVERTENCIAS, ORIGEN_UBICACION, dash, fecha, fechaHora } from "../lib/format";
@@ -158,18 +159,25 @@ export default function ExpedienteDetailPage() {
     { id: "trazabilidad", label: "Trazabilidad", badge: advertencias.length > 0 },
   ], [esMype, advertencias.length]);
 
-  if (error) return <Card><p style={{ color: "var(--danger)" }}>{error}</p></Card>;
+  if (error) return <div role="alert" className="error-box">{error}</div>;
   if (!expediente) return <Loading />;
 
   return (
     <>
-      <div className="page-header">
+      <div className="page-head">
         <div>
-          <p><Link to="/expedientes">← Expedientes</Link></p>
-          <h1>{expediente.nombres_cliente}</h1>
-          <p>
-            {expediente.codigo_expediente} · <span className={`tag ${esMype ? "aviso" : "base"}`}>{esMype ? "MYPE · Créditos Otros" : "Consumo"}</span> <Badge label={expediente.estado} />
-          </p>
+          <p className="eyebrow"><Link to="/expedientes"><Icon name="volver" size={14} /> Expedientes</Link></p>
+          <div className="who-cell" style={{ gap: 18 }}>
+            <Avatar nombre={expediente.nombres_cliente} size="lg" />
+            <div>
+              <h1>{expediente.nombres_cliente}</h1>
+              <p className="row" style={{ marginTop: 10, gap: 12 }}>
+                <span className="code" translate="no" style={{ color: "var(--ink-2)" }}>{expediente.codigo_expediente}</span>
+                <span className={`tag ${esMype ? "aviso" : "base"}`}>{esMype ? "MYPE · Créditos Otros" : "Consumo"}</span>
+                <Badge label={expediente.estado} />
+              </p>
+            </div>
+          </div>
         </div>
       </div>
       <Tabs name="expediente" tabs={tabs} value={tab} onChange={setTab} />

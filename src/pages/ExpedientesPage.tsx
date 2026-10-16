@@ -2,9 +2,11 @@ import React, { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useQueryParam } from "../lib/useQueryParam";
 import { request } from "../api";
-import { Badge, Empty, Field, Skeleton } from "../components/ui";
+import { Avatar, Badge, Empty, Field, Skeleton } from "../components/ui";
 import { Drawer, Seg } from "../components/kit";
 import ImportModal from "../components/ImportModal";
+import { Icon } from "../components/icons";
+import { useResumen } from "../lib/resumen";
 import { dash, fechaHora, n2 } from "../lib/format";
 
 const LIMITE = 50;
@@ -74,6 +76,7 @@ export default function ExpedientesPage() {
   const [form, setForm] = useState(emptyForm);
   const [guardando, setGuardando] = useState(false);
   const [historial, setHistorial] = useState<any[] | null>(null);
+  const { resumen } = useResumen();
 
   const cargar = useCallback(async () => {
     setLoading(true);
@@ -124,13 +127,28 @@ export default function ExpedientesPage() {
           <p>{total.toLocaleString("es-PE")} {total === 1 ? "expediente" : "expedientes"} {search || tipo || estado || sinUbicacion ? "con estos filtros" : "cargados"}.</p>
         </div>
         <div className="actions">
-          <button className="btn quiet" onClick={verHistorial}>Historial de cargas</button>
-          <button className="btn ghost" onClick={() => setNuevo(true)}>Nuevo expediente</button>
-          <button className="btn" onClick={() => setImportando(true)}>Cargar archivo</button>
+          <button className="btn quiet" onClick={verHistorial}><Icon name="reloj" size={17} />Historial de cargas</button>
+          <button className="btn ghost" onClick={() => setNuevo(true)}><Icon name="mas" size={17} />Nuevo expediente</button>
+          <button className="btn" onClick={() => setImportando(true)}><Icon name="subir" size={17} />Cargar archivo</button>
         </div>
       </div>
 
       {error ? <div role="alert" className="error-box">{error}</div> : null}
+
+      {resumen ? (
+        <div className="chips" role="group" aria-label="Filtrar por estado">
+          {[
+            { v: "", label: "Todos", n: resumen.expedientes.total, c: "var(--brand)" },
+            { v: "PENDIENTE", label: "Sin asignar", n: resumen.expedientes.por_estado.PENDIENTE || 0, c: "var(--faint)" },
+            { v: "ASIGNADO", label: "Asignados", n: resumen.expedientes.por_estado.ASIGNADO || 0, c: "var(--violet)" },
+            { v: "VISITADO", label: "Visitados", n: resumen.expedientes.por_estado.VISITADO || 0, c: "var(--ok)" },
+          ].map((x) => (
+            <button key={x.v} type="button" className={`chipbtn${estado === x.v ? " on" : ""}`} aria-pressed={estado === x.v} onClick={() => setEstado(x.v)} style={{ ["--c" as any]: x.c }}>
+              <i aria-hidden="true" /><b>{x.n.toLocaleString("es-PE")}</b>{x.label}
+            </button>
+          ))}
+        </div>
+      ) : null}
 
       <div className="filters">
         <div className="fgroup grow">
@@ -151,9 +169,9 @@ export default function ExpedientesPage() {
       </div>
 
       {loading && !data.length ? (
-        <div style={{ paddingTop: 18 }}>{[0, 1, 2, 3, 4, 5].map((i) => <Skeleton key={i} height={22} radius={3} style={{ display: "block", margin: "16px 0" }} />)}</div>
+        <div className="table-wrap" style={{ padding: 18 }}>{[0, 1, 2, 3, 4, 5].map((i) => <Skeleton key={i} height={26} radius={8} style={{ display: "block", margin: "14px 0" }} />)}</div>
       ) : !data.length ? (
-        <Empty title="Sin expedientes" text={search || tipo || estado || sinUbicacion ? "Ningún expediente coincide con estos filtros." : "Carga un archivo de Excel para empezar."} />
+        <Empty tipo={search || tipo || estado || sinUbicacion ? "busqueda" : "vacio"} title="Sin expedientes" text={search || tipo || estado || sinUbicacion ? "Ningún expediente coincide con estos filtros." : "Carga un archivo de Excel para empezar."} />
       ) : (
         <>
           <div className="table-wrap" style={{ opacity: loading ? 0.55 : 1 }}>
@@ -163,8 +181,8 @@ export default function ExpedientesPage() {
                 {data.map((x) => (
                   <tr key={x.id_expediente} className={`clickable${vista === x.id_expediente ? " selected" : ""}`} onClick={() => setVista(x.id_expediente)}>
                     <td className="code" translate="no">{x.codigo_expediente}</td>
-                    <td><button type="button" className="linklike" onClick={(e) => { e.stopPropagation(); setVista(x.id_expediente); }}>{x.nombres_cliente}</button><span className="sub" translate="no">{x.numero_documento_cliente}</span></td>
-                    <td>{x.tipo_credito === "OTROS" ? "MYPE" : "Consumo"}</td>
+                    <td><div className="who-cell"><Avatar nombre={x.nombres_cliente} /><div><button type="button" className="linklike" onClick={(e) => { e.stopPropagation(); setVista(x.id_expediente); }}>{x.nombres_cliente}</button><span className="sub" translate="no">{x.numero_documento_cliente}</span></div></div></td>
+                    <td><span className={`tag ${x.tipo_credito === "OTROS" ? "aviso" : "base"}`}>{x.tipo_credito === "OTROS" ? "MYPE" : "Consumo"}</span></td>
                     <td>{dash(x.distrito)}</td>
                     <td>{x.asesor_responsable}</td>
                     <td><span className={`state ${x.latitud != null && x.longitud != null ? "ok" : "warn"}`}>{x.latitud != null && x.longitud != null ? "Con coordenadas" : "Sin coordenadas"}</span></td>
@@ -176,8 +194,8 @@ export default function ExpedientesPage() {
           </div>
           <div className="pagination">
             <span className="muted">Página {pagina} de {paginas}</span>
-            <button className="btn ghost small" disabled={pagina <= 1} onClick={() => setPagina((p) => p - 1)}>Anterior</button>
-            <button className="btn ghost small" disabled={pagina >= paginas} onClick={() => setPagina((p) => p + 1)}>Siguiente</button>
+            <button className="btn ghost small" disabled={pagina <= 1} onClick={() => setPagina((p) => p - 1)}><Icon name="izquierda" size={15} />Anterior</button>
+            <button className="btn ghost small" disabled={pagina >= paginas} onClick={() => setPagina((p) => p + 1)}>Siguiente<Icon name="derecha" size={15} /></button>
           </div>
         </>
       )}

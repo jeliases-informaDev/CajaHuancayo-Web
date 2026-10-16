@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { request } from "../api";
-import { Badge, Empty, Field, Skeleton } from "../components/ui";
+import { Avatar, Badge, Empty, Field, Skeleton } from "../components/ui";
+import { Icon } from "../components/icons";
 import { ActionMenu, Drawer, Seg } from "../components/kit";
 import { dash, fechaHora } from "../lib/format";
 import { useQueryParam } from "../lib/useQueryParam";
@@ -61,7 +62,7 @@ export default function UsuariosPage() {
           <h1>Usuarios</h1>
           <p>Administradores, supervisores y auditores con acceso al sistema.</p>
         </div>
-        <div className="actions"><button className="btn" onClick={() => { setNuevo(true); setOk(""); }}>Nuevo usuario</button></div>
+        <div className="actions"><button className="btn" onClick={() => { setNuevo(true); setOk(""); }}><Icon name="mas" size={17} />Nuevo usuario</button></div>
       </div>
       {error ? <div role="alert" className="error-box">{error}</div> : null}
       {ok ? <div role="status" className="callout ok">{ok}</div> : null}
@@ -74,9 +75,9 @@ export default function UsuariosPage() {
       </div>
 
       {loading ? (
-        <div style={{ paddingTop: 18 }}>{[0, 1, 2, 3, 4].map((i) => <Skeleton key={i} height={22} radius={3} style={{ display: "block", margin: "16px 0" }} />)}</div>
+        <div className="table-wrap" style={{ padding: 18 }}>{[0, 1, 2, 3, 4].map((i) => <Skeleton key={i} height={26} radius={8} style={{ display: "block", margin: "14px 0" }} />)}</div>
       ) : !visibles.length ? (
-        <Empty title="Sin usuarios" text="Ningún usuario coincide con la búsqueda." />
+        <Empty tipo="busqueda" title="Sin usuarios" text="Ningún usuario coincide con la búsqueda." />
       ) : (
         <div className="table-wrap">
           <table>
@@ -84,7 +85,7 @@ export default function UsuariosPage() {
             <tbody>
               {visibles.map((u) => (
                 <tr key={u.id}>
-                  <td><b style={{ fontWeight: 500 }}>{nombreDe(u) || u.username}</b><span className="sub">@{u.username}</span></td>
+                  <td><div className="who-cell"><Avatar nombre={nombreDe(u) || u.username} /><div><b style={{ fontWeight: 500 }}>{nombreDe(u) || u.username}</b><span className="sub">@{u.username}</span></div></div></td>
                   <td><Badge label={u.rol} /></td>
                   <td>{dash(u.departamento)}</td>
                   <td><Badge label={u.estado} /></td>

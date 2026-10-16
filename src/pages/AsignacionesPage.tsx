@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useQueryParam } from "../lib/useQueryParam";
 import { request } from "../api";
-import { Badge, Empty, Skeleton } from "../components/ui";
+import { Avatar, Badge, Empty, Skeleton } from "../components/ui";
+import { Icon } from "../components/icons";
 import { ActionMenu, Seg } from "../components/kit";
 import { dash, fecha } from "../lib/format";
 
@@ -81,13 +82,14 @@ export default function AsignacionesPage() {
       <div className="planner">
         <div>
           <div className="section-head"><h2>Auditores</h2><span className="meta">Casos activos</span></div>
-          {loading ? <Skeleton height={180} radius={3} style={{ display: "block", marginTop: 12 }} /> : (
+          {loading ? <Skeleton height={220} radius={16} style={{ display: "block" }} /> : (
             <ul className="auditor-list">
               {auditores.map((a) => (
                 <li key={a.id}>
                   <button className={auditorId === a.id ? "on" : ""} onClick={() => setAuditorId(auditorId === a.id ? "" : a.id)} aria-pressed={auditorId === a.id}>
+                    <Avatar nombre={nombreDe(a)} />
                     <span><b>{nombreDe(a)}</b><small>{a.departamento || "Sin zona definida"}</small></span>
-                    <span className="load">{carga.get(a.id) || 0}</span>
+                    <span className="load">{carga.get(a.id) || 0}<small>activos</small></span>
                   </button>
                 </li>
               ))}
@@ -102,8 +104,8 @@ export default function AsignacionesPage() {
             <div className="fgroup grow"><label className="lbl" htmlFor="b-asig">Buscar</label><input id="b-asig" name="q" type="search" autoComplete="off" spellCheck={false} className="input" placeholder="Crédito, cliente, documento o distrito…" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} /></div>
             <div className="fgroup"><span className="lbl">Tipo de crédito</span><Seg label="Tipo de crédito" value={tipo} onChange={setTipo} options={[{ value: "", label: "Todos" }, { value: "OTROS", label: "MYPE" }, { value: "CONSUMO", label: "Consumo" }]} /></div>
           </div>
-          {loading ? <Skeleton height={240} radius={3} style={{ display: "block", marginTop: 12 }} /> : !visibles.length ? (
-            <Empty title="No hay expedientes por asignar" text={pool.length ? "Ninguno coincide con la búsqueda." : "Todos los expedientes ya tienen auditor o aún no cargaste ninguno."} />
+          {loading ? <Skeleton height={240} radius={16} style={{ display: "block" }} /> : !visibles.length ? (
+            <Empty tipo="asignar" title="No hay expedientes por asignar" text={pool.length ? "Ninguno coincide con la búsqueda." : "Todos los expedientes ya tienen auditor o aún no cargaste ninguno."} />
           ) : (
             <div className="table-wrap long" style={{ maxHeight: 420, overflowY: "auto" }}>
               <table>
@@ -113,8 +115,8 @@ export default function AsignacionesPage() {
                     <tr key={x.id_expediente} className={`clickable${seleccion.includes(x.id_expediente) ? " selected" : ""}`} onClick={() => alternar(x.id_expediente)}>
                       <td className="check-col"><input type="checkbox" checked={seleccion.includes(x.id_expediente)} onChange={() => alternar(x.id_expediente)} onClick={(e) => e.stopPropagation()} aria-label={`Marcar ${x.nombres_cliente}`} /></td>
                       <td className="code" translate="no">{x.codigo_expediente}</td>
-                      <td>{x.nombres_cliente}</td>
-                      <td>{x.tipo_credito === "OTROS" ? "MYPE" : "Consumo"}</td>
+                      <td><div className="who-cell"><Avatar nombre={x.nombres_cliente} size="sm" /><span>{x.nombres_cliente}</span></div></td>
+                      <td><span className={`tag ${x.tipo_credito === "OTROS" ? "aviso" : "base"}`}>{x.tipo_credito === "OTROS" ? "MYPE" : "Consumo"}</span></td>
                       <td>{dash(x.distrito)}</td>
                     </tr>
                   ))}
@@ -127,12 +129,12 @@ export default function AsignacionesPage() {
             <span className="grow">{seleccion.length ? <><b style={{ fontWeight: 600 }}>{seleccion.length}</b> {seleccion.length === 1 ? "expediente marcado" : "expedientes marcados"}{auditor ? <> para <b style={{ fontWeight: 600 }}>{nombreDe(auditor)}</b></> : <>: elige un auditor a la izquierda</>}</> : "Marca los expedientes que quieres asignar"}</span>
             <label className="sr-only" htmlFor="prio">Prioridad de los casos</label>
             <select id="prio" name="prioridad" value={prioridad} onChange={(e) => setPrioridad(e.target.value)}><option value="ALTA">Prioridad alta</option><option value="MEDIA">Prioridad media</option><option value="BAJA">Prioridad baja</option></select>
-            <button className="btn" style={{ background: "#fff", color: "var(--ink)", borderColor: "#fff" }} disabled={guardando || !auditorId || !seleccion.length} onClick={asignar}>{guardando ? "Asignando…" : "Asignar"}</button>
+            <button className="btn light" disabled={guardando || !auditorId || !seleccion.length} onClick={asignar}><Icon name="ok" size={17} />{guardando ? "Asignando…" : "Asignar"}</button>
           </div>
 
           <div className="section">
             <div className="section-head"><h2>Asignaciones {auditor ? `de ${nombreDe(auditor)}` : "recientes"}</h2><span className="meta">{activas.length}</span></div>
-            {!activas.length ? <Empty title="Sin asignaciones" text="Cuando asignes expedientes aparecerán aquí." /> : (
+            {!activas.length ? <Empty tipo="asignar" title="Sin asignaciones" text="Cuando asignes expedientes aparecerán aquí." /> : (
               <div className="table-wrap">
                 <table>
                   <thead><tr><th scope="col">Expediente</th><th scope="col">Auditor</th><th scope="col">Asignado</th><th scope="col">Prioridad</th><th scope="col">Estado</th><th scope="col"></th></tr></thead>
