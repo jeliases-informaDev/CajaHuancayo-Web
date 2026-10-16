@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../AuthContext";
 
@@ -31,8 +31,15 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [userMenu, setUserMenu] = useState(false);
+  const userRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => { setMenuOpen(false); }, [location.pathname]);
+  useEffect(() => { setMenuOpen(false); setUserMenu(false); }, [location.pathname]);
+  useEffect(() => {
+    const cerrar = (e: MouseEvent) => { if (userRef.current && !userRef.current.contains(e.target as Node)) setUserMenu(false); };
+    document.addEventListener("mousedown", cerrar);
+    return () => document.removeEventListener("mousedown", cerrar);
+  }, []);
 
   const doLogout = async () => {
     await logout();
@@ -42,7 +49,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   // Gestionar usuarios es exclusivo del Administrador; el Supervisor ve todo lo demás
   // (mapa en vivo, banco de clientes, evidencias, fichas) pero no crea/suspende cuentas.
   const links = LINKS.filter((link) => !link.adminOnly || user?.rol === "ADMINISTRADOR");
-  const currentLabel = links.find((l) => (l.end ? location.pathname === l.to : location.pathname.startsWith(l.to)))?.label || "Auditoría de Visitas";
+  const actual = links.find((l) => (l.end ? location.pathname === l.to : location.pathname.startsWith(l.to)));
+  const currentLabel = actual?.label || "Auditoría de Visitas";
+  const nombre = user?.nombres || user?.username || "";
 
   return (
     <div className="app-shell">
@@ -61,32 +70,35 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             <React.Fragment key={link.to}>
               {i === 0 || links[i - 1].grupo !== link.grupo ? <div className="sidebar-section">{link.grupo}</div> : null}
               <NavLink to={link.to} end={link.end} className={({ isActive }) => `sidebar-link${isActive ? " active" : ""}`}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{ICONOS[link.to]}</svg>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{ICONOS[link.to]}</svg>
                 {link.label}
               </NavLink>
             </React.Fragment>
           ))}
         </nav>
         <div className="sidebar-spacer" />
-        <div className="sidebar-user">
-          <div className="avatar">{initialsOf(user?.nombres || user?.username || "")}</div>
-          <div className="who">
-            <div className="u">{user?.nombres || user?.username}</div>
-            <div className="r">{user?.rol}</div>
-          </div>
-        </div>
-        <button className="sidebar-logout" onClick={doLogout}>Cerrar sesión</button>
+        <div className="sidebar-foot">Informa Perú · Plataforma de auditoría<br />Acceso restringido y registrado</div>
       </aside>
       <div className="content-scroll">
-        <div className="topbar">
-          <button className="topbar-burger" onClick={() => setMenuOpen(true)} aria-label="Abrir menú">
-            <svg width="18" height="14" viewBox="0 0 18 14" fill="none"><path d="M0 1h18M0 7h18M0 13h18" stroke="currentColor" strokeWidth="2" /></svg>
+        <header className="appbar">
+          <button className="appbar-burger" onClick={() => setMenuOpen(true)} aria-label="Abrir menú">
+            <svg width="16" height="12" viewBox="0 0 18 14" fill="none"><path d="M0 1h18M0 7h18M0 13h18" stroke="currentColor" strokeWidth="2" /></svg>
           </button>
-          <div className="topbar-title">
-            {currentLabel}
-            <span>CAJA HUANCAYO</span>
+          <div className="crumbs"><span>Auditoría de Visitas</span><i>/</i><b>{currentLabel}</b></div>
+          <div className="appbar-spacer" />
+          <div className="usermenu" ref={userRef}>
+            <button className="userchip" onClick={() => setUserMenu((v) => !v)} aria-haspopup="menu" aria-expanded={userMenu}>
+              <span className="avatar">{initialsOf(nombre)}</span>
+              <span className="who"><div className="u">{nombre}</div><div className="r">{user?.rol}</div></span>
+            </button>
+            {userMenu ? (
+              <div className="menu-pop" role="menu">
+                <div className="head"><b>{nombre}</b><span>{user?.rol} · @{user?.username}</span></div>
+                <button role="menuitem" onClick={doLogout}>Cerrar sesión</button>
+              </div>
+            ) : null}
           </div>
-        </div>
+        </header>
         <main className="content">{children}</main>
       </div>
     </div>

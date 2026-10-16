@@ -97,20 +97,12 @@ export default function ExpedientesPage() {
   return (
     <>
       <div className="page-header">
-        <h1>Expedientes</h1>
-        <p>{total} expediente(s) cargados en el sistema.</p>
-      </div>
-      {error ? <div className="error-box">{error}</div> : null}
-      <Card>
-        <div className="row" style={{ justifyContent: "space-between" }}>
-          <input
-            placeholder="Buscar por código, cliente, documento o asesor…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            style={{ flex: "1 1 260px", minWidth: 0, maxWidth: 420, border: "1px solid var(--border)", borderRadius: 10, padding: "10px 13px", minHeight: 40, fontFamily: "inherit", fontSize: 13.5 }}
-          />
-          <div className="row">
-            <label className="btn ghost" style={{ cursor: "pointer" }} title="Revisa todo el archivo y muestra el reporte sin guardar nada">
+        <div>
+          <h1>Expedientes</h1>
+          <p>{total.toLocaleString("es-PE")} expedientes cargados en el sistema.</p>
+        </div>
+        <div className="row">
+<label className="btn ghost" style={{ cursor: "pointer" }} title="Revisa todo el archivo y muestra el reporte sin guardar nada">
               {importing ? "Procesando…" : "Validar archivo (sin guardar)"}
               <input type="file" accept=".xlsx" hidden disabled={importing} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) importar(f, true); }} />
             </label>
@@ -119,19 +111,29 @@ export default function ExpedientesPage() {
               <input type="file" accept=".xlsx" hidden disabled={importing} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) importar(f, false); }} />
             </label>
             <Button title={showForm ? "Cancelar" : "Nuevo expediente"} onClick={() => setShowForm((v) => !v)} />
-          </div>
         </div>
-        <label className="subtle" style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 10 }}>
+      </div>
+      {error ? <div className="error-box">{error}</div> : null}
+      <Card>
+        <div className="toolbar">
+          <input
+            placeholder="Buscar por código, cliente, documento o asesor…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="input" style={{ flex: "1 1 260px", minWidth: 0, maxWidth: 420 }}
+          />
+        </div>
+        <label className="subtle" style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 12 }}>
           <input type="checkbox" checked={autoasignable} onChange={(e) => setAutoasignable(e.target.checked)} />
-          Dejar los nuevos expedientes disponibles para que los auditores de su zona los tomen por su cuenta (si no, solo un supervisor los asigna)
+          Al importar, dejar los expedientes nuevos disponibles para que los auditores de su zona los tomen por su cuenta (si no, solo un supervisor los asigna)
         </label>
         {importing ? <div className="callout info" style={{ marginTop: 10 }}>Procesando el archivo en el servidor… {progreso ? `${progreso.procesadas} filas revisadas.` : "iniciando."} Puedes esperar aquí; no cierres la página.</div> : null}
         <div className="row" style={{ marginTop: 12 }}>
-          <button type="button" className={`tag ${tipo === "" ? "base" : ""}`} style={{ border: "1px solid var(--border)", cursor: "pointer" }} onClick={() => setTipo("")}>Todos</button>
-          <button type="button" className={`tag ${tipo === "OTROS" ? "aviso" : ""}`} style={{ border: "1px solid var(--border)", cursor: "pointer" }} onClick={() => setTipo(tipo === "OTROS" ? "" : "OTROS")}>MYPE (Otros)</button>
-          <button type="button" className={`tag ${tipo === "CONSUMO" ? "base" : ""}`} style={{ border: "1px solid var(--border)", cursor: "pointer" }} onClick={() => setTipo(tipo === "CONSUMO" ? "" : "CONSUMO")}>Consumo</button>
-          <button type="button" className={`tag ${sinUbicacion ? "alerta" : ""}`} style={{ border: "1px solid var(--border)", cursor: "pointer" }} onClick={() => setSinUbicacion((v) => !v)}>Sin coordenadas</button>
-          <button type="button" className="tag" style={{ border: "1px solid var(--border)", cursor: "pointer", marginLeft: "auto" }} onClick={verHistorial}>{historial ? "Ocultar importaciones" : "Historial de importaciones"}</button>
+          <button type="button" className={`chip${tipo === "" ? " on" : ""}`} onClick={() => setTipo("")}>Todos</button>
+          <button type="button" className={`chip${tipo === "OTROS" ? " on" : ""}`} onClick={() => setTipo(tipo === "OTROS" ? "" : "OTROS")}>MYPE</button>
+          <button type="button" className={`chip${tipo === "CONSUMO" ? " on" : ""}`} onClick={() => setTipo(tipo === "CONSUMO" ? "" : "CONSUMO")}>Consumo</button>
+          <button type="button" className={`chip${sinUbicacion ? " on" : ""}`} onClick={() => setSinUbicacion((v) => !v)}>Sin coordenadas</button>
+          <button type="button" className="chip" style={{ marginLeft: "auto" }} onClick={verHistorial}>{historial ? "Ocultar importaciones" : "Historial de importaciones"}</button>
         </div>
         {importResult ? (
           <div style={{ marginTop: 12 }}>

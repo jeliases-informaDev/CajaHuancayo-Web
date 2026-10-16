@@ -1,19 +1,29 @@
 import React from "react";
 
-const statusColors: Record<string, string> = {
-  ACTIVA: "#0ead7a", ASIGNADO: "#f59e0b", PENDIENTE: "#f59e0b", VISITADO: "#0ead7a",
-  CERRADO: "#6d788a", CANCELADA: "#ef4444", FINALIZADA: "#2c70e8",
-  CONFORME: "#0ead7a", OBSERVADO: "#f59e0b", NO_UBICADO: "#ef4444", RECHAZADO: "#ef4444",
-  ACTIVO: "#0ead7a", INACTIVO: "#94a3b8", ALTA: "#ef4444", MEDIA: "#f59e0b", BAJA: "#6d788a",
-  ADMINISTRADOR: "#7c3aed", SUPERVISOR: "#2c70e8", AUDITOR: "#0ead7a",
+// Tonos semánticos del sistema (definidos en index.css): un estado = un color en toda la interfaz.
+type Tono = "success" | "warning" | "danger" | "info" | "neutral" | "plum";
+const TONOS: Record<string, Tono> = {
+  ACTIVA: "success", VISITADO: "success", CONFORME: "success", ACTIVO: "success", AUDITOR: "success", COMPLETADO: "success",
+  ASIGNADO: "warning", PENDIENTE: "warning", OBSERVADO: "warning", MEDIA: "warning", PROCESANDO: "warning",
+  CANCELADA: "danger", NO_UBICADO: "danger", RECHAZADO: "danger", ALTA: "danger", ERROR: "danger", INTERRUMPIDA: "danger",
+  CERRADO: "neutral", INACTIVO: "neutral", BAJA: "neutral",
+  FINALIZADA: "info", SUPERVISOR: "info", ADMINISTRADOR: "plum",
+};
+const COLORES: Record<Tono, { bg: string; fg: string }> = {
+  success: { bg: "var(--success-bg)", fg: "var(--success)" },
+  warning: { bg: "var(--warning-bg)", fg: "var(--warning)" },
+  danger: { bg: "var(--danger-bg)", fg: "var(--danger)" },
+  info: { bg: "var(--info-bg)", fg: "var(--info)" },
+  neutral: { bg: "#eceff6", fg: "#4a5370" },
+  plum: { bg: "#f1e8f8", fg: "#5e2a8c" },
 };
 
 export function Badge({ label }: { label?: string | null }) {
-  const color = statusColors[label || ""] || "#6d788a";
+  const tono = COLORES[TONOS[label || ""] || "neutral"];
   return (
-    <span className="badge" style={{ background: `${color}20`, color }}>
-      <span style={{ width: 6, height: 6, borderRadius: 6, background: color, display: "inline-block" }} />
-      {String(label || "-").replaceAll("_", " ")}
+    <span className="badge" style={{ background: tono.bg, color: tono.fg }}>
+      <span style={{ width: 6, height: 6, borderRadius: 6, background: tono.fg, display: "inline-block" }} />
+      {String(label || "-").replaceAll("_", " ").toLowerCase()}
     </span>
   );
 }
