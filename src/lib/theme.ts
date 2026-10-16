@@ -12,7 +12,7 @@ const aplicar = (pref: Tema) => {
 
 const leer = (): Tema => {
   try { const v = localStorage.getItem("ch_theme"); if (v === "light" || v === "dark" || v === "auto") return v; } catch { /* sin almacenamiento */ }
-  return "auto";
+  return "light";
 };
 
 export function useTheme(): [Tema, (t: Tema) => void] {

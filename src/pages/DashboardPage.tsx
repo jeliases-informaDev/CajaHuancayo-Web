@@ -63,9 +63,9 @@ export default function DashboardPage() {
                 <div className="figure">{visitados.toLocaleString("es-PE")}<small>de {r.expedientes.total.toLocaleString("es-PE")} expedientes</small></div>
                 <div style={{ height: 18 }} />
                 <SegBar segments={[
-                  { label: "Visitados", value: visitados, color: "#8ea2ff" },
-                  { label: "Asignados", value: e?.ASIGNADO || 0, color: "#c58bff" },
-                  { label: "Sin asignar", value: e?.PENDIENTE || 0, color: "rgba(255,255,255,0.28)" },
+                  { label: "Visitados", value: visitados, color: "var(--brand)" },
+                  { label: "Asignados", value: e?.ASIGNADO || 0, color: "var(--violet)" },
+                  { label: "Sin asignar", value: e?.PENDIENTE || 0, color: "var(--line-2)" },
                 ]} />
               </div>
             </div>

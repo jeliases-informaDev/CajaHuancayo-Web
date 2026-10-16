@@ -70,7 +70,7 @@ export default function LoginPage() {
       <section className="login-hero" aria-hidden="true">
         <div className="mesh" />
         <svg className="routes" viewBox="0 0 800 900" preserveAspectRatio="xMidYMid slice" focusable="false">
-          <defs><linearGradient id="rg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#ff7ac8" /><stop offset="1" stopColor="#8ea2ff" /></linearGradient></defs>
+          <defs><linearGradient id="rg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#c11f8c" /><stop offset="1" stopColor="#2d41c4" /></linearGradient></defs>
           <path className="r" d="M-20 700 C 120 620, 180 760, 320 640 S 520 470, 640 520 S 760 380, 840 300" />
           <path className="r" d="M60 120 C 200 180, 240 80, 380 180 S 560 330, 700 250" style={{ animationDuration: "42s" }} />
           <g transform="translate(320 640)"><circle className="h" r="9" /><circle className="p" r="4.5" /></g>

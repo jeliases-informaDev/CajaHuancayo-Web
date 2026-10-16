@@ -192,7 +192,7 @@ export function Ring({ value, total, small, light, caption }: { value: number; t
   return (
     <div className={`ring${small ? " sm" : ""}${light ? " light" : ""}`} role="img" aria-label={`${value} de ${total}${caption ? ` ${caption}` : ""}, ${Math.round(pct * 100)} %`}>
       <svg viewBox="0 0 120 120" aria-hidden="true">
-        <defs><linearGradient id={id} x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#ff6ec4" /><stop offset=".5" stopColor="#b07cff" /><stop offset="1" stopColor="#7f93ff" /></linearGradient></defs>
+        <defs><linearGradient id={id} x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#c11f8c" /><stop offset=".55" stopColor="#7a2c9e" /><stop offset="1" stopColor="#2d41c4" /></linearGradient></defs>
         <circle className="track" cx="60" cy="60" r={R} fill="none" strokeWidth="11" />
         <circle className="val" cx="60" cy="60" r={R} fill="none" strokeWidth="11" strokeLinecap="round" stroke={`url(#${id})`} strokeDasharray={C} strokeDashoffset={C * (1 - dibujado)} />
       </svg>

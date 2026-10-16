@@ -390,7 +390,7 @@ export default function VisitaDetailPage() {
             <Ring value={enRegla} total={aplican} small caption="en regla" />
             <div className={fallan ? "tone-bad" : avisos ? "tone-warn" : "tone-ok"} style={{ fontWeight: 500, fontSize: 14, lineHeight: 1.35 }}>
               {fallan ? `${fallan} ${fallan === 1 ? "control no se cumple" : "controles no se cumplen"}` : avisos ? `${avisos} ${avisos === 1 ? "punto" : "puntos"} por revisar` : "Todo en orden"}
-              <span style={{ display: "block", fontWeight: 400, color: "#b3bbe6", fontSize: 12.5 }}>{enRegla} de {aplican} controles</span>
+              <span style={{ display: "block", fontWeight: 400, color: "var(--muted)", fontSize: 12.5 }}>{enRegla} de {aplican} controles</span>
             </div>
           </div>
         </div>

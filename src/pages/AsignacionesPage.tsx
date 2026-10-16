@@ -129,7 +129,7 @@ export default function AsignacionesPage() {
             <span className="grow">{seleccion.length ? <><b style={{ fontWeight: 600 }}>{seleccion.length}</b> {seleccion.length === 1 ? "expediente marcado" : "expedientes marcados"}{auditor ? <> para <b style={{ fontWeight: 600 }}>{nombreDe(auditor)}</b></> : <>: elige un auditor a la izquierda</>}</> : "Marca los expedientes que quieres asignar"}</span>
             <label className="sr-only" htmlFor="prio">Prioridad de los casos</label>
             <select id="prio" name="prioridad" value={prioridad} onChange={(e) => setPrioridad(e.target.value)}><option value="ALTA">Prioridad alta</option><option value="MEDIA">Prioridad media</option><option value="BAJA">Prioridad baja</option></select>
-            <button className="btn light" disabled={guardando || !auditorId || !seleccion.length} onClick={asignar}><Icon name="ok" size={17} />{guardando ? "Asignando…" : "Asignar"}</button>
+            <button className="btn" disabled={guardando || !auditorId || !seleccion.length} onClick={asignar}><Icon name="ok" size={17} />{guardando ? "Asignando…" : "Asignar"}</button>
           </div>
 
           <div className="section">
