@@ -22,6 +22,8 @@ export default function ExpedientesPage() {
   const [error, setError] = useState("");
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<any>(null);
+  const [progreso, setProgreso] = useState<any>(null);
+  const [autoasignable, setAutoasignable] = useState(false);
   const [tipo, setTipo] = useState("");
   const [sinUbicacion, setSinUbicacion] = useState(false);
   const [historial, setHistorial] = useState<any[] | null>(null);
@@ -56,20 +58,40 @@ export default function ExpedientesPage() {
     } catch (e: any) { setError(e.message); }
   };
 
-  const importar = async (file: File) => {
-    setImporting(true); setImportResult(null); setError("");
+  // La carga corre en segundo plano en el servidor: se sube el archivo y se consulta el avance.
+  // "simular" valida todo el archivo y devuelve el reporte sin guardar nada.
+  const importar = async (file: File, simular: boolean) => {
+    setImporting(true); setImportResult(null); setProgreso(null); setError("");
     try {
       const fd = new FormData();
       fd.append("archivo", file);
       const token = getToken();
-      const response = await fetch(`${API_URL}/api/expedientes/importar`, {
+      const q = new URLSearchParams({ simular: String(simular), autoasignable: String(autoasignable) });
+      const response = await fetch(`${API_URL}/api/expedientes/importar?${q}`, {
         method: "POST", headers: { "x-client-platform": "web", ...(token ? { Authorization: "Bearer " + token } : {}) }, body: fd,
       });
       const body = await response.json();
       if (!response.ok) throw new Error(body.error || "No se pudo importar el archivo.");
-      setImportResult(body.data);
+      const inicio = body.data;
+      let actual: any = inicio;
+      for (;;) {
+        await new Promise((r) => setTimeout(r, 1500));
+        actual = (await request<any>(`/api/expedientes/importaciones/${inicio.id_importacion}`)).data;
+        setProgreso(actual);
+        if (actual.estado !== "PROCESANDO") break;
+      }
+      setImportResult({ ...actual, archivo_repetido: inicio.archivo_repetido });
+      if (!simular) await load();
+    } catch (e: any) { setError(e.message); } finally { setImporting(false); setProgreso(null); }
+  };
+
+  const liberar = async (idImportacion: string) => {
+    try {
+      const r: any = await request(`/api/expedientes/importaciones/${idImportacion}/liberar`, { method: "POST" });
+      setError("");
+      setImportResult((prev: any) => (prev ? { ...prev, liberados: r.data.liberados } : prev));
       await load();
-    } catch (e: any) { setError(e.message); } finally { setImporting(false); }
+    } catch (e: any) { setError(e.message); }
   };
 
   return (
@@ -88,13 +110,22 @@ export default function ExpedientesPage() {
             style={{ flex: "1 1 260px", minWidth: 0, maxWidth: 420, border: "1px solid var(--border)", borderRadius: 10, padding: "10px 13px", minHeight: 40, fontFamily: "inherit", fontSize: 13.5 }}
           />
           <div className="row">
+            <label className="btn ghost" style={{ cursor: "pointer" }} title="Revisa todo el archivo y muestra el reporte sin guardar nada">
+              {importing ? "Procesando…" : "Validar archivo (sin guardar)"}
+              <input type="file" accept=".xlsx" hidden disabled={importing} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) importar(f, true); }} />
+            </label>
             <label className="btn ghost" style={{ cursor: "pointer" }}>
-              {importing ? "Importando…" : "Importar Excel"}
-              <input type="file" accept=".xlsx" hidden disabled={importing} onChange={(e) => e.target.files?.[0] && importar(e.target.files[0])} />
+              {importing ? "Procesando…" : "Importar y guardar"}
+              <input type="file" accept=".xlsx" hidden disabled={importing} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) importar(f, false); }} />
             </label>
             <Button title={showForm ? "Cancelar" : "Nuevo expediente"} onClick={() => setShowForm((v) => !v)} />
           </div>
         </div>
+        <label className="subtle" style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 10 }}>
+          <input type="checkbox" checked={autoasignable} onChange={(e) => setAutoasignable(e.target.checked)} />
+          Dejar los nuevos expedientes disponibles para que los auditores de su zona los tomen por su cuenta (si no, solo un supervisor los asigna)
+        </label>
+        {importing ? <div className="callout info" style={{ marginTop: 10 }}>Procesando el archivo en el servidor… {progreso ? `${progreso.procesadas} filas revisadas.` : "iniciando."} Puedes esperar aquí; no cierres la página.</div> : null}
         <div className="row" style={{ marginTop: 12 }}>
           <button type="button" className={`tag ${tipo === "" ? "base" : ""}`} style={{ border: "1px solid var(--border)", cursor: "pointer" }} onClick={() => setTipo("")}>Todos</button>
           <button type="button" className={`tag ${tipo === "OTROS" ? "aviso" : ""}`} style={{ border: "1px solid var(--border)", cursor: "pointer" }} onClick={() => setTipo(tipo === "OTROS" ? "" : "OTROS")}>MYPE (Otros)</button>
@@ -104,9 +135,18 @@ export default function ExpedientesPage() {
         </div>
         {importResult ? (
           <div style={{ marginTop: 12 }}>
-            <div className="callout ok">
-              Importación terminada ({importResult.formato === "CORE_262" ? "base MYPE del core" : "plantilla simple"}): {importResult.insertadas} nuevos · {importResult.actualizadas} actualizados · {importResult.sin_cambios ?? 0} sin cambios · {importResult.omitidas} omitidos · {importResult.errores} con error.
+            {importResult.simulacion ? <div className="callout info"><b>Validación sin guardar:</b> esto es lo que pasaría al importar este archivo. No se guardó ningún dato.</div> : null}
+            {importResult.archivo_repetido ? <div className="callout aviso">Este mismo archivo ya se importó el {fechaHora(importResult.archivo_repetido.fecha_creacion)}. Si no cambió, todo saldrá como «sin cambios».</div> : null}
+            {importResult.estado === "ERROR" || importResult.estado === "INTERRUMPIDA" ? <div className="error-box">La importación no terminó ({importResult.estado.toLowerCase()}). Revisa el detalle abajo.</div> : null}
+            <div className={`callout ${importResult.errores ? "aviso" : "ok"}`}>
+              {importResult.simulacion ? "Resultado de la validación" : "Importación terminada"} ({importResult.formato === "CORE_262" ? "base MYPE del core" : "plantilla simple"}): {importResult.procesadas} filas · {importResult.insertadas} nuevos · {importResult.actualizadas} actualizados · {importResult.omitidas} omitidos o sin cambios · {importResult.errores} con error.
             </div>
+            {!importResult.simulacion && importResult.insertadas > 0 && !autoasignable ? (
+              <div className="callout info">
+                Los {importResult.insertadas} expedientes nuevos solo los asigna un supervisor. {importResult.liberados != null ? `Se liberaron ${importResult.liberados} para que los auditores los tomen.` : null}
+                {importResult.liberados == null ? <> <button type="button" className="tag base" style={{ border: "none", cursor: "pointer" }} onClick={() => liberar(importResult.id_importacion)}>Liberarlos a los auditores</button></> : null}
+              </div>
+            ) : null}
             {Object.keys(importResult.advertencias || {}).length ? (
               <div className="callout aviso">
                 <b>Avisos de calidad del dato</b>
@@ -115,13 +155,13 @@ export default function ExpedientesPage() {
                 ))}
               </div>
             ) : null}
-            {importResult.detalle?.filter((d: any) => d.resultado === "ERROR" || d.resultado === "OMITIDA").length ? (
+            {importResult.detalle_error?.filter((d: any) => d.resultado === "ERROR" || d.resultado === "OMITIDA").length ? (
               <details>
                 <summary className="subtle" style={{ cursor: "pointer" }}>Ver filas omitidas o con error</summary>
                 <table className="compact" style={{ marginTop: 8 }}>
                   <thead><tr><th>Hoja</th><th>Fila</th><th>Crédito</th><th>Resultado</th><th>Motivo</th></tr></thead>
                   <tbody>
-                    {importResult.detalle.filter((d: any) => d.resultado === "ERROR" || d.resultado === "OMITIDA").slice(0, 30).map((d: any, i: number) => (
+                    {importResult.detalle_error.filter((d: any) => d.resultado === "ERROR" || d.resultado === "OMITIDA").slice(0, 30).map((d: any, i: number) => (
                       <tr key={i}><td>{d.hoja}</td><td>{d.fila}</td><td>{d.codigo || "-"}</td><td>{d.resultado}</td><td>{d.motivo}</td></tr>
                     ))}
                   </tbody>
@@ -137,7 +177,7 @@ export default function ExpedientesPage() {
               <tbody>
                 {historial.map((h) => (
                   <tr key={h.id_importacion}>
-                    <td>{fechaHora(h.fecha_creacion)}</td><td>{h.archivo}</td><td>{h.actor || "-"}</td><td className="num">{h.total_filas}</td>
+                    <td>{fechaHora(h.fecha_creacion)}</td><td>{h.archivo}{h.simulacion ? <> <span className="tag aviso">validación</span></> : null}</td><td>{h.actor || "-"}</td><td className="num">{h.total_filas}</td>
                     <td className="num">{h.insertadas}</td><td className="num">{h.actualizadas}</td><td className="num">{h.omitidas}</td><td className="num">{h.errores}</td>
                     <td><code style={{ fontSize: 11 }}>{h.archivo_sha256 ? h.archivo_sha256.slice(0, 10) : "-"}</code></td>
                   </tr>

@@ -5,6 +5,36 @@ import { Badge, Button, Card, InfoRow, Loading, Tabs } from "../components/ui";
 import { ClienteSeccion, CreditoSeccion, EndeudamientoSeccion, EvaluacionMype, IngresosConsumo, NegocioSeccion } from "../components/ficha/Secciones";
 import { ADVERTENCIAS, ORIGEN_UBICACION, dash, fecha, fechaHora } from "../lib/format";
 
+// Todos los campos que llegaron de la base, tal cual quedaron guardados: sirve para conciliar contra
+// el archivo de origen y comprobar que ninguna columna quedó sin destino.
+function aplanar(valor: any, ruta: string, salida: [string, string][]) {
+  if (Array.isArray(valor)) { if (!valor.length) salida.push([ruta, "[]"]); valor.forEach((x, i) => aplanar(x, `${ruta}[${i + 1}]`, salida)); }
+  else if (valor && typeof valor === "object") Object.entries(valor).forEach(([k, x]) => aplanar(x, ruta ? `${ruta}.${k}` : k, salida));
+  else salida.push([ruta, valor === null || valor === undefined || valor === "" ? "-" : String(valor)]);
+}
+
+function TodosLosCampos({ e }: { e: any }) {
+  const [filtro, setFiltro] = useState("");
+  const filas = useMemo(() => {
+    const out: [string, string][] = [];
+    ["datos_cliente", "datos_negocio", "datos_credito", "evaluacion_financiera", "endeudamiento"].forEach((b) => aplanar(e[b], b, out));
+    return out;
+  }, [e]);
+  const visibles = filtro ? filas.filter(([k, v]) => `${k} ${v}`.toLowerCase().includes(filtro.toLowerCase())) : filas;
+  const extra = Object.keys(e.datos_credito?.campos_adicionales || {}).length;
+  return (
+    <Card>
+      <p className="section-title">Todos los campos de la base ({filas.length})</p>
+      {extra ? <div className="callout aviso">{extra} campo(s) vinieron en el archivo sin un destino conocido; se guardaron en «datos_credito.campos_adicionales».</div> : <div className="callout ok">Todas las columnas del archivo tienen destino: no hay campos sueltos.</div>}
+      <input placeholder="Buscar campo o valor…" value={filtro} onChange={(ev) => setFiltro(ev.target.value)} style={{ border: "1px solid var(--border)", borderRadius: 10, padding: "9px 12px", minHeight: 38, width: "100%", maxWidth: 360, fontFamily: "inherit", marginBottom: 10 }} />
+      <table className="compact">
+        <thead><tr><th>Campo</th><th>Valor</th></tr></thead>
+        <tbody>{visibles.slice(0, 600).map(([k, v]) => <tr key={k}><td className="subtle">{k}</td><td>{v}</td></tr>)}</tbody>
+      </table>
+    </Card>
+  );
+}
+
 function TrazabilidadDato({ e, onSaved }: { e: any; onSaved: () => void }) {
   const [lat, setLat] = useState(e.latitud ?? "");
   const [lng, setLng] = useState(e.longitud ?? "");
@@ -123,6 +153,7 @@ export default function ExpedienteDetailPage() {
     ...(esMype ? [{ id: "negocio", label: "Negocio" }] : []),
     { id: "evaluacion", label: esMype ? "Evaluación financiera" : "Ingresos" },
     { id: "deuda", label: "Endeudamiento" },
+    { id: "campos", label: "Todos los campos" },
     { id: "trazabilidad", label: "Trazabilidad", badge: advertencias.length > 0 },
   ], [esMype, advertencias.length]);
 
@@ -146,6 +177,7 @@ export default function ExpedienteDetailPage() {
       {tab === "negocio" && esMype ? <NegocioSeccion e={expediente} /> : null}
       {tab === "evaluacion" ? (esMype ? <EvaluacionMype e={expediente} /> : <IngresosConsumo e={expediente} />) : null}
       {tab === "deuda" ? <EndeudamientoSeccion e={expediente} /> : null}
+      {tab === "campos" ? <TodosLosCampos e={expediente} /> : null}
       {tab === "trazabilidad" ? <TrazabilidadDato e={expediente} onSaved={cargar} /> : null}
     </>
   );
