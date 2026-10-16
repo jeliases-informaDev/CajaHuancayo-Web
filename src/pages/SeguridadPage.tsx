@@ -1,6 +1,16 @@
 import { Fragment, useEffect, useState } from "react";
 import { request } from "../api";
-import { Card, SkeletonKpis, SkeletonTable } from "../components/ui";
+import { Empty, Skeleton } from "../components/ui";
+import { fechaHora } from "../lib/format";
+
+function Metrica({ valor, etiqueta, alerta }: { valor?: number; etiqueta: string; alerta?: boolean }) {
+  return (
+    <div>
+      <div className="figure" style={{ fontSize: 34, color: alerta && valor ? "var(--bad)" : undefined }}>{(valor ?? 0).toLocaleString("es-PE")}</div>
+      <p className="subtle" style={{ marginTop: 6 }}>{etiqueta}</p>
+    </div>
+  );
+}
 
 export default function SeguridadPage() {
   const [metricas, setMetricas] = useState<any>(null);
@@ -8,78 +18,71 @@ export default function SeguridadPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [expandido, setExpandido] = useState<string | null>(null);
+  const [soloCambios, setSoloCambios] = useState(false);
+  const [soloErrores, setSoloErrores] = useState(false);
 
   useEffect(() => {
-    Promise.all([request("/api/seguridad/metricas"), request("/api/seguridad/auditoria?limit=50")])
+    Promise.all([request("/api/seguridad/metricas"), request("/api/seguridad/auditoria?limit=100")])
       .then(([m, l]: any[]) => { setMetricas(m.data); setLogs(l.data); })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }, []);
 
-  if (error) return <Card><p style={{ color: "var(--danger)" }}>{error}</p></Card>;
+  if (error) return <div className="error-box">{error}</div>;
+
+  const visibles = logs.filter((l) => (!soloCambios || l.entidad) && (!soloErrores || l.estado_http >= 400));
 
   return (
     <>
-      <div className="page-header">
-        <h1>Seguridad</h1>
-        <p>Registro inmutable de operaciones y accesos (últimas 24 h y log reciente).</p>
+      <div className="page-head">
+        <div>
+          <h1>Seguridad</h1>
+          <p>Registro de accesos y operaciones. Los registros no se pueden editar ni borrar desde el sistema.</p>
+        </div>
       </div>
-      {loading ? (
-        <>
-          <SkeletonKpis />
-          <Card>
-            <p className="section-title">Log de auditoría reciente</p>
-            <SkeletonTable rows={8} cols={7} />
-          </Card>
-        </>
-      ) : (
-        <>
-          <div className="grid grid-4">
-            <Card className="kpi"><div className="value">{metricas?.total_eventos}</div><div className="label">Eventos (24 h)</div></Card>
-            <Card className="kpi"><div className="value">{metricas?.errores}</div><div className="label">Errores (24 h)</div></Card>
-            <Card className="kpi"><div className="value">{metricas?.fallos_autenticacion}</div><div className="label">Fallos de login</div></Card>
-            <Card className="kpi"><div className="value">{metricas?.cuentas_bloqueadas}</div><div className="label">Cuentas bloqueadas</div></Card>
-          </div>
-          <Card>
-            <p className="section-title">Log de auditoría reciente</p>
-            <p style={{ fontSize: 12, color: "var(--muted)", marginTop: -8, marginBottom: 10 }}>
-              Las filas con un cambio de negocio (crear/editar/eliminar usuarios, expedientes o asignaciones) se pueden expandir para ver el valor anterior y el nuevo.
-            </p>
+
+      {loading ? <Skeleton height={90} radius={3} style={{ display: "block" }} /> : (
+        <div className="cols" style={{ gridTemplateColumns: "repeat(4, minmax(0, 1fr))" }}>
+          <Metrica valor={metricas?.total_eventos} etiqueta="Eventos en las últimas 24 horas" />
+          <Metrica valor={metricas?.errores} etiqueta="Peticiones con error" alerta />
+          <Metrica valor={metricas?.fallos_autenticacion} etiqueta="Intentos de acceso fallidos" alerta />
+          <Metrica valor={metricas?.cuentas_bloqueadas} etiqueta="Cuentas bloqueadas ahora" alerta />
+        </div>
+      )}
+
+      <div className="section">
+        <div className="section-head"><h2>Registro de auditoría</h2><span className="meta">{visibles.length} de {logs.length} más recientes</span></div>
+        <div className="filters">
+          <label className="check-inline"><input type="checkbox" checked={soloCambios} onChange={(e) => setSoloCambios(e.target.checked)} />Solo cambios de datos (con valor anterior y nuevo)</label>
+          <label className="check-inline"><input type="checkbox" checked={soloErrores} onChange={(e) => setSoloErrores(e.target.checked)} />Solo errores</label>
+        </div>
+        {loading ? <Skeleton height={260} radius={3} style={{ display: "block", marginTop: 14 }} /> : !visibles.length ? (
+          <Empty title="Sin registros" text="Ningún registro coincide con estos filtros." />
+        ) : (
+          <div className="table-wrap">
             <table>
-              <thead><tr><th></th><th>Fecha</th><th>Actor</th><th>Rol</th><th>Método</th><th>Ruta</th><th>HTTP</th><th>IP</th></tr></thead>
+              <thead><tr><th style={{ width: 28 }}></th><th>Fecha</th><th>Quién</th><th>Operación</th><th className="num">Resultado</th><th>IP</th></tr></thead>
               <tbody>
-                {logs.map((log) => {
+                {visibles.map((log) => {
                   const tieneDiff = Boolean(log.entidad);
                   const abierto = expandido === log.id_auditoria;
                   return (
                     <Fragment key={log.id_auditoria}>
-                      <tr
-                        onClick={() => tieneDiff && setExpandido(abierto ? null : log.id_auditoria)}
-                        style={{ cursor: tieneDiff ? "pointer" : "default" }}
-                      >
-                        <td style={{ color: "var(--primary)", fontWeight: 800 }}>{tieneDiff ? (abierto ? "▾" : "▸") : ""}</td>
-                        <td>{new Date(log.fecha).toLocaleString("es-PE")}</td>
-                        <td>{log.actor || "anónimo"}</td>
-                        <td>{log.rol || "-"}</td>
-                        <td>{log.metodo}</td>
-                        <td style={{ maxWidth: 260, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                          {log.ruta}{tieneDiff ? ` · ${log.entidad} #${log.entidad_id}` : ""}
-                        </td>
-                        <td style={{ color: log.estado_http >= 400 ? "var(--danger)" : "var(--success)" }}>{log.estado_http}</td>
-                        <td>{log.ip_address || "-"}</td>
+                      <tr className={tieneDiff ? "clickable" : undefined} onClick={() => tieneDiff && setExpandido(abierto ? null : log.id_auditoria)}>
+                        <td style={{ color: "var(--blue)" }}>{tieneDiff ? (abierto ? "−" : "+") : ""}</td>
+                        <td style={{ whiteSpace: "nowrap" }}>{fechaHora(log.fecha)}</td>
+                        <td>{log.actor || "Sin sesión"}<span className="sub">{log.rol || ""}</span></td>
+                        <td><span className="code">{log.metodo}</span> {log.ruta}{tieneDiff ? <span className="sub">{log.entidad} #{log.entidad_id}</span> : null}</td>
+                        <td className="num"><span className={`state ${log.estado_http >= 400 ? "bad" : "ok"}`}>{log.estado_http}</span></td>
+                        <td className="code">{log.ip_address || "-"}</td>
                       </tr>
                       {abierto ? (
                         <tr>
-                          <td colSpan={8} style={{ background: "var(--bg)" }}>
-                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, padding: "10px 4px" }}>
-                              <div>
-                                <p style={{ fontSize: 11, fontWeight: 800, color: "var(--muted)", textTransform: "uppercase", marginBottom: 4 }}>Valor anterior</p>
-                                <pre style={{ fontSize: 11.5, whiteSpace: "pre-wrap", margin: 0 }}>{log.valor_anterior ? JSON.stringify(log.valor_anterior, null, 2) : "(no existía)"}</pre>
-                              </div>
-                              <div>
-                                <p style={{ fontSize: 11, fontWeight: 800, color: "var(--muted)", textTransform: "uppercase", marginBottom: 4 }}>Valor nuevo</p>
-                                <pre style={{ fontSize: 11.5, whiteSpace: "pre-wrap", margin: 0 }}>{log.valor_nuevo ? JSON.stringify(log.valor_nuevo, null, 2) : "(eliminado)"}</pre>
-                              </div>
+                          <td></td>
+                          <td colSpan={5} style={{ background: "var(--wash)" }}>
+                            <div className="cols cols-eq" style={{ gap: 24 }}>
+                              <div><p className="lbl">Valor anterior</p><pre style={{ fontSize: 12, whiteSpace: "pre-wrap", margin: "6px 0 0" }}>{log.valor_anterior ? JSON.stringify(log.valor_anterior, null, 2) : "No existía"}</pre></div>
+                              <div><p className="lbl">Valor nuevo</p><pre style={{ fontSize: 12, whiteSpace: "pre-wrap", margin: "6px 0 0" }}>{log.valor_nuevo ? JSON.stringify(log.valor_nuevo, null, 2) : "Eliminado"}</pre></div>
                             </div>
                           </td>
                         </tr>
@@ -89,9 +92,9 @@ export default function SeguridadPage() {
                 })}
               </tbody>
             </table>
-          </Card>
-        </>
-      )}
+          </div>
+        )}
+      </div>
     </>
   );
 }

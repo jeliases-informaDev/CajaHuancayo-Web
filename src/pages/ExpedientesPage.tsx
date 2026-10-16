@@ -1,249 +1,222 @@
-import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { API_URL, getToken, request } from "../api";
-import { Badge, Button, Card, Empty, Field, SkeletonTable } from "../components/ui";
-import { ADVERTENCIAS, fechaHora } from "../lib/format";
+import React, { useCallback, useEffect, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
+import { request } from "../api";
+import { Badge, Empty, Skeleton } from "../components/ui";
+import { Drawer, Seg } from "../components/kit";
+import ImportModal from "../components/ImportModal";
+import { dash, fechaHora, n2 } from "../lib/format";
 
+const LIMITE = 50;
 const emptyForm = {
-  codigo_expediente: "", tipo_credito: "CONSUMO", oficina: "",
-  numero_documento_cliente: "", nombres_cliente: "", telefono_cliente: "",
-  direccion_domicilio: "", distrito: "", provincia: "", latitud: "", longitud: "",
-  asesor_responsable: "", monto_desembolso: "", moneda: "PEN",
+  codigo_expediente: "", tipo_credito: "CONSUMO", oficina: "", numero_documento_cliente: "", nombres_cliente: "", telefono_cliente: "",
+  direccion_domicilio: "", distrito: "", provincia: "", latitud: "", longitud: "", asesor_responsable: "", monto_desembolso: "", moneda: "PEN",
 };
 
+function Vista({ id, onClose }: { id: number; onClose: () => void }) {
+  const [e, setE] = useState<any>(null);
+  const [error, setError] = useState("");
+  useEffect(() => { request<any>(`/api/expedientes/${id}`).then((r) => setE(r.data)).catch((x) => setError(x.message)); }, [id]);
+  const c = e?.datos_cliente || {};
+  const tieneUbicacion = e?.latitud != null && e?.longitud != null;
+  return (
+    <Drawer
+      title={e ? e.nombres_cliente : "Expediente"}
+      subtitle={e ? `${e.tipo_documento_cliente} ${e.numero_documento_cliente}` : undefined}
+      onClose={onClose}
+      footer={e ? <Link className="btn" to={`/expedientes/${id}`}>Abrir expediente completo</Link> : null}
+    >
+      {error ? <div className="error-box">{error}</div> : null}
+      {!e && !error ? <Skeleton height={160} radius={4} style={{ display: "block" }} /> : null}
+      {e ? (
+        <>
+          <div className="row" style={{ marginBottom: 16 }}>
+            <span className={`tag ${e.tipo_credito === "OTROS" ? "aviso" : "base"}`}>{e.tipo_credito === "OTROS" ? "MYPE" : "Consumo"}</span>
+            <Badge label={e.estado} />
+          </div>
+          <div className="info-row"><span className="k">Crédito</span><span className="v">{e.codigo_expediente}</span></div>
+          <div className="info-row"><span className="k">Dirección</span><span className="v">{dash(e.direccion_domicilio)}</span></div>
+          <div className="info-row"><span className="k">Distrito</span><span className="v">{dash(e.distrito)}</span></div>
+          <div className="info-row"><span className="k">Teléfono</span><span className="v">{dash(e.telefono_cliente)}</span></div>
+          <div className="info-row"><span className="k">Monto desembolsado</span><span className="v">{e.monto_desembolso ? `${e.moneda === "USD" ? "US$" : "S/"} ${n2(e.monto_desembolso)}` : "-"}</span></div>
+          <div className="info-row"><span className="k">Asesor responsable</span><span className="v">{dash(e.asesor_responsable)}</span></div>
+          <div className="info-row"><span className="k">Referencia</span><span className="v">{dash(c.referencia_domicilio)}</span></div>
+          <div className="info-row"><span className="k">Ubicación</span><span className="v"><span className={`state ${tieneUbicacion ? "ok" : "warn"}`}>{tieneUbicacion ? "Con coordenadas" : "Sin coordenadas"}</span></span></div>
+          {e.importacion ? <div className="info-row"><span className="k">Origen</span><span className="v">{e.importacion.archivo}<span className="sub">{fechaHora(e.importacion.fecha_creacion)}</span></span></div> : null}
+        </>
+      ) : null}
+    </Drawer>
+  );
+}
+
 export default function ExpedientesPage() {
-  const navigate = useNavigate();
+  const [params, setParams] = useSearchParams();
   const [data, setData] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
-  const [search, setSearch] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState(emptyForm);
-  const [error, setError] = useState("");
-  const [importing, setImporting] = useState(false);
-  const [importResult, setImportResult] = useState<any>(null);
-  const [progreso, setProgreso] = useState<any>(null);
-  const [autoasignable, setAutoasignable] = useState(false);
-  const [tipo, setTipo] = useState("");
+  const [pagina, setPagina] = useState(1);
+  const [search, setSearch] = useState(params.get("q") || "");
+  const [tipo, setTipo] = useState<"" | "OTROS" | "CONSUMO">("");
+  const [estado, setEstado] = useState("");
   const [sinUbicacion, setSinUbicacion] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [vista, setVista] = useState<number | null>(null);
+  const [importando, setImportando] = useState(false);
+  const [nuevo, setNuevo] = useState(false);
+  const [form, setForm] = useState(emptyForm);
+  const [guardando, setGuardando] = useState(false);
   const [historial, setHistorial] = useState<any[] | null>(null);
 
-  const load = async () => {
+  const cargar = useCallback(async () => {
     setLoading(true);
     try {
-      const q = new URLSearchParams({ limit: "50", ...(search ? { search } : {}), ...(tipo ? { tipo_credito: tipo } : {}), ...(sinUbicacion ? { sin_ubicacion: "true" } : {}) });
+      const q = new URLSearchParams({ limit: String(LIMITE), page: String(pagina) });
+      if (search) q.set("search", search);
+      if (tipo) q.set("tipo_credito", tipo);
+      if (estado) q.set("estado", estado);
+      if (sinUbicacion) q.set("sin_ubicacion", "true");
       const r: any = await request(`/api/expedientes?${q}`);
       setData(r.data); setTotal(r.pagination.total);
+      setError("");
     } catch (e: any) { setError(e.message); } finally { setLoading(false); }
-  };
+  }, [search, tipo, estado, sinUbicacion, pagina]);
 
-  useEffect(() => { load(); }, [search, tipo, sinUbicacion]);
+  useEffect(() => { cargar(); }, [cargar]);
+  useEffect(() => { setPagina(1); }, [search, tipo, estado, sinUbicacion]);
+  useEffect(() => {
+    const q = params.get("q");
+    if (q !== null && q !== search) setSearch(q);
+  }, [params]);
 
-  const verHistorial = async () => {
-    if (historial) { setHistorial(null); return; }
-    try { const r: any = await request("/api/expedientes/importaciones?limit=15"); setHistorial(r.data); } catch (e: any) { setError(e.message); }
-  };
-
-  const crear = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
+  const crear = async (ev: React.FormEvent) => {
+    ev.preventDefault();
+    setError(""); setGuardando(true);
     try {
       const payload: any = { ...form };
-      if (!payload.latitud) delete payload.latitud; else payload.latitud = Number(payload.latitud);
-      if (!payload.longitud) delete payload.longitud; else payload.longitud = Number(payload.longitud);
-      if (!payload.monto_desembolso) delete payload.monto_desembolso; else payload.monto_desembolso = Number(payload.monto_desembolso);
+      ["latitud", "longitud", "monto_desembolso"].forEach((k) => { if (!payload[k]) delete payload[k]; else payload[k] = Number(payload[k]); });
       await request("/api/expedientes", { method: "POST", body: JSON.stringify(payload) });
-      setShowForm(false); setForm(emptyForm);
-      await load();
-    } catch (e: any) { setError(e.message); }
+      setNuevo(false); setForm(emptyForm);
+      await cargar();
+    } catch (e: any) { setError(e.message); } finally { setGuardando(false); }
   };
 
-  // La carga corre en segundo plano en el servidor: se sube el archivo y se consulta el avance.
-  // "simular" valida todo el archivo y devuelve el reporte sin guardar nada.
-  const importar = async (file: File, simular: boolean) => {
-    setImporting(true); setImportResult(null); setProgreso(null); setError("");
-    try {
-      const fd = new FormData();
-      fd.append("archivo", file);
-      const token = getToken();
-      const q = new URLSearchParams({ simular: String(simular), autoasignable: String(autoasignable) });
-      const response = await fetch(`${API_URL}/api/expedientes/importar?${q}`, {
-        method: "POST", headers: { "x-client-platform": "web", ...(token ? { Authorization: "Bearer " + token } : {}) }, body: fd,
-      });
-      const body = await response.json();
-      if (!response.ok) throw new Error(body.error || "No se pudo importar el archivo.");
-      const inicio = body.data;
-      let actual: any = inicio;
-      for (;;) {
-        await new Promise((r) => setTimeout(r, 1500));
-        actual = (await request<any>(`/api/expedientes/importaciones/${inicio.id_importacion}`)).data;
-        setProgreso(actual);
-        if (actual.estado !== "PROCESANDO") break;
-      }
-      setImportResult({ ...actual, archivo_repetido: inicio.archivo_repetido });
-      if (!simular) await load();
-    } catch (e: any) { setError(e.message); } finally { setImporting(false); setProgreso(null); }
+  const verHistorial = async () => {
+    try { const r: any = await request("/api/expedientes/importaciones?limit=20"); setHistorial(r.data); } catch (e: any) { setError(e.message); }
   };
 
-  const liberar = async (idImportacion: string) => {
-    try {
-      const r: any = await request(`/api/expedientes/importaciones/${idImportacion}/liberar`, { method: "POST" });
-      setError("");
-      setImportResult((prev: any) => (prev ? { ...prev, liberados: r.data.liberados } : prev));
-      await load();
-    } catch (e: any) { setError(e.message); }
-  };
+  const paginas = Math.max(1, Math.ceil(total / LIMITE));
+  const campo = (k: keyof typeof emptyForm, etiqueta: string, requerido = false, tipoInput = "text") => (
+    <div className="field"><label>{etiqueta}</label><input required={requerido} type={tipoInput} value={form[k]} onChange={(e) => setForm({ ...form, [k]: e.target.value })} /></div>
+  );
 
   return (
     <>
-      <div className="page-header">
+      <div className="page-head">
         <div>
           <h1>Expedientes</h1>
-          <p>{total.toLocaleString("es-PE")} expedientes cargados en el sistema.</p>
+          <p>{total.toLocaleString("es-PE")} {total === 1 ? "expediente" : "expedientes"} {search || tipo || estado || sinUbicacion ? "con estos filtros" : "cargados"}.</p>
         </div>
-        <div className="row">
-<label className="btn ghost" style={{ cursor: "pointer" }} title="Revisa todo el archivo y muestra el reporte sin guardar nada">
-              {importing ? "Procesando…" : "Validar archivo (sin guardar)"}
-              <input type="file" accept=".xlsx" hidden disabled={importing} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) importar(f, true); }} />
-            </label>
-            <label className="btn ghost" style={{ cursor: "pointer" }}>
-              {importing ? "Procesando…" : "Importar y guardar"}
-              <input type="file" accept=".xlsx" hidden disabled={importing} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) importar(f, false); }} />
-            </label>
-            <Button title={showForm ? "Cancelar" : "Nuevo expediente"} onClick={() => setShowForm((v) => !v)} />
+        <div className="actions">
+          <button className="btn quiet" onClick={verHistorial}>Historial de cargas</button>
+          <button className="btn ghost" onClick={() => setNuevo(true)}>Nuevo expediente</button>
+          <button className="btn" onClick={() => setImportando(true)}>Cargar archivo</button>
         </div>
       </div>
+
       {error ? <div className="error-box">{error}</div> : null}
-      <Card>
-        <div className="toolbar">
-          <input
-            placeholder="Buscar por código, cliente, documento o asesor…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="input" style={{ flex: "1 1 260px", minWidth: 0, maxWidth: 420 }}
-          />
+
+      <div className="filters">
+        <div className="fgroup grow">
+          <label className="lbl" htmlFor="buscar-exp">Buscar</label>
+          <input id="buscar-exp" className="input" placeholder="Crédito, cliente, documento o asesor" value={search} onChange={(e) => { setSearch(e.target.value); if (params.get("q") !== null) setParams({}); }} />
         </div>
-        <label className="subtle" style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 12 }}>
-          <input type="checkbox" checked={autoasignable} onChange={(e) => setAutoasignable(e.target.checked)} />
-          Al importar, dejar los expedientes nuevos disponibles para que los auditores de su zona los tomen por su cuenta (si no, solo un supervisor los asigna)
-        </label>
-        {importing ? <div className="callout info" style={{ marginTop: 10 }}>Procesando el archivo en el servidor… {progreso ? `${progreso.procesadas} filas revisadas.` : "iniciando."} Puedes esperar aquí; no cierres la página.</div> : null}
-        <div className="row" style={{ marginTop: 12 }}>
-          <button type="button" className={`chip${tipo === "" ? " on" : ""}`} onClick={() => setTipo("")}>Todos</button>
-          <button type="button" className={`chip${tipo === "OTROS" ? " on" : ""}`} onClick={() => setTipo(tipo === "OTROS" ? "" : "OTROS")}>MYPE</button>
-          <button type="button" className={`chip${tipo === "CONSUMO" ? " on" : ""}`} onClick={() => setTipo(tipo === "CONSUMO" ? "" : "CONSUMO")}>Consumo</button>
-          <button type="button" className={`chip${sinUbicacion ? " on" : ""}`} onClick={() => setSinUbicacion((v) => !v)}>Sin coordenadas</button>
-          <button type="button" className="chip" style={{ marginLeft: "auto" }} onClick={verHistorial}>{historial ? "Ocultar importaciones" : "Historial de importaciones"}</button>
+        <div className="fgroup">
+          <span className="lbl">Tipo de crédito</span>
+          <Seg label="Tipo de crédito" value={tipo} onChange={setTipo} options={[{ value: "", label: "Todos" }, { value: "OTROS", label: "MYPE" }, { value: "CONSUMO", label: "Consumo" }]} />
         </div>
-        {importResult ? (
-          <div style={{ marginTop: 12 }}>
-            {importResult.simulacion ? <div className="callout info"><b>Validación sin guardar:</b> esto es lo que pasaría al importar este archivo. No se guardó ningún dato.</div> : null}
-            {importResult.archivo_repetido ? <div className="callout aviso">Este mismo archivo ya se importó el {fechaHora(importResult.archivo_repetido.fecha_creacion)}. Si no cambió, todo saldrá como «sin cambios».</div> : null}
-            {importResult.estado === "ERROR" || importResult.estado === "INTERRUMPIDA" ? <div className="error-box">La importación no terminó ({importResult.estado.toLowerCase()}). Revisa el detalle abajo.</div> : null}
-            <div className={`callout ${importResult.errores ? "aviso" : "ok"}`}>
-              {importResult.simulacion ? "Resultado de la validación" : "Importación terminada"} ({importResult.formato === "CORE_262" ? "base MYPE del core" : "plantilla simple"}): {importResult.procesadas} filas · {importResult.insertadas} nuevos · {importResult.actualizadas} actualizados · {importResult.omitidas} omitidos o sin cambios · {importResult.errores} con error.
-            </div>
-            {!importResult.simulacion && importResult.insertadas > 0 && !autoasignable ? (
-              <div className="callout info">
-                Los {importResult.insertadas} expedientes nuevos solo los asigna un supervisor. {importResult.liberados != null ? `Se liberaron ${importResult.liberados} para que los auditores los tomen.` : null}
-                {importResult.liberados == null ? <> <button type="button" className="tag base" style={{ border: "none", cursor: "pointer" }} onClick={() => liberar(importResult.id_importacion)}>Liberarlos a los auditores</button></> : null}
-              </div>
-            ) : null}
-            {Object.keys(importResult.advertencias || {}).length ? (
-              <div className="callout aviso">
-                <b>Avisos de calidad del dato</b>
-                {Object.entries(importResult.advertencias).map(([codigo, cantidad]: any) => (
-                  <div key={codigo}>• {cantidad} fila(s): {ADVERTENCIAS[codigo] || codigo}</div>
-                ))}
-              </div>
-            ) : null}
-            {importResult.detalle_error?.filter((d: any) => d.resultado === "ERROR" || d.resultado === "OMITIDA").length ? (
-              <details>
-                <summary className="subtle" style={{ cursor: "pointer" }}>Ver filas omitidas o con error</summary>
-                <table className="compact" style={{ marginTop: 8 }}>
-                  <thead><tr><th>Hoja</th><th>Fila</th><th>Crédito</th><th>Resultado</th><th>Motivo</th></tr></thead>
-                  <tbody>
-                    {importResult.detalle_error.filter((d: any) => d.resultado === "ERROR" || d.resultado === "OMITIDA").slice(0, 30).map((d: any, i: number) => (
-                      <tr key={i}><td>{d.hoja}</td><td>{d.fila}</td><td>{d.codigo || "-"}</td><td>{d.resultado}</td><td>{d.motivo}</td></tr>
-                    ))}
-                  </tbody>
-                </table>
-              </details>
-            ) : null}
-          </div>
-        ) : null}
-        {historial ? (
-          <div style={{ marginTop: 12 }}>
-            <table className="compact">
-              <thead><tr><th>Fecha</th><th>Archivo</th><th>Por</th><th className="num">Filas</th><th className="num">Nuevos</th><th className="num">Actualiz.</th><th className="num">Omitidos</th><th className="num">Errores</th><th>Huella</th></tr></thead>
+        <div className="fgroup">
+          <label className="lbl" htmlFor="estado-exp">Estado</label>
+          <select id="estado-exp" className="select" value={estado} onChange={(e) => setEstado(e.target.value)}>
+            <option value="">Todos</option><option value="PENDIENTE">Pendiente</option><option value="ASIGNADO">Asignado</option><option value="VISITADO">Visitado</option><option value="CERRADO">Cerrado</option>
+          </select>
+        </div>
+        <label className="check-inline"><input type="checkbox" checked={sinUbicacion} onChange={(e) => setSinUbicacion(e.target.checked)} />Solo sin coordenadas</label>
+      </div>
+
+      {loading && !data.length ? (
+        <div style={{ paddingTop: 18 }}>{[0, 1, 2, 3, 4, 5].map((i) => <Skeleton key={i} height={22} radius={3} style={{ display: "block", margin: "16px 0" }} />)}</div>
+      ) : !data.length ? (
+        <Empty title="Sin expedientes" text={search || tipo || estado || sinUbicacion ? "Ningún expediente coincide con estos filtros." : "Carga un archivo de Excel para empezar."} />
+      ) : (
+        <>
+          <div className="table-wrap" style={{ opacity: loading ? 0.55 : 1 }}>
+            <table>
+              <thead><tr><th>Crédito</th><th>Cliente</th><th>Tipo</th><th>Distrito</th><th>Asesor</th><th>Ubicación</th><th>Estado</th></tr></thead>
               <tbody>
-                {historial.map((h) => (
-                  <tr key={h.id_importacion}>
-                    <td>{fechaHora(h.fecha_creacion)}</td><td>{h.archivo}{h.simulacion ? <> <span className="tag aviso">validación</span></> : null}</td><td>{h.actor || "-"}</td><td className="num">{h.total_filas}</td>
-                    <td className="num">{h.insertadas}</td><td className="num">{h.actualizadas}</td><td className="num">{h.omitidas}</td><td className="num">{h.errores}</td>
-                    <td><code style={{ fontSize: 11 }}>{h.archivo_sha256 ? h.archivo_sha256.slice(0, 10) : "-"}</code></td>
+                {data.map((x) => (
+                  <tr key={x.id_expediente} className={`clickable${vista === x.id_expediente ? " selected" : ""}`} onClick={() => setVista(x.id_expediente)}>
+                    <td className="code">{x.codigo_expediente}</td>
+                    <td><b style={{ fontWeight: 500 }}>{x.nombres_cliente}</b><span className="sub">{x.numero_documento_cliente}</span></td>
+                    <td>{x.tipo_credito === "OTROS" ? "MYPE" : "Consumo"}</td>
+                    <td>{dash(x.distrito)}</td>
+                    <td>{x.asesor_responsable}</td>
+                    <td><span className={`state ${x.latitud != null && x.longitud != null ? "ok" : "warn"}`}>{x.latitud != null && x.longitud != null ? "Con coordenadas" : "Sin coordenadas"}</span></td>
+                    <td><Badge label={x.estado} /></td>
                   </tr>
                 ))}
-                {!historial.length ? <tr><td colSpan={9} className="subtle">Aún no hay importaciones.</td></tr> : null}
               </tbody>
             </table>
           </div>
-        ) : null}
-      </Card>
+          <div className="pagination">
+            <span className="muted">Página {pagina} de {paginas}</span>
+            <button className="btn ghost small" disabled={pagina <= 1} onClick={() => setPagina((p) => p - 1)}>Anterior</button>
+            <button className="btn ghost small" disabled={pagina >= paginas} onClick={() => setPagina((p) => p + 1)}>Siguiente</button>
+          </div>
+        </>
+      )}
 
-      {showForm ? (
-        <Card>
-          <p className="section-title">Nuevo expediente</p>
-          <form onSubmit={crear}>
-            <div className="grid grid-2">
-              <Field label="Código de expediente"><input required value={form.codigo_expediente} onChange={(e) => setForm({ ...form, codigo_expediente: e.target.value })} /></Field>
-              <Field label="Tipo de crédito">
-                <select value={form.tipo_credito} onChange={(e) => setForm({ ...form, tipo_credito: e.target.value })}>
-                  <option value="CONSUMO">Consumo</option><option value="OTROS">Otros (MYPE)</option>
-                </select>
-              </Field>
-              <Field label="Oficina"><input value={form.oficina} onChange={(e) => setForm({ ...form, oficina: e.target.value })} /></Field>
-              <Field label="Asesor responsable"><input required value={form.asesor_responsable} onChange={(e) => setForm({ ...form, asesor_responsable: e.target.value })} /></Field>
-              <Field label="Documento del cliente"><input required value={form.numero_documento_cliente} onChange={(e) => setForm({ ...form, numero_documento_cliente: e.target.value })} /></Field>
-              <Field label="Nombres del cliente"><input required value={form.nombres_cliente} onChange={(e) => setForm({ ...form, nombres_cliente: e.target.value })} /></Field>
-              <Field label="Teléfono"><input value={form.telefono_cliente} onChange={(e) => setForm({ ...form, telefono_cliente: e.target.value })} /></Field>
-              <Field label="Dirección"><input value={form.direccion_domicilio} onChange={(e) => setForm({ ...form, direccion_domicilio: e.target.value })} /></Field>
-              <Field label="Distrito"><input value={form.distrito} onChange={(e) => setForm({ ...form, distrito: e.target.value })} /></Field>
-              <Field label="Provincia"><input value={form.provincia} onChange={(e) => setForm({ ...form, provincia: e.target.value })} /></Field>
-              <Field label="Latitud"><input value={form.latitud} onChange={(e) => setForm({ ...form, latitud: e.target.value })} /></Field>
-              <Field label="Longitud"><input value={form.longitud} onChange={(e) => setForm({ ...form, longitud: e.target.value })} /></Field>
-              <Field label="Monto desembolsado"><input value={form.monto_desembolso} onChange={(e) => setForm({ ...form, monto_desembolso: e.target.value })} /></Field>
-              <Field label="Moneda"><input value={form.moneda} onChange={(e) => setForm({ ...form, moneda: e.target.value })} /></Field>
+      {vista !== null ? <Vista id={vista} onClose={() => setVista(null)} /> : null}
+      {importando ? <ImportModal onClose={() => setImportando(false)} onDone={cargar} /> : null}
+
+      {nuevo ? (
+        <Drawer title="Nuevo expediente" subtitle="Para cargas grandes usa «Cargar archivo»." onClose={() => setNuevo(false)}
+          footer={<><button className="btn ghost" onClick={() => setNuevo(false)}>Cancelar</button><button className="btn" form="form-expediente" type="submit" disabled={guardando}>{guardando ? "Guardando…" : "Guardar expediente"}</button></>}>
+          <form id="form-expediente" onSubmit={crear}>
+            {campo("codigo_expediente", "Número de crédito", true)}
+            <div className="field"><label>Tipo de crédito</label>
+              <select value={form.tipo_credito} onChange={(e) => setForm({ ...form, tipo_credito: e.target.value })}><option value="CONSUMO">Consumo</option><option value="OTROS">MYPE (Otros)</option></select>
             </div>
-            <Button type="submit" title="Guardar expediente" />
+            {campo("nombres_cliente", "Nombres del cliente", true)}
+            {campo("numero_documento_cliente", "Documento del cliente", true)}
+            {campo("asesor_responsable", "Asesor responsable", true)}
+            {campo("oficina", "Oficina")}
+            {campo("telefono_cliente", "Teléfono")}
+            {campo("direccion_domicilio", "Dirección del domicilio")}
+            {campo("distrito", "Distrito")}
+            {campo("provincia", "Provincia")}
+            <div className="grid grid-2">{campo("latitud", "Latitud")}{campo("longitud", "Longitud")}</div>
+            <div className="grid grid-2">{campo("monto_desembolso", "Monto desembolsado")}{campo("moneda", "Moneda")}</div>
           </form>
-        </Card>
+        </Drawer>
       ) : null}
 
-      {loading ? (
-        <Card><SkeletonTable rows={7} cols={6} /></Card>
-      ) : !data.length ? (
-        <Empty title="Sin expedientes" text="Importa un Excel o crea uno manualmente para empezar." />
-      ) : (
-        <Card>
-          <table>
-            <thead><tr><th>Código</th><th>Cliente</th><th>Tipo</th><th>Distrito</th><th>Asesor</th><th>Ubicación</th><th>Estado</th></tr></thead>
-            <tbody>
-              {data.map((item) => (
-                <tr key={item.id_expediente} className="clickable" onClick={() => navigate(`/expedientes/${item.id_expediente}`)}>
-                  <td>{item.codigo_expediente}</td>
-                  <td>{item.nombres_cliente}</td>
-                  <td><span className={`tag ${item.tipo_credito === "OTROS" ? "aviso" : "base"}`}>{item.tipo_credito === "OTROS" ? "MYPE" : "Consumo"}</span></td>
-                  <td>{item.distrito || "-"}</td>
-                  <td>{item.asesor_responsable}</td>
-                  <td>{item.latitud != null && item.longitud != null ? <span className="tag campo">Con coordenadas</span> : <span className="tag alerta">Sin coordenadas</span>}</td>
-                  <td><Badge label={item.estado} /></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </Card>
-      )}
+      {historial ? (
+        <Drawer title="Historial de cargas" subtitle="Cada archivo importado o validado queda registrado." onClose={() => setHistorial(null)}>
+          {!historial.length ? <p className="subtle">Aún no hay cargas.</p> : (
+            <table className="compact">
+              <thead><tr><th>Cuándo</th><th>Archivo</th><th className="num">Filas</th><th className="num">Nuevos</th><th className="num">Error</th></tr></thead>
+              <tbody>
+                {historial.map((h) => (
+                  <tr key={h.id_importacion}>
+                    <td>{fechaHora(h.fecha_creacion)}<span className="sub">{h.actor || "-"}</span></td>
+                    <td>{h.archivo}{h.simulacion ? <span className="sub">Solo validación</span> : null}</td>
+                    <td className="num">{h.total_filas}</td><td className="num">{h.insertadas}</td><td className="num">{h.errores}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </Drawer>
+      ) : null}
     </>
   );
 }

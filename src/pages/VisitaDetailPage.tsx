@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { downloadWordExport, fetchEvidenceBlobUrl, request } from "../api";
-import { Badge, Button, Card, InfoRow, Loading, Origen, Tabs } from "../components/ui";
+import { Badge, Card, InfoRow, Loading, Origen, Tabs } from "../components/ui";
+import { Check } from "../components/kit";
 import { ClienteSeccion, CreditoSeccion, EndeudamientoSeccion, EvaluacionMype, IngresosConsumo, NegocioSeccion } from "../components/ficha/Secciones";
-import { ESTADO_NEGOCIO, PLANTILLA_NOMBRE, PROPIEDAD_LOCAL, ORIGEN_UBICACION, dash, fecha, fechaHora, n2 } from "../lib/format";
+import { ESTADO_NEGOCIO, PLANTILLA_NOMBRE, PROPIEDAD_LOCAL, ORIGEN_UBICACION, dash, fechaHora, n2 } from "../lib/format";
 
 const GRUPOS_CUESTIONARIO: { titulo: string; items: [string, string][] }[] = [
   {
@@ -196,12 +197,87 @@ function Trazabilidad({ visita, e }: { visita: any; e: any }) {
   );
 }
 
+// Controles que el revisor comprueba antes de dar por buena una visita. Salen de lo que ya guarda el sistema.
+function controlesDe(visita: any, esMype: boolean) {
+  const radio = Number(visita.trazabilidad?.geocerca_m) || 300;
+  const llegoAlCliente = ["CONFORME", "OBSERVADO"].includes(visita.resultado);
+  const r = visita.respuestas_cuestionario || {};
+  const tresRespuestas = ["entrego_dinero_asesor", "pago_comision_adicional", "recibio_monto_total"].every((k) => typeof r[k] === "boolean");
+  const fotos = visita.evidencias?.length || 0;
+  const distancia = visita.distancia_domicilio_m != null ? Math.round(Number(visita.distancia_domicilio_m)) : null;
+  const lista: { tone: "ok" | "warn" | "bad" | "na"; title: string; detail: string }[] = [
+    distancia == null
+      ? { tone: "na", title: "Distancia al domicilio", detail: "El domicilio no tenía coordenadas en la base" }
+      : distancia <= radio
+        ? { tone: "ok", title: `A ${distancia} m del domicilio`, detail: `Máximo permitido: ${radio} m` }
+        : { tone: "bad", title: `A ${distancia} m del domicilio`, detail: `Supera el máximo de ${radio} m` },
+    visita.mock_location
+      ? { tone: "bad", title: "GPS simulado", detail: "El dispositivo reportó una ubicación falsa" }
+      : { tone: "ok", title: "GPS real", detail: "Sin ubicación simulada" },
+    visita.device_integrity_ok
+      ? { tone: "ok", title: "Dispositivo íntegro", detail: "Sin root, emulador ni manipulación" }
+      : { tone: "bad", title: "Dispositivo con observaciones", detail: "Root, emulador o manipulación detectados" },
+    fotos
+      ? { tone: "ok", title: `${fotos} ${fotos === 1 ? "fotografía" : "fotografías"}`, detail: "Tomadas con la cámara de la app, sin repetirse" }
+      : { tone: "bad", title: "Sin fotografías", detail: "No hay evidencia fotográfica" },
+    llegoAlCliente
+      ? visita.firma_evidencia ? { tone: "ok", title: "Firma del cliente", detail: visita.firmante_documento ? `Documento ${visita.firmante_documento}` : "Registrada" } : { tone: "bad", title: "Falta la firma", detail: "No se registró la firma del cliente" }
+      : { tone: "na", title: "Firma del cliente", detail: "No aplica: no se llegó al cliente" },
+    llegoAlCliente
+      ? tresRespuestas ? { tone: "ok", title: "Cuestionario completo", detail: "Las 3 preguntas obligatorias respondidas" } : { tone: "bad", title: "Cuestionario incompleto", detail: "Faltan preguntas obligatorias" }
+      : { tone: "na", title: "Cuestionario", detail: "No aplica: no se llegó al cliente" },
+  ];
+  if (esMype && llegoAlCliente) {
+    const c = visita.conformidad_financiera;
+    const obs = c ? Object.values(c as Record<string, any>).filter((b) => b && b.conforme === false).length : 0;
+    lista.push(!c
+      ? { tone: "warn", title: "Evaluación sin revisar", detail: "No se registró conformidad financiera" }
+      : obs
+        ? { tone: "warn", title: "Evaluación con observaciones", detail: `${obs} de 3 bloques observados` }
+        : { tone: "ok", title: "Evaluación conforme", detail: "Ingresos, balance y resultados" });
+    lista.push(visita.estado_negocio === "EN_FUNCIONAMIENTO"
+      ? { tone: "ok", title: "Negocio en funcionamiento", detail: PROPIEDAD_LOCAL[visita.propiedad_local] ? `Local ${PROPIEDAD_LOCAL[visita.propiedad_local].toLowerCase()}` : "" }
+      : { tone: "warn", title: visita.estado_negocio ? ESTADO_NEGOCIO[visita.estado_negocio] : "Estado del negocio sin registrar", detail: "Revisar el comentario del auditor" });
+  }
+  return lista;
+}
+
+function Evidencias({ visita }: { visita: any }) {
+  const lat = Number(visita.latitud);
+  const lng = Number(visita.longitud);
+  return (
+    <>
+      <div className="section-head" style={{ borderBottom: "none", paddingBottom: 0 }}><h2>Evidencia</h2></div>
+      <div style={{ marginTop: 14 }}>
+        {(visita.evidencias || []).map((ev: any) => (
+          <figure key={ev.id_evidencia} className="evidence" style={{ margin: 0 }}>
+            <EvidencePhoto idEvidencia={ev.id_evidencia} tipo={ev.tipo === "FOTO_PRINCIPAL" ? "Fotografía principal" : "Fotografía adicional"} />
+          </figure>
+        ))}
+        {!visita.evidencias?.length ? <p className="subtle">Esta visita no tiene fotografías.</p> : null}
+      </div>
+      {visita.firma_evidencia ? (
+        <div className="evidence" style={{ marginTop: 22 }}>
+          <p className="lbl" style={{ marginBottom: 6 }}>Firma del cliente</p>
+          <div className="signature"><img src={visita.firma_evidencia} alt="Firma del cliente" /></div>
+        </div>
+      ) : null}
+      <div className="evidence" style={{ marginTop: 22 }}>
+        <p className="lbl" style={{ marginBottom: 6 }}>Ubicación registrada</p>
+        <p style={{ fontVariantNumeric: "tabular-nums" }}>{Number.isFinite(lat) ? `${lat.toFixed(6)}, ${lng.toFixed(6)}` : "-"}</p>
+        <p className="subtle">Precisión de ±{visita.precision_metros != null ? Math.round(visita.precision_metros) : "?"} m</p>
+        {Number.isFinite(lat) ? <a href={`https://www.google.com/maps?q=${lat},${lng}`} target="_blank" rel="noreferrer">Ver en el mapa</a> : null}
+      </div>
+    </>
+  );
+}
+
 export default function VisitaDetailPage() {
   const { id } = useParams();
   const [visita, setVisita] = useState<any>(null);
   const [error, setError] = useState("");
   const [downloading, setDownloading] = useState(false);
-  const [tab, setTab] = useState("resultado");
+  const [tab, setTab] = useState("ficha");
 
   useEffect(() => {
     request(`/api/visitas/${id}`).then((r: any) => setVisita(r.data)).catch((e) => setError(e.message));
@@ -215,77 +291,57 @@ export default function VisitaDetailPage() {
   };
 
   const e = useMemo(() => (visita ? visita.expediente_snapshot || visita.expediente : null), [visita]);
-  if (error) return <Card><p style={{ color: "var(--danger)" }}>{error}</p></Card>;
+  if (error) return <div className="error-box">{error}</div>;
   if (!visita || !e) return <Loading />;
 
   const esMype = (visita.plantilla || (e.tipo_credito === "OTROS" ? "MYPE_V1" : "CONSUMO_V1")) === "MYPE_V1";
-  const conAlerta = visita.mock_location || !visita.device_integrity_ok;
+  const controles = controlesDe(visita, esMype);
+  const fallan = controles.filter((c) => c.tone === "bad").length;
+  const avisos = controles.filter((c) => c.tone === "warn").length;
   const tabs = [
-    { id: "resultado", label: "Resultado", badge: conAlerta },
     { id: "ficha", label: "Ficha de entrevista" },
     { id: "base", label: "Datos de la base" },
-    { id: "evidencias", label: `Evidencias (${visita.evidencias?.length || 0})` },
     { id: "trazabilidad", label: "Trazabilidad" },
   ];
 
   return (
     <>
-      <div className="page-header">
+      <div className="page-head">
         <div>
-          <p><Link to="/visitas">← Visitas</Link></p>
+          <p style={{ marginTop: 0, marginBottom: 8 }}><Link to="/visitas">Visitas</Link></p>
           <h1>{e.nombres_cliente}</h1>
-          <p>
-            {e.codigo_expediente} · {fechaHora(visita.fecha_hora_checkin)} <Badge label={visita.resultado} />{" "}
+          <p className="row" style={{ marginTop: 10, gap: 14 }}>
+            <span className="code" style={{ color: "var(--ink-2)", fontVariantNumeric: "tabular-nums" }}>{e.codigo_expediente}</span>
+            <span>{fechaHora(visita.fecha_hora_checkin)}</span>
+            <Badge label={visita.resultado} />
             <span className={`tag ${esMype ? "aviso" : "base"}`}>{esMype ? "Ficha MYPE" : "Ficha Consumo"}</span>
           </p>
         </div>
-        <Button title={downloading ? "Generando…" : "Descargar ficha en Word"} onClick={descargarWord} disabled={downloading} />
+        <div className="actions">
+          <Link to={`/expedientes/${visita.id_expediente}`} className="btn ghost">Ver expediente</Link>
+          <button className="btn" onClick={descargarWord} disabled={downloading}>{downloading ? "Generando…" : "Descargar ficha en Word"}</button>
+        </div>
       </div>
 
-      {conAlerta ? (
-        <div className="error-box">
-          {visita.mock_location ? "⚠ Se detectó ubicación simulada (Fake GPS) reportada por el dispositivo. " : ""}
-          {!visita.device_integrity_ok ? "⚠ El dispositivo no pasó el chequeo de integridad." : ""}
+      <section className="verdict" aria-label="Controles de la visita">
+        <div className="verdict-head">
+          <h2>Controles de la visita</h2>
+          <span className={`state ${fallan ? "bad" : avisos ? "warn" : "ok"}`}>
+            {fallan ? `${fallan} ${fallan === 1 ? "control no se cumple" : "controles no se cumplen"}` : avisos ? `${avisos} ${avisos === 1 ? "punto" : "puntos"} por revisar` : "Todos los controles en orden"}
+          </span>
         </div>
-      ) : null}
+        <div className="checks">{controles.map((c) => <Check key={c.title} {...c} />)}</div>
+      </section>
 
-      <Tabs tabs={tabs} value={tab} onChange={setTab} />
-
-      {tab === "resultado" ? (
-        <Card>
-          <p className="section-title">Datos de la visita</p>
-          <InfoRow k="Auditor" v={`${visita.auditor?.nombres || ""} ${visita.auditor?.apellidos || ""} (@${visita.auditor?.username})`} />
-          <InfoRow k="Resultado" v={<Badge label={visita.resultado} />} />
-          <InfoRow k="Coordenadas registradas" v={`${visita.latitud}, ${visita.longitud} (±${visita.precision_metros ?? "?"} m)`} />
-          <InfoRow k="Distancia al domicilio registrado" v={visita.distancia_domicilio_m != null ? `${Math.round(visita.distancia_domicilio_m)} m` : "No calculada (expediente sin coordenadas)"} />
-          <InfoRow k="Ubicación simulada (Fake GPS)" v={visita.mock_location ? "SÍ — bloqueado" : "No detectada"} />
-          <InfoRow k="Integridad del dispositivo" v={visita.device_integrity_ok ? "OK" : "Con observaciones"} />
-          <InfoRow k="Hora recibida por el servidor" v={fechaHora(visita.server_received_at)} />
-          <InfoRow k="Fecha de desembolso del crédito" v={fecha(e.datos_credito?.fecha_desembolso)} />
-          <p style={{ marginTop: 10 }}><Link to={`/expedientes/${visita.id_expediente}`}>Ver expediente actual →</Link></p>
-        </Card>
-      ) : null}
-
-      {tab === "ficha" ? <FichaEntrevista visita={visita} esMype={esMype} /> : null}
-      {tab === "base" ? <DatosBase e={e} esMype={esMype} conformidad={visita.conformidad_financiera} /> : null}
-
-      {tab === "evidencias" ? (
-        <Card>
-          <p className="section-title">Evidencia fotográfica <Origen tipo="campo" /></p>
-          <div className="row">
-            {(visita.evidencias || []).map((ev: any) => <EvidencePhoto key={ev.id_evidencia} idEvidencia={ev.id_evidencia} tipo={ev.tipo} />)}
-            {!visita.evidencias?.length ? <p className="muted">Sin fotos subidas para esta visita.</p> : null}
-          </div>
-          {visita.firma_evidencia ? (
-            <div style={{ marginTop: 14 }}>
-              <p style={{ fontWeight: 700, fontSize: 12, color: "var(--muted)" }}>Firma del cliente</p>
-              <img src={visita.firma_evidencia} alt="firma" style={{ maxWidth: 260, border: "1px solid var(--border)", borderRadius: 8, marginTop: 4 }} />
-            </div>
-          ) : null}
-        </Card>
-      ) : null}
-
-      {tab === "trazabilidad" ? <Trazabilidad visita={visita} e={e} /> : null}
+      <div className="workbench">
+        <aside><Evidencias visita={visita} /></aside>
+        <div>
+          <Tabs tabs={tabs} value={tab} onChange={setTab} />
+          {tab === "ficha" ? <FichaEntrevista visita={visita} esMype={esMype} /> : null}
+          {tab === "base" ? <DatosBase e={e} esMype={esMype} conformidad={visita.conformidad_financiera} /> : null}
+          {tab === "trazabilidad" ? <Trazabilidad visita={visita} e={e} /> : null}
+        </div>
+      </div>
     </>
   );
 }

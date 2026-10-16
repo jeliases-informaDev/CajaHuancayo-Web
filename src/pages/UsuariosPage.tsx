@@ -1,114 +1,128 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { request } from "../api";
-import { Badge, Button, Card, Field, SkeletonTable } from "../components/ui";
+import { Badge, Empty, Skeleton } from "../components/ui";
+import { ActionMenu, Drawer, Seg } from "../components/kit";
+import { dash, fechaHora } from "../lib/format";
 
 const emptyForm = { username: "", password: "", rol: "AUDITOR", nombres: "", apellidos: "", email: "", departamento: "" };
+const nombreDe = (u: any) => `${u.nombres || ""} ${u.apellidos || ""}`.trim();
 
 export default function UsuariosPage() {
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [ok, setOk] = useState("");
-  const [showForm, setShowForm] = useState(false);
+  const [nuevo, setNuevo] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [rol, setRol] = useState<string>("");
+  const [busqueda, setBusqueda] = useState("");
 
-  const load = async () => {
-    setLoading(true);
-    try { const r: any = await request("/api/usuarios"); setData(r.data); }
+  const cargar = async () => {
+    try { const r: any = await request("/api/usuarios"); setData(r.data); setError(""); }
     catch (e: any) { setError(e.message); } finally { setLoading(false); }
   };
-  useEffect(() => { load(); }, []);
+  useEffect(() => { cargar(); }, []);
 
   const crear = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(""); setSaving(true);
     try {
       await request("/api/usuarios", { method: "POST", body: JSON.stringify(form) });
-      setShowForm(false); setForm(emptyForm);
-      await load();
-    } catch (e: any) { setError(e.message); } finally { setSaving(false); }
+      setNuevo(false); setForm(emptyForm); setOk("Usuario creado.");
+      await cargar();
+    } catch (x: any) { setError(x.message); } finally { setSaving(false); }
   };
 
-  const resetMfa = async (id: string) => {
-    try { await request(`/api/usuarios/${id}/mfa/reset`, { method: "POST" }); setOk("MFA restablecido."); await load(); }
-    catch (e: any) { setError(e.message); }
+  const accion = async (fn: () => Promise<unknown>, mensaje: string) => {
+    try { await fn(); setError(""); setOk(mensaje); await cargar(); } catch (x: any) { setOk(""); setError(x.message); }
   };
-  const resetDevice = async (id: string) => {
-    try { await request(`/api/usuarios/${id}/device/reset`, { method: "POST" }); setOk("Dispositivo liberado."); }
-    catch (e: any) { setError(e.message); }
-  };
-  const desactivar = async (id: string, estado: string) => {
-    try { await request(`/api/usuarios/${id}`, { method: "PATCH", body: JSON.stringify({ estado: estado === "ACTIVO" ? "INACTIVO" : "ACTIVO" }) }); await load(); }
-    catch (e: any) { setError(e.message); }
-  };
+
+  const q = busqueda.trim().toLowerCase();
+  const visibles = useMemo(
+    () => data.filter((u) => (!rol || u.rol === rol) && (!q || [u.username, u.nombres, u.apellidos, u.email].some((v) => String(v || "").toLowerCase().includes(q)))),
+    [data, rol, q],
+  );
+
+  const campo = (k: keyof typeof emptyForm, etiqueta: string, tipo = "text", extra: Partial<React.InputHTMLAttributes<HTMLInputElement>> = {}) => (
+    <div className="field"><label>{etiqueta}</label><input type={tipo} value={form[k]} onChange={(e) => setForm({ ...form, [k]: e.target.value })} {...extra} /></div>
+  );
 
   return (
     <>
-      <div className="page-header">
-        <h1>Usuarios</h1>
-        <p>Administradores, supervisores y auditores del sistema.</p>
+      <div className="page-head">
+        <div>
+          <h1>Usuarios</h1>
+          <p>Administradores, supervisores y auditores con acceso al sistema.</p>
+        </div>
+        <div className="actions"><button className="btn" onClick={() => { setNuevo(true); setOk(""); }}>Nuevo usuario</button></div>
       </div>
       {error ? <div className="error-box">{error}</div> : null}
-      {ok ? <div className="error-box" style={{ background: "#eafbf5", color: "var(--success)" }}>{ok}</div> : null}
-      <Card>
-        <Button title={showForm ? "Cancelar" : "Nuevo usuario"} onClick={() => setShowForm((v) => !v)} />
-        {showForm ? (
-          <form onSubmit={crear} style={{ marginTop: 14 }}>
-            <div className="grid grid-2">
-              <Field label="Usuario"><input required value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} /></Field>
-              <Field label="Contraseña (mín. 12 caracteres)"><input required type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} /></Field>
-              <Field label="Rol">
-                <select value={form.rol} onChange={(e) => setForm({ ...form, rol: e.target.value })}>
-                  <option value="AUDITOR">Auditor</option><option value="SUPERVISOR">Supervisor</option><option value="ADMINISTRADOR">Administrador</option>
-                </select>
-              </Field>
-              <Field label="Email"><input value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></Field>
-              <Field label="Nombres"><input value={form.nombres} onChange={(e) => setForm({ ...form, nombres: e.target.value })} /></Field>
-              <Field label="Apellidos"><input value={form.apellidos} onChange={(e) => setForm({ ...form, apellidos: e.target.value })} /></Field>
-              {form.rol === "AUDITOR" ? (
-                <Field label="Departamento donde trabaja">
-                  <input
-                    value={form.departamento}
-                    onChange={(e) => setForm({ ...form, departamento: e.target.value })}
-                    placeholder="Ej. Junín, Lima"
-                  />
-                </Field>
-              ) : null}
-            </div>
-            {form.rol === "AUDITOR" ? (
-              <p className="muted" style={{ fontSize: 11.5, marginTop: -6, marginBottom: 12 }}>
-                Si lo dejas vacío, el sistema no podrá impedir que le asignen clientes de otra ciudad.
-              </p>
-            ) : null}
-            <Button type="submit" title={saving ? "Creando…" : "Crear usuario"} disabled={saving} />
-          </form>
-        ) : null}
-      </Card>
-      <Card>
-        {loading ? <SkeletonTable rows={6} cols={5} /> : (
+      {ok ? <div className="callout ok">{ok}</div> : null}
+
+      <div className="filters">
+        <div className="fgroup grow"><label className="lbl" htmlFor="b-user">Buscar</label><input id="b-user" className="input" placeholder="Usuario, nombre o correo" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} /></div>
+        <div className="fgroup"><span className="lbl">Rol</span>
+          <Seg label="Rol" value={rol} onChange={setRol} options={[{ value: "", label: "Todos" }, { value: "AUDITOR", label: "Auditores" }, { value: "SUPERVISOR", label: "Supervisores" }, { value: "ADMINISTRADOR", label: "Administradores" }]} />
+        </div>
+      </div>
+
+      {loading ? (
+        <div style={{ paddingTop: 18 }}>{[0, 1, 2, 3, 4].map((i) => <Skeleton key={i} height={22} radius={3} style={{ display: "block", margin: "16px 0" }} />)}</div>
+      ) : !visibles.length ? (
+        <Empty title="Sin usuarios" text="Ningún usuario coincide con la búsqueda." />
+      ) : (
+        <div className="table-wrap">
           <table>
-            <thead><tr><th>Usuario</th><th>Nombre</th><th>Rol</th><th>Estado</th><th></th></tr></thead>
+            <thead><tr><th>Usuario</th><th>Rol</th><th>Zona</th><th>Estado</th><th>Último acceso</th><th style={{ width: 48 }}></th></tr></thead>
             <tbody>
-              {data.map((u) => (
+              {visibles.map((u) => (
                 <tr key={u.id}>
-                  <td>@{u.username}</td>
-                  <td>{u.nombres} {u.apellidos}</td>
+                  <td><b style={{ fontWeight: 500 }}>{nombreDe(u) || u.username}</b><span className="sub">@{u.username}</span></td>
                   <td><Badge label={u.rol} /></td>
+                  <td>{dash(u.departamento)}</td>
                   <td><Badge label={u.estado} /></td>
-                  <td>
-                    <div className="row">
-                      {u.rol !== "ADMINISTRADOR" ? <Button kind="ghost" title="Liberar dispositivo" onClick={() => resetDevice(u.id)} /> : null}
-                      <Button kind="ghost" title="Reset MFA" onClick={() => resetMfa(u.id)} />
-                      <Button kind={u.estado === "ACTIVO" ? "danger" : "primary"} title={u.estado === "ACTIVO" ? "Desactivar" : "Activar"} onClick={() => desactivar(u.id, u.estado)} />
-                    </div>
+                  <td>{u.ultimo_acceso ? fechaHora(u.ultimo_acceso) : <span className="muted">Nunca</span>}</td>
+                  <td style={{ textAlign: "right" }}>
+                    <ActionMenu
+                      header={{ title: nombreDe(u) || u.username, sub: `@${u.username}` }}
+                      items={[
+                        { label: "Liberar dispositivo", hidden: u.rol === "ADMINISTRADOR", onClick: () => accion(() => request(`/api/usuarios/${u.id}/device/reset`, { method: "POST" }), "Dispositivo liberado: podrá iniciar sesión desde otro teléfono.") },
+                        { label: "Restablecer verificación en dos pasos", onClick: () => { if (window.confirm(`¿Restablecer la verificación en dos pasos de @${u.username}? Tendrá que configurarla de nuevo.`)) accion(() => request(`/api/usuarios/${u.id}/mfa/reset`, { method: "POST" }), "Verificación en dos pasos restablecida."); } },
+                        u.estado === "ACTIVO"
+                          ? { label: "Desactivar usuario", tone: "bad", separatorBefore: true, onClick: () => { if (window.confirm(`¿Desactivar a @${u.username}? No podrá iniciar sesión y sus casos activos se liberan.`)) accion(() => request(`/api/usuarios/${u.id}`, { method: "PATCH", body: JSON.stringify({ estado: "INACTIVO" }) }), "Usuario desactivado."); } }
+                          : { label: "Activar usuario", separatorBefore: true, onClick: () => accion(() => request(`/api/usuarios/${u.id}`, { method: "PATCH", body: JSON.stringify({ estado: "ACTIVO" }) }), "Usuario activado.") },
+                      ]}
+                    />
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-        )}
-      </Card>
+        </div>
+      )}
+
+      {nuevo ? (
+        <Drawer title="Nuevo usuario" subtitle="La contraseña debe tener al menos 12 caracteres." onClose={() => setNuevo(false)}
+          footer={<><button className="btn ghost" onClick={() => setNuevo(false)}>Cancelar</button><button className="btn" type="submit" form="form-usuario" disabled={saving}>{saving ? "Creando…" : "Crear usuario"}</button></>}>
+          <form id="form-usuario" onSubmit={crear}>
+            {campo("username", "Usuario", "text", { required: true, autoCapitalize: "none" })}
+            {campo("password", "Contraseña", "password", { required: true, minLength: 12, autoComplete: "new-password" })}
+            <div className="field"><label>Rol</label>
+              <select value={form.rol} onChange={(e) => setForm({ ...form, rol: e.target.value })}><option value="AUDITOR">Auditor de campo</option><option value="SUPERVISOR">Supervisor</option><option value="ADMINISTRADOR">Administrador</option></select>
+            </div>
+            {campo("nombres", "Nombres")}
+            {campo("apellidos", "Apellidos")}
+            {campo("email", "Correo electrónico", "email")}
+            {form.rol === "AUDITOR" ? (
+              <>
+                {campo("departamento", "Departamento donde trabaja", "text", { placeholder: "Ej. Junín, Lima" })}
+                <p className="subtle" style={{ marginTop: -6 }}>Si lo dejas vacío, el sistema no podrá impedir que le asignen clientes de otra ciudad.</p>
+              </>
+            ) : null}
+          </form>
+        </Drawer>
+      ) : null}
     </>
   );
 }

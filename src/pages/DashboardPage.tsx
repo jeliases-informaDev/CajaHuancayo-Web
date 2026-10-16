@@ -1,125 +1,138 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { request } from "../api";
-import { Badge, Card, Empty, SkeletonKpis, SkeletonTable } from "../components/ui";
+import { Badge, Empty, Skeleton } from "../components/ui";
+import { Bars, SegBar } from "../components/kit";
 
-const ICONOS = {
-  expedientes: <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z" />,
-  asignaciones: <><rect x="5" y="4" width="14" height="17" rx="2.2" /><path d="M9 4h6v3H9zM9 14l2 2 4-4" /></>,
-  visitas: <><circle cx="12" cy="12" r="9" /><path d="M8 12.5l2.7 2.7L16 9.8" /></>,
-  revision: <><path d="M12 3l9.5 17h-19L12 3z" /><path d="M12 10v4.5M12 17.5v.01" /></>,
+type Resumen = {
+  expedientes: { total: number; por_estado: Record<string, number>; por_tipo: Record<string, number> };
+  asignaciones_activas: number;
+  visitas: { total: number; por_resultado: Record<string, number>; actividad: { dia: string; total: number }[] };
+  auditores: { id: string; nombre: string; zona: string | null; asignadas_activas: number; visitas_30_dias: number }[];
+  cola_revision: { id_visita: number; resultado: string; fecha: string; cliente: string; codigo: string; tipo_credito: string; auditor: string; motivos: string[] }[];
 };
 
-function Kpi({ icono, label, value, hint }: { icono: keyof typeof ICONOS; label: string; value: number | string; hint?: string }) {
+const AZUL = "#1f3fa8";
+const AZUL_CLARO = "#a9b8ee";
+const REGLA = "#dcdae5";
+
+function Cargando() {
   return (
-    <Card className="kpi">
-      <div className="kpi-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">{ICONOS[icono]}</svg></div>
-      <div className="label">{label}</div>
-      <div className="value">{value}</div>
-      {hint ? <div className="hint">{hint}</div> : null}
-    </Card>
+    <>
+      <div className="cols cols-eq">
+        {[0, 1].map((i) => (
+          <div key={i}><Skeleton width={140} height={44} radius={4} /><div style={{ height: 14 }} /><Skeleton height={12} radius={2} style={{ display: "block" }} /></div>
+        ))}
+      </div>
+      <div className="section"><Skeleton height={220} radius={4} style={{ display: "block" }} /></div>
+    </>
   );
 }
 
 export default function DashboardPage() {
   const navigate = useNavigate();
-  const [stats, setStats] = useState<{ expedientes: number; asignacionesActivas: number; visitas: any[] } | null>(null);
+  const [r, setR] = useState<Resumen | null>(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    (async () => {
-      try {
-        const [expedientes, asignaciones, visitas]: any[] = await Promise.all([
-          request("/api/expedientes?limit=1"),
-          request("/api/asignaciones?estado=ACTIVA&limit=1"),
-          request("/api/visitas?limit=10"),
-        ]);
-        setStats({
-          expedientes: expedientes.pagination.total,
-          asignacionesActivas: asignaciones.pagination.total,
-          visitas: visitas.data,
-        });
-      } catch (e: any) {
-        setError(e.message);
-      }
-    })();
+    request<{ data: Resumen }>("/api/reportes/resumen").then((x) => setR(x.data)).catch((e) => setError(e.message));
   }, []);
 
-  if (error) return <Card><p style={{ color: "var(--danger)", margin: 0 }}>{error}</p></Card>;
-
   const fecha = new Date().toLocaleDateString("es-PE", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
-  const conObservaciones = stats ? stats.visitas.filter((v) => v.resultado !== "CONFORME") : [];
-  const conformes = stats ? stats.visitas.length - conObservaciones.length : 0;
+
+  if (error) return <div className="error-box">{error}</div>;
+
+  const e = r?.expedientes.por_estado;
+  const visitados = (e?.VISITADO || 0) + (e?.CERRADO || 0);
+  const v = r?.visitas.por_resultado;
+  const conformes = v?.CONFORME || 0;
+  const pctConformes = r?.visitas.total ? Math.round((conformes / r.visitas.total) * 100) : 0;
 
   return (
     <>
-      <div className="page-header">
+      <div className="page-head">
         <div>
-          <h1>Resumen de la operación</h1>
+          <h1>Resumen de la muestra</h1>
           <p>{fecha.charAt(0).toUpperCase() + fecha.slice(1)}</p>
         </div>
-        <div className="row">
+        <div className="actions">
           <Link to="/expedientes" className="btn ghost">Cargar expedientes</Link>
           <Link to="/asignaciones" className="btn">Armar muestra</Link>
         </div>
       </div>
 
-      {!stats ? (
+      {!r ? <Cargando /> : (
         <>
-          <SkeletonKpis />
-          <Card><p className="section-title">Últimas visitas</p><SkeletonTable rows={6} cols={4} /></Card>
-        </>
-      ) : (
-        <>
-          <div className="grid grid-4" style={{ marginBottom: 16 }}>
-            <Kpi icono="expedientes" label="Expedientes cargados" value={stats.expedientes.toLocaleString("es-PE")} />
-            <Kpi icono="asignaciones" label="Asignaciones activas" value={stats.asignacionesActivas.toLocaleString("es-PE")} hint="Casos en campo" />
-            <Kpi icono="visitas" label="Visitas recientes" value={stats.visitas.length} hint={`${conformes} conformes`} />
-            <Kpi icono="revision" label="Para revisar" value={conObservaciones.length} hint="Observadas, no ubicadas o rechazadas" />
+          <div className="cols cols-eq">
+            <div>
+              <div className="figure">{visitados.toLocaleString("es-PE")}<small>de {r.expedientes.total.toLocaleString("es-PE")} expedientes visitados</small></div>
+              <div style={{ height: 16 }} />
+              <SegBar segments={[
+                { label: "Visitados", value: visitados, color: AZUL },
+                { label: "Asignados", value: e?.ASIGNADO || 0, color: AZUL_CLARO },
+                { label: "Sin asignar", value: e?.PENDIENTE || 0, color: REGLA },
+              ]} />
+            </div>
+            <div>
+              <div className="figure">{conformes.toLocaleString("es-PE")}<small>de {r.visitas.total.toLocaleString("es-PE")} visitas conformes{r.visitas.total ? ` (${pctConformes} %)` : ""}</small></div>
+              <div style={{ height: 16 }} />
+              <SegBar segments={[
+                { label: "Conformes", value: conformes, color: "#12805c" },
+                { label: "Observadas", value: v?.OBSERVADO || 0, color: "#d9930d" },
+                { label: "No ubicados", value: v?.NO_UBICADO || 0, color: "#6c7391" },
+                { label: "Rechazadas", value: v?.RECHAZADO || 0, color: "#b3243b" },
+              ]} />
+            </div>
           </div>
 
-          {!stats.visitas.length ? (
-            <Empty title="Sin visitas todavía" text="Cuando los auditores registren visitas en campo, aparecerán aquí." />
-          ) : (
-            <div className="grid grid-main">
-              <Card>
-                <div className="card-head">
-                  <p className="section-title">Últimas visitas</p>
-                  <Link to="/visitas" className="subtle">Ver todas →</Link>
+          <div className="section cols cols-2">
+            <div>
+              <div className="section-head">
+                <h2>Visitas por revisar</h2>
+                <Link to="/visitas">Ver todas las visitas</Link>
+              </div>
+              {!r.cola_revision.length ? (
+                <Empty title="Nada pendiente de revisión" text="Las visitas observadas, rechazadas o con alertas de seguridad aparecen aquí." />
+              ) : (
+                <div className="table-wrap">
+                  <table>
+                    <thead><tr><th>Cliente</th><th>Motivo</th><th>Auditor</th><th>Fecha</th></tr></thead>
+                    <tbody>
+                      {r.cola_revision.map((x) => (
+                        <tr key={x.id_visita} className="clickable" onClick={() => navigate(`/visitas/${x.id_visita}`)}>
+                          <td><b style={{ fontWeight: 500 }}>{x.cliente}</b><span className="sub">{x.codigo}</span></td>
+                          <td><Badge label={x.resultado} />{x.motivos.length ? <span className="sub">{x.motivos.slice(0, 2).join("; ")}</span> : null}</td>
+                          <td>{x.auditor}</td>
+                          <td style={{ whiteSpace: "nowrap" }}>{new Date(x.fecha).toLocaleDateString("es-PE", { day: "numeric", month: "short" })}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
+              )}
+            </div>
+
+            <div>
+              <div className="section-head"><h2>Actividad de los últimos 14 días</h2><span className="meta">{r.visitas.actividad.reduce((s, d) => s + d.total, 0)} visitas</span></div>
+              <div style={{ padding: "18px 0 6px" }}><Bars data={r.visitas.actividad} /></div>
+
+              <div className="section-head" style={{ marginTop: 28 }}><h2>Carga por auditor</h2></div>
+              {!r.auditores.length ? <p className="subtle" style={{ padding: "14px 0" }}>No hay auditores activos.</p> : (
                 <table>
-                  <thead><tr><th>Fecha</th><th>Expediente</th><th>Auditor</th><th>Resultado</th></tr></thead>
+                  <thead><tr><th>Auditor</th><th className="num">Asignados</th><th className="num">Visitas, 30 días</th></tr></thead>
                   <tbody>
-                    {stats.visitas.map((v) => (
-                      <tr key={v.id_visita} className="clickable" onClick={() => navigate(`/visitas/${v.id_visita}`)}>
-                        <td style={{ whiteSpace: "nowrap" }}>{new Date(v.fecha_hora_checkin).toLocaleString("es-PE", { dateStyle: "short", timeStyle: "short" })}</td>
-                        <td><b style={{ fontWeight: 600 }}>{v.expediente?.nombres_cliente}</b><div className="subtle">{v.expediente?.codigo_expediente}</div></td>
-                        <td>{v.auditor?.nombres || v.auditor?.username}</td>
-                        <td><Badge label={v.resultado} /></td>
+                    {r.auditores.slice(0, 8).map((a) => (
+                      <tr key={a.id}>
+                        <td>{a.nombre}{a.zona ? <span className="sub">{a.zona}</span> : null}</td>
+                        <td className="num">{a.asignadas_activas}</td>
+                        <td className="num">{a.visitas_30_dias}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
-              </Card>
-
-              <Card>
-                <div className="card-head"><p className="section-title">Requieren revisión</p></div>
-                {conObservaciones.length ? (
-                  <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
-                    {conObservaciones.slice(0, 6).map((v) => (
-                      <li key={v.id_visita} style={{ padding: "10px 0", borderBottom: "1px solid var(--border-soft)" }}>
-                        <div className="row" style={{ justifyContent: "space-between", flexWrap: "nowrap" }}>
-                          <Link to={`/visitas/${v.id_visita}`}>{v.expediente?.nombres_cliente}</Link>
-                          <Badge label={v.resultado} />
-                        </div>
-                        <div className="subtle">{v.expediente?.codigo_expediente} · {v.auditor?.nombres || v.auditor?.username}</div>
-                      </li>
-                    ))}
-                  </ul>
-                ) : <p className="subtle">Sin visitas observadas entre las más recientes.</p>}
-              </Card>
+              )}
             </div>
-          )}
+          </div>
         </>
       )}
     </>

@@ -60,27 +60,17 @@ export default function LoginPage() {
       <section className="login-hero" aria-hidden="true">
         <div className="brand">
           <div className="mark">CH</div>
-          <div><b>Auditoría de Visitas</b><span>CAJA HUANCAYO</span></div>
+          <div><b>Auditoría de Visitas</b><span>Caja Huancayo</span></div>
         </div>
         <div>
-          <h2>Control de visitas de campo con evidencia verificable.</h2>
-          <p className="lead">Supervisa la muestra, revisa las fichas de entrevista y audita cada visita con su ubicación, fotografías y firma.</p>
-          <ul>
-            <li>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M12 21s7-5.2 7-11a7 7 0 1 0-14 0c0 5.8 7 11 7 11z" /><circle cx="12" cy="10" r="2.5" /></svg>
-              <span><b>Ubicación validada</b>Distancia al domicilio y detección de GPS simulado en cada visita.</span>
-            </li>
-            <li>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><rect x="5" y="3" width="14" height="18" rx="2" /><path d="M9 8h6M9 12h6M9 16h3" /></svg>
-              <span><b>Fichas MYPE y Consumo</b>Formularios por tipo de crédito, con firma del cliente.</span>
-            </li>
-            <li>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l8 3v6c0 4.6-3.2 8.2-8 9-4.8-.8-8-4.4-8-9V6l8-3z" /><path d="M9 12l2 2 4-4" /></svg>
-              <span><b>Trazabilidad completa</b>Del archivo de origen a la ficha cerrada, todo queda registrado.</span>
-            </li>
-          </ul>
+          <blockquote>Cada visita deja una prueba que se puede revisar.</blockquote>
+          <dl>
+            <div><dt>Ubicación validada</dt><dd>Distancia al domicilio y detección de GPS simulado en cada visita.</dd></div>
+            <div><dt>Fichas MYPE y de Consumo</dt><dd>Un formulario por tipo de crédito, con fotografías y firma del cliente.</dd></div>
+            <div><dt>Trazabilidad</dt><dd>Del archivo de origen a la ficha cerrada, cada paso queda registrado.</dd></div>
+          </dl>
         </div>
-        <small>Acceso exclusivo para personal autorizado · Informa Perú</small>
+        <small>Acceso exclusivo para personal autorizado de Informa Perú y Caja Huancayo.</small>
       </section>
       <div className="login-panel">
       <form className="login-card" onSubmit={submit}>

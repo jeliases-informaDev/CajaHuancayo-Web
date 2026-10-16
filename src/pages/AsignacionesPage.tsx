@@ -1,133 +1,157 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { request } from "../api";
-import { Badge, Button, Card, Empty, Field, Skeleton, SkeletonTable } from "../components/ui";
+import { Badge, Empty, Skeleton } from "../components/ui";
+import { ActionMenu, Seg } from "../components/kit";
+import { dash, fecha } from "../lib/format";
+
+const nombreDe = (a: any) => `${a?.nombres || ""} ${a?.apellidos || ""}`.trim() || a?.username || "";
 
 export default function AsignacionesPage() {
   const [auditores, setAuditores] = useState<any[]>([]);
-  const [expedientesDisponibles, setExpedientesDisponibles] = useState<any[]>([]);
+  const [pool, setPool] = useState<any[]>([]);
   const [asignaciones, setAsignaciones] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [aviso, setAviso] = useState("");
   const [auditorId, setAuditorId] = useState("");
-  const [seleccionados, setSeleccionados] = useState<number[]>([]);
+  const [seleccion, setSeleccion] = useState<number[]>([]);
   const [prioridad, setPrioridad] = useState("MEDIA");
-  const [saving, setSaving] = useState(false);
+  const [guardando, setGuardando] = useState(false);
+  const [busqueda, setBusqueda] = useState("");
+  const [tipo, setTipo] = useState<"" | "OTROS" | "CONSUMO">("");
 
-  const load = async () => {
-    setLoading(true);
+  const cargar = async () => {
     try {
-      const [auditores, expedientes, asigs]: any[] = await Promise.all([
+      const [a, e, s]: any[] = await Promise.all([
         request("/api/usuarios/auditores"),
         request("/api/expedientes?estado=PENDIENTE&limit=200"),
         request("/api/asignaciones?limit=100"),
       ]);
-      setAuditores(auditores.data);
-      setExpedientesDisponibles(expedientes.data);
-      setAsignaciones(asigs.data);
-    } catch (e: any) { setError(e.message); } finally { setLoading(false); }
+      setAuditores(a.data); setPool(e.data); setAsignaciones(s.data);
+      setError("");
+    } catch (x: any) { setError(x.message); } finally { setLoading(false); }
   };
-  useEffect(() => { load(); }, []);
+  useEffect(() => { cargar(); }, []);
 
+  const carga = useMemo(() => {
+    const m = new Map<string, number>();
+    asignaciones.filter((x) => x.estado === "ACTIVA").forEach((x) => m.set(x.id_usuario_auditor, (m.get(x.id_usuario_auditor) || 0) + 1));
+    return m;
+  }, [asignaciones]);
+
+  const q = busqueda.trim().toLowerCase();
+  const visibles = pool.filter((x) => (!tipo || x.tipo_credito === tipo) && (!q || [x.codigo_expediente, x.nombres_cliente, x.numero_documento_cliente, x.distrito].some((v) => String(v || "").toLowerCase().includes(q))));
+  const todosMarcados = visibles.length > 0 && visibles.every((x) => seleccion.includes(x.id_expediente));
+  const alternar = (id: number) => setSeleccion((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
+  const alternarTodos = () => setSeleccion((p) => (todosMarcados ? p.filter((id) => !visibles.some((x) => x.id_expediente === id)) : [...new Set([...p, ...visibles.map((x) => x.id_expediente)])]));
+
+  const auditor = auditores.find((a) => a.id === auditorId);
   const asignar = async () => {
-    if (!auditorId || !seleccionados.length) { setError("Selecciona un auditor y al menos un expediente."); return; }
-    setSaving(true); setError("");
+    if (!auditorId || !seleccion.length) return;
+    setGuardando(true); setError(""); setAviso("");
     try {
-      await request("/api/asignaciones/masivo", { method: "POST", body: JSON.stringify({ id_usuario_auditor: auditorId, id_expedientes: seleccionados, prioridad }) });
-      setSeleccionados([]);
-      await load();
-    } catch (e: any) { setError(e.message); } finally { setSaving(false); }
+      const r: any = await request("/api/asignaciones/masivo", { method: "POST", body: JSON.stringify({ id_usuario_auditor: auditorId, id_expedientes: seleccion, prioridad }) });
+      const fallidos = (r.data || []).filter((x: any) => !x.ok);
+      setAviso(fallidos.length ? `Se asignaron ${(r.data || []).length - fallidos.length} y ${fallidos.length} no se pudieron asignar: ${fallidos[0].error}` : `Se asignaron ${seleccion.length} expedientes a ${nombreDe(auditor)}.`);
+      setSeleccion([]);
+      await cargar();
+    } catch (x: any) { setError(x.message); } finally { setGuardando(false); }
   };
 
   const cancelar = async (id: number) => {
-    try { await request(`/api/asignaciones/${id}/cancelar`, { method: "POST" }); await load(); }
-    catch (e: any) { setError(e.message); }
+    try { await request(`/api/asignaciones/${id}/cancelar`, { method: "POST" }); await cargar(); } catch (x: any) { setError(x.message); }
   };
 
-  const toggle = (id: number) => setSeleccionados((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
+  const activas = asignaciones.filter((x) => (!auditorId || x.id_usuario_auditor === auditorId));
 
   return (
     <>
-      <div className="page-header">
-        <h1>Asignaciones</h1>
-        <p>Arma la muestra de expedientes que cada auditor debe visitar.</p>
+      <div className="page-head">
+        <div>
+          <h1>Asignaciones</h1>
+          <p>Elige un auditor y marca los expedientes que debe visitar.</p>
+        </div>
       </div>
       {error ? <div className="error-box">{error}</div> : null}
-      {loading ? (
-        <>
-          <Card>
-            <p className="section-title">Nueva asignación</p>
-            <div className="grid grid-2">
-              <Skeleton height={40} radius={10} />
-              <Skeleton height={40} radius={10} />
-            </div>
-            <Skeleton height={140} radius={10} style={{ display: "block", marginTop: 6 }} />
-          </Card>
-          <Card>
-            <p className="section-title">Asignaciones actuales</p>
-            <SkeletonTable rows={6} cols={5} />
-          </Card>
-        </>
-      ) : (
-        <>
-          <Card>
-            <p className="section-title">Nueva asignación</p>
-            <div className="grid grid-2">
-              <Field label="Auditor">
-                <select value={auditorId} onChange={(e) => setAuditorId(e.target.value)}>
-                  <option value="">Selecciona…</option>
-                  {auditores.map((a) => <option key={a.id} value={a.id}>{a.nombres || a.username} (@{a.username})</option>)}
-                </select>
-              </Field>
-              <Field label="Prioridad">
-                <select value={prioridad} onChange={(e) => setPrioridad(e.target.value)}>
-                  <option value="ALTA">Alta</option><option value="MEDIA">Media</option><option value="BAJA">Baja</option>
-                </select>
-              </Field>
-            </div>
-            <Field label={`Expedientes sin asignar (${seleccionados.length} seleccionado(s))`}>
-              <div style={{ maxHeight: 240, overflowY: "auto", border: "1px solid var(--border)", borderRadius: 10 }}>
-                <table>
-                  <tbody>
-                    {expedientesDisponibles.map((exp) => (
-                      <tr key={exp.id_expediente} className="clickable" onClick={() => toggle(exp.id_expediente)}>
-                        <td style={{ width: 24 }}><input type="checkbox" checked={seleccionados.includes(exp.id_expediente)} readOnly /></td>
-                        <td>{exp.codigo_expediente}</td>
-                        <td>{exp.nombres_cliente}</td>
-                        <td>{exp.tipo_credito}</td>
-                        <td>{exp.distrito || "-"}</td>
-                      </tr>
-                    ))}
-                    {!expedientesDisponibles.length ? <tr><td className="muted">No hay expedientes pendientes de asignar.</td></tr> : null}
-                  </tbody>
-                </table>
-              </div>
-            </Field>
-            <Button title={saving ? "Asignando…" : "Asignar seleccionados"} onClick={asignar} disabled={saving} />
-          </Card>
+      {aviso ? <div className="callout ok">{aviso}</div> : null}
 
-          {!asignaciones.length ? (
-            <Empty title="Sin asignaciones" text="Arma una muestra arriba y asígnala a un auditor para empezar." />
+      <div className="planner">
+        <div>
+          <div className="section-head"><h2>Auditores</h2><span className="meta">Casos activos</span></div>
+          {loading ? <Skeleton height={180} radius={3} style={{ display: "block", marginTop: 12 }} /> : (
+            <ul className="auditor-list">
+              {auditores.map((a) => (
+                <li key={a.id}>
+                  <button className={auditorId === a.id ? "on" : ""} onClick={() => setAuditorId(auditorId === a.id ? "" : a.id)} aria-pressed={auditorId === a.id}>
+                    <span><b>{nombreDe(a)}</b><small>{a.departamento || "Sin zona definida"}</small></span>
+                    <span className="load">{carga.get(a.id) || 0}</span>
+                  </button>
+                </li>
+              ))}
+              {!auditores.length ? <li style={{ padding: 14 }} className="subtle">No hay auditores activos.</li> : null}
+            </ul>
+          )}
+        </div>
+
+        <div>
+          <div className="section-head"><h2>Expedientes sin asignar</h2><span className="meta">{visibles.length} de {pool.length}</span></div>
+          <div className="filters">
+            <div className="fgroup grow"><label className="lbl" htmlFor="b-asig">Buscar</label><input id="b-asig" className="input" placeholder="Crédito, cliente, documento o distrito" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} /></div>
+            <div className="fgroup"><span className="lbl">Tipo de crédito</span><Seg label="Tipo de crédito" value={tipo} onChange={setTipo} options={[{ value: "", label: "Todos" }, { value: "OTROS", label: "MYPE" }, { value: "CONSUMO", label: "Consumo" }]} /></div>
+          </div>
+          {loading ? <Skeleton height={240} radius={3} style={{ display: "block", marginTop: 12 }} /> : !visibles.length ? (
+            <Empty title="No hay expedientes por asignar" text={pool.length ? "Ninguno coincide con la búsqueda." : "Todos los expedientes ya tienen auditor o aún no cargaste ninguno."} />
           ) : (
-            <Card>
-              <p className="section-title">Asignaciones actuales</p>
+            <div className="table-wrap" style={{ maxHeight: 420, overflowY: "auto" }}>
               <table>
-                <thead><tr><th>Expediente</th><th>Auditor</th><th>Prioridad</th><th>Estado</th><th></th></tr></thead>
+                <thead><tr><th className="check-col"><input type="checkbox" checked={todosMarcados} onChange={alternarTodos} aria-label="Marcar todos los visibles" /></th><th>Crédito</th><th>Cliente</th><th>Tipo</th><th>Distrito</th></tr></thead>
                 <tbody>
-                  {asignaciones.map((a) => (
-                    <tr key={a.id_asignacion}>
-                      <td>{a.expediente?.codigo_expediente} · {a.expediente?.nombres_cliente}</td>
-                      <td>{a.auditor?.nombres || a.auditor?.username}</td>
-                      <td><Badge label={a.prioridad} /></td>
-                      <td><Badge label={a.estado} /></td>
-                      <td>{a.estado === "ACTIVA" ? <Button kind="ghost" title="Cancelar" onClick={() => cancelar(a.id_asignacion)} /> : null}</td>
+                  {visibles.map((x) => (
+                    <tr key={x.id_expediente} className={`clickable${seleccion.includes(x.id_expediente) ? " selected" : ""}`} onClick={() => alternar(x.id_expediente)}>
+                      <td className="check-col"><input type="checkbox" checked={seleccion.includes(x.id_expediente)} onChange={() => alternar(x.id_expediente)} onClick={(e) => e.stopPropagation()} aria-label={`Marcar ${x.nombres_cliente}`} /></td>
+                      <td className="code">{x.codigo_expediente}</td>
+                      <td>{x.nombres_cliente}</td>
+                      <td>{x.tipo_credito === "OTROS" ? "MYPE" : "Consumo"}</td>
+                      <td>{dash(x.distrito)}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-            </Card>
+            </div>
           )}
-        </>
-      )}
+
+          <div className="stickybar">
+            <span className="grow">{seleccion.length ? <><b style={{ fontWeight: 600 }}>{seleccion.length}</b> {seleccion.length === 1 ? "expediente marcado" : "expedientes marcados"}{auditor ? <> para <b style={{ fontWeight: 600 }}>{nombreDe(auditor)}</b></> : <>: elige un auditor a la izquierda</>}</> : "Marca los expedientes que quieres asignar"}</span>
+            <label className="sr-only" htmlFor="prio">Prioridad de los casos</label>
+            <select id="prio" value={prioridad} onChange={(e) => setPrioridad(e.target.value)} aria-label="Prioridad"><option value="ALTA">Prioridad alta</option><option value="MEDIA">Prioridad media</option><option value="BAJA">Prioridad baja</option></select>
+            <button className="btn" style={{ background: "#fff", color: "var(--ink)", borderColor: "#fff" }} disabled={guardando || !auditorId || !seleccion.length} onClick={asignar}>{guardando ? "Asignando…" : "Asignar"}</button>
+          </div>
+
+          <div className="section">
+            <div className="section-head"><h2>Asignaciones {auditor ? `de ${nombreDe(auditor)}` : "recientes"}</h2><span className="meta">{activas.length}</span></div>
+            {!activas.length ? <Empty title="Sin asignaciones" text="Cuando asignes expedientes aparecerán aquí." /> : (
+              <div className="table-wrap">
+                <table>
+                  <thead><tr><th>Expediente</th><th>Auditor</th><th>Asignado</th><th>Prioridad</th><th>Estado</th><th></th></tr></thead>
+                  <tbody>
+                    {activas.map((a) => (
+                      <tr key={a.id_asignacion}>
+                        <td><Link to={`/expedientes/${a.id_expediente}`}>{a.expediente?.nombres_cliente}</Link><span className="sub">{a.expediente?.codigo_expediente}</span></td>
+                        <td>{nombreDe(a.auditor)}</td>
+                        <td>{fecha(a.fecha_asignacion)}<span className="sub">{a.origen === "AUTOASIGNADA" ? "La tomó el auditor" : "Asignada por supervisor"}</span></td>
+                        <td><Badge label={a.prioridad} /></td>
+                        <td><Badge label={a.estado} /></td>
+                        <td style={{ textAlign: "right" }}>{a.estado === "ACTIVA" ? <ActionMenu items={[{ label: "Cancelar asignación", tone: "bad", onClick: () => cancelar(a.id_asignacion) }]} /> : null}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
     </>
   );
 }

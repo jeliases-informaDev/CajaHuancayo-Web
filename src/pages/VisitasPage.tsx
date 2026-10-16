@@ -1,9 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { request } from "../api";
-import { Badge, Card, Empty, Field, SkeletonTable } from "../components/ui";
+import { Badge, Empty, Skeleton } from "../components/ui";
+import { Seg } from "../components/kit";
+import { fechaHora } from "../lib/format";
 
-const RESULTADOS = ["CONFORME", "OBSERVADO", "NO_UBICADO", "RECHAZADO"];
+const RESULTADOS = [
+  { value: "", label: "Todos" }, { value: "CONFORME", label: "Conformes" }, { value: "OBSERVADO", label: "Observadas" },
+  { value: "NO_UBICADO", label: "No ubicados" }, { value: "RECHAZADO", label: "Rechazadas" },
+] as const;
 
 export default function VisitasPage() {
   const navigate = useNavigate();
@@ -12,91 +17,79 @@ export default function VisitasPage() {
   const [auditores, setAuditores] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-
   const [auditorId, setAuditorId] = useState("");
-  const [resultado, setResultado] = useState("");
-  const [tipoCredito, setTipoCredito] = useState("");
+  const [resultado, setResultado] = useState<string>("");
+  const [tipoCredito, setTipoCredito] = useState<"" | "OTROS" | "CONSUMO">("");
   const [soloAlertas, setSoloAlertas] = useState(false);
 
-  useEffect(() => {
-    request("/api/usuarios/auditores").then((r: any) => setAuditores(r.data)).catch(() => {});
-  }, []);
+  useEffect(() => { request("/api/usuarios/auditores").then((r: any) => setAuditores(r.data)).catch(() => {}); }, []);
 
-  const query = useMemo(() => {
-    const params = new URLSearchParams({ limit: "200" });
-    if (auditorId) params.set("id_usuario_auditor", auditorId);
-    if (resultado) params.set("resultado", resultado);
-    if (tipoCredito) params.set("tipo_credito", tipoCredito);
-    if (soloAlertas) params.set("con_alertas", "true");
-    return params.toString();
+  const consulta = useMemo(() => {
+    const p = new URLSearchParams({ limit: "200" });
+    if (auditorId) p.set("id_usuario_auditor", auditorId);
+    if (resultado) p.set("resultado", resultado);
+    if (tipoCredito) p.set("tipo_credito", tipoCredito);
+    if (soloAlertas) p.set("con_alertas", "true");
+    return p.toString();
   }, [auditorId, resultado, tipoCredito, soloAlertas]);
 
   useEffect(() => {
     setLoading(true);
-    request(`/api/visitas?${query}`)
-      .then((r: any) => { setData(r.data); setTotal(r.pagination.total); })
+    request<any>(`/api/visitas?${consulta}`)
+      .then((r) => { setData(r.data); setTotal(r.pagination.total); setError(""); })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
-  }, [query]);
+  }, [consulta]);
 
   return (
     <>
-      <div className="page-header">
-        <h1>Visitas</h1>
-        <p>{total} visita(s) — evidencias y fichas registradas en campo.</p>
+      <div className="page-head">
+        <div>
+          <h1>Visitas</h1>
+          <p>{total.toLocaleString("es-PE")} {total === 1 ? "visita registrada" : "visitas registradas"} en campo, con su ficha y evidencia.</p>
+        </div>
       </div>
       {error ? <div className="error-box">{error}</div> : null}
-      <Card>
-        <div className="grid grid-4">
-          <Field label="Auditor">
-            <select value={auditorId} onChange={(e) => setAuditorId(e.target.value)}>
-              <option value="">Todos</option>
-              {auditores.map((a) => <option key={a.id} value={a.id}>{a.nombres || a.username} ({a.rol})</option>)}
-            </select>
-          </Field>
-          <Field label="Resultado">
-            <select value={resultado} onChange={(e) => setResultado(e.target.value)}>
-              <option value="">Todos</option>
-              {RESULTADOS.map((r) => <option key={r} value={r}>{r.replaceAll("_", " ")}</option>)}
-            </select>
-          </Field>
-          <Field label="Tipo de ficha">
-            <select value={tipoCredito} onChange={(e) => setTipoCredito(e.target.value)}>
-              <option value="">Todas</option>
-              <option value="CONSUMO">Consumo</option>
-              <option value="OTROS">Otros (MYPE)</option>
-            </select>
-          </Field>
-          <Field label="Solo con alertas de seguridad">
-            <label className="row" style={{ gap: 8, cursor: "pointer" }}>
-              <input type="checkbox" checked={soloAlertas} onChange={(e) => setSoloAlertas(e.target.checked)} />
-              <span>GPS falso, dispositivo u observadas</span>
-            </label>
-          </Field>
+
+      <div className="filters">
+        <div className="fgroup"><span className="lbl">Resultado</span><Seg label="Resultado" value={resultado} onChange={setResultado} options={RESULTADOS.map((r) => ({ value: r.value, label: r.label }))} /></div>
+        <div className="fgroup"><span className="lbl">Tipo de ficha</span><Seg label="Tipo de ficha" value={tipoCredito} onChange={setTipoCredito} options={[{ value: "", label: "Todas" }, { value: "OTROS", label: "MYPE" }, { value: "CONSUMO", label: "Consumo" }]} /></div>
+        <div className="fgroup">
+          <label className="lbl" htmlFor="aud">Auditor</label>
+          <select id="aud" className="select" value={auditorId} onChange={(e) => setAuditorId(e.target.value)}>
+            <option value="">Todos</option>
+            {auditores.map((a) => <option key={a.id} value={a.id}>{a.nombres || a.username}</option>)}
+          </select>
         </div>
-      </Card>
-      {loading ? (
-        <Card><SkeletonTable rows={7} cols={6} /></Card>
+        <label className="check-inline"><input type="checkbox" checked={soloAlertas} onChange={(e) => setSoloAlertas(e.target.checked)} />Solo con alertas de seguridad</label>
+      </div>
+
+      {loading && !data.length ? (
+        <div style={{ paddingTop: 18 }}>{[0, 1, 2, 3, 4, 5].map((i) => <Skeleton key={i} height={22} radius={3} style={{ display: "block", margin: "16px 0" }} />)}</div>
       ) : !data.length ? (
-        <Empty title="Sin visitas" text="No hay visitas registradas para estos filtros. Prueba ajustándolos." />
+        <Empty title="Sin visitas" text="No hay visitas para estos filtros. Prueba con otros." />
       ) : (
-        <Card>
+        <div className="table-wrap" style={{ opacity: loading ? 0.55 : 1 }}>
           <table>
-            <thead><tr><th>Fecha</th><th>Expediente</th><th>Auditor</th><th>Resultado</th><th>Distancia</th><th>Señales</th></tr></thead>
+            <thead><tr><th>Fecha</th><th>Cliente</th><th>Ficha</th><th>Auditor</th><th>Resultado</th><th className="num">Distancia</th><th>Alertas</th></tr></thead>
             <tbody>
-              {data.map((v) => (
-                <tr key={v.id_visita} className="clickable" onClick={() => navigate(`/visitas/${v.id_visita}`)}>
-                  <td>{new Date(v.fecha_hora_checkin).toLocaleString("es-PE")}</td>
-                  <td>{v.expediente?.codigo_expediente} · {v.expediente?.nombres_cliente}</td>
-                  <td>{v.auditor?.nombres || v.auditor?.username}</td>
-                  <td><Badge label={v.resultado} /></td>
-                  <td>{v.distancia_domicilio_m != null ? `${Math.round(v.distancia_domicilio_m)} m` : "-"}</td>
-                  <td>{v.mock_location ? <span className="alert-chip">FAKE GPS</span> : null}{!v.device_integrity_ok ? <span className="alert-chip">DISPOSITIVO</span> : null}{!v.evidencias?.length ? <span className="alert-chip">SIN FOTOS</span> : null}</td>
-                </tr>
-              ))}
+              {data.map((v) => {
+                const alertas = [v.mock_location ? "GPS simulado" : "", !v.device_integrity_ok ? "Dispositivo" : "", !v.evidencias?.length ? "Sin fotos" : ""].filter(Boolean);
+                return (
+                  <tr key={v.id_visita} className="clickable" onClick={() => navigate(`/visitas/${v.id_visita}`)}>
+                    <td style={{ whiteSpace: "nowrap" }}>{fechaHora(v.fecha_hora_checkin)}</td>
+                    <td><b style={{ fontWeight: 500 }}>{v.expediente?.nombres_cliente}</b><span className="sub">{v.expediente?.codigo_expediente}</span></td>
+                    <td>{v.expediente?.tipo_credito === "OTROS" ? "MYPE" : "Consumo"}</td>
+                    <td>{v.auditor?.nombres || v.auditor?.username}</td>
+                    <td><Badge label={v.resultado} /></td>
+                    <td className="num">{v.distancia_domicilio_m != null ? `${Math.round(v.distancia_domicilio_m)} m` : "-"}</td>
+                    <td>{alertas.length ? alertas.map((a) => <span key={a} className="alert-chip">{a}</span>) : <span className="muted">Ninguna</span>}</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
-        </Card>
+        </div>
       )}
     </>
   );

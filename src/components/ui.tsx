@@ -1,31 +1,22 @@
 import React from "react";
 
-// Tonos semánticos del sistema (definidos en index.css): un estado = un color en toda la interfaz.
-type Tono = "success" | "warning" | "danger" | "info" | "neutral" | "plum";
+// Un estado = un color en toda la interfaz (definido en index.css: ok, warn, bad, neutral, blue, plum).
+type Tono = "ok" | "warn" | "bad" | "neutral" | "blue" | "plum";
 const TONOS: Record<string, Tono> = {
-  ACTIVA: "success", VISITADO: "success", CONFORME: "success", ACTIVO: "success", AUDITOR: "success", COMPLETADO: "success",
-  ASIGNADO: "warning", PENDIENTE: "warning", OBSERVADO: "warning", MEDIA: "warning", PROCESANDO: "warning",
-  CANCELADA: "danger", NO_UBICADO: "danger", RECHAZADO: "danger", ALTA: "danger", ERROR: "danger", INTERRUMPIDA: "danger",
+  ACTIVA: "ok", VISITADO: "ok", CONFORME: "ok", ACTIVO: "ok", AUDITOR: "ok", COMPLETADO: "ok",
+  ASIGNADO: "warn", PENDIENTE: "warn", OBSERVADO: "warn", MEDIA: "warn", PROCESANDO: "warn",
+  CANCELADA: "bad", NO_UBICADO: "bad", RECHAZADO: "bad", ALTA: "bad", ERROR: "bad", INTERRUMPIDA: "bad",
   CERRADO: "neutral", INACTIVO: "neutral", BAJA: "neutral",
-  FINALIZADA: "info", SUPERVISOR: "info", ADMINISTRADOR: "plum",
+  FINALIZADA: "blue", SUPERVISOR: "blue", ADMINISTRADOR: "plum",
 };
-const COLORES: Record<Tono, { bg: string; fg: string }> = {
-  success: { bg: "var(--success-bg)", fg: "var(--success)" },
-  warning: { bg: "var(--warning-bg)", fg: "var(--warning)" },
-  danger: { bg: "var(--danger-bg)", fg: "var(--danger)" },
-  info: { bg: "var(--info-bg)", fg: "var(--info)" },
-  neutral: { bg: "#eceff6", fg: "#4a5370" },
-  plum: { bg: "#f1e8f8", fg: "#5e2a8c" },
+
+export const etiqueta = (valor?: string | null) => {
+  const t = String(valor || "-").replaceAll("_", " ").toLowerCase();
+  return t.charAt(0).toUpperCase() + t.slice(1);
 };
 
 export function Badge({ label }: { label?: string | null }) {
-  const tono = COLORES[TONOS[label || ""] || "neutral"];
-  return (
-    <span className="badge" style={{ background: tono.bg, color: tono.fg }}>
-      <span style={{ width: 6, height: 6, borderRadius: 6, background: tono.fg, display: "inline-block" }} />
-      {String(label || "-").replaceAll("_", " ").toLowerCase()}
-    </span>
-  );
+  return <span className={`state ${TONOS[label || ""] || "neutral"}`}>{etiqueta(label)}</span>;
 }
 
 export function Card({ children, style, className }: { children: React.ReactNode; style?: React.CSSProperties; className?: string }) {
