@@ -6,6 +6,7 @@ import { Icon } from "../components/icons";
 import { useQueryParam } from "../lib/useQueryParam";
 import { ClienteSeccion, CreditoSeccion, EndeudamientoSeccion, EvaluacionMype, IngresosConsumo, NegocioSeccion } from "../components/ficha/Secciones";
 import { ADVERTENCIAS, ORIGEN_UBICACION, dash, fecha, fechaHora } from "../lib/format";
+import DireccionMapa from "../components/DireccionMapa";
 
 // Todos los campos que llegaron de la base, tal cual quedaron guardados: sirve para conciliar contra
 // el archivo de origen y comprobar que ninguna columna quedó sin destino.
@@ -118,6 +119,8 @@ function TrazabilidadDato({ e, onSaved }: { e: any; onSaved: () => void }) {
           </>
         ) : <p className="subtle">Este expediente se creó o editó manualmente: no tiene archivo de origen.</p>}
       </Card>
+
+      <DireccionMapa e={e} onSaved={onSaved} />
 
       <Card>
         <p className="section-title">Ubicación del domicilio</p>

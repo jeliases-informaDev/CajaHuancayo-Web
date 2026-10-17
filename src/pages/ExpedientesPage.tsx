@@ -7,7 +7,7 @@ import { Drawer, Seg } from "../components/kit";
 import ImportModal from "../components/ImportModal";
 import { Icon } from "../components/icons";
 import { useResumen } from "../lib/resumen";
-import { dash, fechaHora, n2 } from "../lib/format";
+import { dash, fechaHora, n2, GEO_ESTADO } from "../lib/format";
 
 const LIMITE = 50;
 const emptyForm = {
@@ -59,6 +59,10 @@ export default function ExpedientesPage() {
   const [tipoRaw, fijarTipo] = useQueryParam("tipo");
   const [estado, fijarEstado] = useQueryParam("estado");
   const [sinRaw, fijarSin] = useQueryParam("sin_coordenadas");
+  const [geoEstado, fijarGeo] = useQueryParam("ubicacion");
+  const [geoResumen, setGeoResumen] = useState<any>(null);
+  const [geoMensaje, setGeoMensaje] = useState("");
+  const [geoOcupado, setGeoOcupado] = useState(false);
   const [paginaRaw, fijarPagina] = useQueryParam("pagina", "1");
   const tipo = tipoRaw as "" | "OTROS" | "CONSUMO";
   const sinUbicacion = sinRaw === "1";
@@ -68,6 +72,14 @@ export default function ExpedientesPage() {
   const setTipo = (v: "" | "OTROS" | "CONSUMO") => { fijarTipo(v); fijarPagina("1"); };
   const setEstado = (v: string) => { fijarEstado(v); fijarPagina("1"); };
   const setSinUbicacion = (v: boolean) => { fijarSin(v ? "1" : ""); fijarPagina("1"); };
+  const setGeo = (v: string) => { fijarGeo(v); fijarPagina("1"); };
+  const cargarGeo = useCallback(() => { request("/api/expedientes/geocodificacion/resumen").then((r: any) => setGeoResumen(r.data)).catch(() => {}); }, []);
+  useEffect(() => { cargarGeo(); }, [cargarGeo]);
+  const procesarGeo = async (ruta: string, ok: (d: any) => string) => {
+    setGeoOcupado(true); setGeoMensaje("");
+    try { const r: any = await request(ruta, { method: "POST" }); setGeoMensaje(ok(r.data)); await cargar(); cargarGeo(); }
+    catch (e: any) { setGeoMensaje(e.message); } finally { setGeoOcupado(false); }
+  };
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [vista, setVista] = useState<number | null>(null);
@@ -86,11 +98,12 @@ export default function ExpedientesPage() {
       if (tipo) q.set("tipo_credito", tipo);
       if (estado) q.set("estado", estado);
       if (sinUbicacion) q.set("sin_ubicacion", "true");
+      if (geoEstado) q.set("geo_estado", geoEstado);
       const r: any = await request(`/api/expedientes?${q}`);
       setData(r.data); setTotal(r.pagination.total);
       setError("");
     } catch (e: any) { setError(e.message); } finally { setLoading(false); }
-  }, [search, tipo, estado, sinUbicacion, pagina]);
+  }, [search, tipo, estado, sinUbicacion, geoEstado, pagina]);
 
   useEffect(() => { cargar(); }, [cargar]);
 
@@ -124,7 +137,7 @@ export default function ExpedientesPage() {
       <div className="page-head">
         <div>
           <h1>Expedientes</h1>
-          <p>{total.toLocaleString("es-PE")} {total === 1 ? "expediente" : "expedientes"} {search || tipo || estado || sinUbicacion ? "con estos filtros" : "cargados"}.</p>
+          <p>{total.toLocaleString("es-PE")} {total === 1 ? "expediente" : "expedientes"} {search || tipo || estado || sinUbicacion || geoEstado ? "con estos filtros" : "cargados"}.</p>
         </div>
         <div className="actions">
           <button className="btn quiet" onClick={verHistorial}><Icon name="reloj" size={17} />Historial de cargas</button>
@@ -134,6 +147,22 @@ export default function ExpedientesPage() {
       </div>
 
       {error ? <div role="alert" className="error-box">{error}</div> : null}
+
+      {geoResumen && geoResumen.total > 0 ? (
+        <section className="callout info" aria-label="Calidad de las direcciones" style={{ display: "block" }}>
+          <b>Direcciones en el mapa.</b>{" "}
+          {geoResumen.precisas + geoResumen.verificadas} precisas o verificadas · {geoResumen.aproximadas} aproximadas · {geoResumen.por_revisar} por revisar · {geoResumen.no_encontradas + geoResumen.con_error} sin ubicar · {geoResumen.pendientes} en cola · {geoResumen.con_ubicacion_de_la_base_o_persona} con coordenadas de la base o fijadas por una persona.
+          {!geoResumen.activa ? (
+            <p className="subtle" style={{ margin: "6px 0 0" }}>La búsqueda automática de ubicaciones está apagada en este servidor: enviar direcciones de clientes a un proveedor de mapas requiere la autorización del banco. Mientras tanto la nomenclatura de cada dirección (avenida, jirón, número, manzana/lote…) ya queda ordenada y con sus avisos de calidad.</p>
+          ) : (
+            <div className="row" style={{ marginTop: 8 }}>
+              <button type="button" className="btn small" disabled={geoOcupado || !geoResumen.pendientes} onClick={() => procesarGeo("/api/expedientes/geocodificacion/procesar?limite=10", (d) => `Se revisaron ${d.procesados} direcciones (${d.localizado} precisas, ${d.aproximado} aproximadas, ${d.revisar} por revisar, ${d.no_encontrado} sin ubicar)${d.detenido ? ` · ${d.detenido}` : ""}.`)}>{geoOcupado ? "Buscando…" : "Buscar ubicaciones ahora"}</button>
+              <button type="button" className="btn ghost small" disabled={geoOcupado || !(geoResumen.no_encontradas + geoResumen.con_error)} onClick={() => procesarGeo("/api/expedientes/geocodificacion/reencolar", (d) => `${d.reencoladas} direcciones volvieron a la cola.`)}>Reintentar las que fallaron</button>
+              <span className="subtle" aria-live="polite">{geoMensaje}</span>
+            </div>
+          )}
+        </section>
+      ) : null}
 
       {resumen ? (
         <div className="chips" role="group" aria-label="Filtrar por estado">
@@ -165,6 +194,13 @@ export default function ExpedientesPage() {
             <option value="">Todos</option><option value="PENDIENTE">Pendiente</option><option value="ASIGNADO">Asignado</option><option value="VISITADO">Visitado</option><option value="CERRADO">Cerrado</option>
           </select>
         </div>
+        <div className="fgroup">
+          <label className="lbl" htmlFor="geo-exp">Dirección en el mapa</label>
+          <select id="geo-exp" name="ubicacion" className="select" value={geoEstado} onChange={(e) => setGeo(e.target.value)}>
+            <option value="">Todas</option>
+            {Object.entries(GEO_ESTADO).map(([v, g]) => <option key={v} value={v}>{g.etiqueta}</option>)}
+          </select>
+        </div>
         <label className="check-inline"><input type="checkbox" checked={sinUbicacion} onChange={(e) => setSinUbicacion(e.target.checked)} />Solo sin coordenadas</label>
       </div>
 
@@ -185,7 +221,10 @@ export default function ExpedientesPage() {
                     <td><span className={`tag ${x.tipo_credito === "OTROS" ? "aviso" : "base"}`}>{x.tipo_credito === "OTROS" ? "MYPE" : "Consumo"}</span></td>
                     <td>{dash(x.distrito)}</td>
                     <td>{x.asesor_responsable}</td>
-                    <td><span className={`state ${x.latitud != null && x.longitud != null ? "ok" : "warn"}`}>{x.latitud != null && x.longitud != null ? "Con coordenadas" : "Sin coordenadas"}</span></td>
+                    <td>
+                      <span className={`state ${x.latitud != null && x.longitud != null ? "ok" : "warn"}`}>{x.latitud != null && x.longitud != null ? "Con coordenadas" : "Sin coordenadas"}</span>
+                      {x.geo_estado ? <span className="sub">{GEO_ESTADO[x.geo_estado]?.etiqueta || x.geo_estado}{x.geo_confianza && x.geo_estado === "LOCALIZADO" ? ` · ${x.geo_confianza === "ALTA" ? "precisa" : "aproximada"}` : ""}</span> : null}
+                    </td>
                     <td><Badge label={x.estado} /></td>
                   </tr>
                 ))}

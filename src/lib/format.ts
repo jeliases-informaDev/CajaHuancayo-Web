@@ -33,12 +33,29 @@ export const ADVERTENCIAS: Record<string, string> = {
   DISTRITO_IGUAL_A_AGENCIA: "El distrito coincide con el de la agencia: puede no ser el distrito real del domicilio.",
   SIN_EVALUACION: "La base no trae evaluación financiera para este crédito.",
   DOCUMENTO_ATIPICO: "El documento del cliente no tiene 8, 9 u 11 dígitos.",
+  DIRECCION_SIN_NUMERO: "La dirección no trae número de puerta: el mapa solo podrá ubicar la calle (precisión aproximada).",
+  DIRECCION_MANZANA_LOTE: "La dirección es de manzana y lote (sin calle ni número): el mapa la ubica con baja precisión.",
+  DIRECCION_SIN_TIPO_VIA: "La dirección no indica si es avenida, jirón, calle o pasaje.",
+  DIRECCION_SIN_DISTRITO: "El expediente no trae distrito: sin él la dirección se confunde con otras iguales.",
+  DIRECCION_CORTA: "La dirección es muy corta para ubicarla con precisión.",
+  SIN_DIRECCION: "El expediente no trae dirección del domicilio.",
+};
+
+// Cómo quedó la dirección frente al mapa (ver src/modules/geocodificacion en el servidor).
+export const GEO_ESTADO: Record<string, { etiqueta: string; tono: "ok" | "warn" | "bad" | "na" }> = {
+  PENDIENTE: { etiqueta: "En cola para ubicar", tono: "na" },
+  LOCALIZADO: { etiqueta: "Ubicada", tono: "ok" },
+  REVISAR: { etiqueta: "Por revisar", tono: "warn" },
+  NO_ENCONTRADO: { etiqueta: "No se encontró", tono: "bad" },
+  ERROR: { etiqueta: "Falló la búsqueda", tono: "bad" },
+  VERIFICADO: { etiqueta: "Verificada", tono: "ok" },
 };
 
 export const ORIGEN_UBICACION: Record<string, string> = {
   REFERENCIA: "Coordenadas de la base (escritas en la referencia)",
   MANUAL: "Fijada manualmente en el panel",
   PRIMERA_VISITA: "Tomada en la primera visita del auditor",
+  GEOCODIFICADA: "Ubicada por el mapa (punto exacto con número y distrito)",
 };
 
 export const ESTADO_NEGOCIO: Record<string, string> = {
