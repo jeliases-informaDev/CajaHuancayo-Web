@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { MapContainer, TileLayer, Marker, Popup, Polyline, Circle, CircleMarker, useMap, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import { io, Socket } from "socket.io-client";
+import { renderToStaticMarkup } from "react-dom/server";
+import { useNavigate } from "react-router-dom";
 import "leaflet/dist/leaflet.css";
 import "leaflet.markercluster";
 import "leaflet.markercluster/dist/MarkerCluster.css";
@@ -142,28 +144,79 @@ function clienteIcon(prioridad: string) {
   });
 }
 
+const fmtMonto = (monto: any, moneda?: string) => (monto == null || Number(monto) <= 0 ? null : (moneda === "USD" ? "US$ " : "S/ ") + Number(monto).toLocaleString("es-PE", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+
+// Tarjeta de un cliente (el mismo contenido para las paradas de la ruta y para cualquier otro punto del mapa).
+function TarjetaCliente({ a, auditor, orden, distancia, etiquetaDistancia, onVer, conAuditor }: { a: { prioridad: string; id_usuario_auditor?: string; expediente: any }; auditor: string; orden?: number; distancia?: number | null; etiquetaDistancia?: string; onVer?: (id: number) => void; conAuditor?: boolean }) {
+  const e = a.expediente;
+  const monto = fmtMonto(e.monto_desembolso, e.moneda);
+  const lugar = [e.direccion_domicilio, e.distrito].filter(Boolean).join(", ");
+  return (
+    <div className="pop pop-cliente">
+      <strong>{orden ? orden + ". " : ""}{e.nombres_cliente}</strong>
+      <div className="pop-codigo" translate="no">{e.codigo_expediente}</div>
+      {lugar ? <div>{lugar}</div> : null}
+      <div className="pop-chips">
+        <span className="pop-chip tipo">{e.tipo_credito === "OTROS" ? "MYPE" : "Consumo"}</span>
+        <span className="pop-chip" style={{ background: (PRIORIDAD_COLORS[a.prioridad] || DISPONIBLE_COLOR) + "22", color: PRIORIDAD_COLORS[a.prioridad] || DISPONIBLE_COLOR }}>Prioridad {a.prioridad.toLowerCase()}</span>
+      </div>
+      {monto ? <div>Desembolso: <b>{monto}</b></div> : null}
+      {e.asesor_responsable ? <div>Asesor: {e.asesor_responsable}</div> : null}
+      <div>Auditor: {auditor}</div>
+      {distancia != null ? <div className="pop-dist">{fmtDistancia(distancia)} {etiquetaDistancia || "desde el punto de partida"}</div> : null}
+      <a className="pop-btn" href={"/expedientes/" + e.id_expediente} data-ver-exp={e.id_expediente} onClick={onVer ? (ev) => { ev.preventDefault(); onVer(e.id_expediente); } : undefined}>Ver expediente</a>
+      {conAuditor && a.id_usuario_auditor ? <a className="pop-btn sec" href="#auditor" data-ver-auditor={a.id_usuario_auditor}>Ver al auditor</a> : null}
+    </div>
+  );
+}
+
 type ClienteMapa = { id_asignacion: number; id_usuario_auditor: string; prioridad: string; latitud: number; longitud: number; expediente: any };
 
 // Clientes de la zona agrupados: de lejos son burbujas con el número de clientes, al acercarse se separan. Al pasar el cursor por un
 // cliente se dibuja su geocerca (el radio dentro del cual el servidor da por buena una visita).
-function ClientesAgrupados({ clientes, nombreAuditor, onElegir }: { clientes: ClienteMapa[]; nombreAuditor: (id: string) => string; onElegir: (id: string) => void }) {
+function ClientesAgrupados({ clientes, nombreAuditor, onVerAuditor, origen, onVer }: { clientes: ClienteMapa[]; nombreAuditor: (id: string) => string; onVerAuditor: (id: string) => void; origen: { latitud: number; longitud: number } | null; onVer: (id: number) => void }) {
   const map = useMap();
-  const datos = useRef({ clientes, nombreAuditor, onElegir });
-  datos.current = { clientes, nombreAuditor, onElegir };
+  const datos = useRef({ clientes, nombreAuditor, onVerAuditor, origen, onVer });
+  datos.current = { clientes, nombreAuditor, onVerAuditor, origen, onVer };
   // Los clientes se reciben de nuevo cada 10 s: el grupo solo se reconstruye si cambió algo (así no se cierra lo que el supervisor abrió).
   const clave = clientes.map((c) => c.id_asignacion + ":" + c.prioridad + ":" + c.id_usuario_auditor).join(",");
   useEffect(() => {
     const grupo = L.markerClusterGroup({
-      showCoverageOnHover: false, maxClusterRadius: 46, spiderfyOnMaxZoom: true, chunkedLoading: true,
-      iconCreateFunction: (c) => L.divIcon({ html: '<div class="cluster-pin"><span>' + c.getChildCount() + "</span></div>", className: "", iconSize: [38, 38] }),
+      showCoverageOnHover: false, maxClusterRadius: 46, spiderfyOnMaxZoom: true, chunkedLoading: true, zoomToBoundsOnClick: false,
+      // La burbuja toma el color de la prioridad más alta que contiene.
+      iconCreateFunction: (c) => {
+        const prios = c.getAllChildMarkers().map((m) => (m.options as any).prioridad as string);
+        const color = prios.includes("ALTA") ? PRIORIDAD_COLORS.ALTA : prios.includes("MEDIA") ? PRIORIDAD_COLORS.MEDIA : "var(--brand)";
+        return L.divIcon({ html: '<div class="cluster-pin" style="background:' + color + '"><span>' + c.getChildCount() + "</span></div>", className: "", iconSize: [38, 38] });
+      },
+    });
+    // Tocar un grupo muestra su resumen (cuántos, de qué prioridad, cuáles) en vez de acercar el mapa de golpe; «Acercar» lo hace si se quiere.
+    grupo.on("clusterclick", (ev) => {
+      const hijos = ev.layer.getAllChildMarkers();
+      const cuenta: Record<string, number> = {};
+      hijos.forEach((m: L.Marker) => { const p = (m.options as any).prioridad as string; cuenta[p] = (cuenta[p] || 0) + 1; });
+      const chips = ["ALTA", "MEDIA", "BAJA"].filter((p) => cuenta[p]).map((p) => '<span class="pop-chip" style="background:' + PRIORIDAD_COLORS[p] + "22;color:" + PRIORIDAD_COLORS[p] + '">' + cuenta[p] + " " + p.toLowerCase() + "</span>").join("");
+      const nombres = hijos.slice(0, 5).map((m: L.Marker) => "<li>" + escHtml(m.options.title || "") + "</li>").join("") + (hijos.length > 5 ? '<li class="mas">y ' + (hijos.length - 5) + " más</li>" : "");
+      const popup = L.popup({ minWidth: 220, maxWidth: 280 }).setLatLng(ev.layer.getLatLng())
+        .setContent('<div class="pop pop-grupo"><strong>' + hijos.length + ' clientes en este punto</strong><div class="pop-chips">' + chips + "</div><ul>" + nombres + '</ul><button type="button" class="pop-btn" data-acercar>Acercar para verlos</button></div>')
+        .openOn(map);
+      popup.getElement()?.querySelector("[data-acercar]")?.addEventListener("click", () => { map.closePopup(); ev.layer.zoomToBounds({ padding: [50, 50] }); });
     });
     const halo = L.layerGroup().addTo(map);
     for (const a of datos.current.clientes) {
-      const m = L.marker([a.latitud, a.longitud], { icon: clienteIcon(a.prioridad), title: a.expediente.nombres_cliente });
-      m.bindPopup('<div class="pop"><strong>' + escHtml(a.expediente.nombres_cliente) + "</strong><div>" + escHtml(a.expediente.codigo_expediente) + " · " + escHtml(a.expediente.distrito || "-") + "</div><div>Auditor: " + escHtml(datos.current.nombreAuditor(a.id_usuario_auditor)) + "</div><div>Prioridad: " + escHtml(a.prioridad) + "</div></div>");
+      const m = L.marker([a.latitud, a.longitud], { icon: clienteIcon(a.prioridad), title: a.expediente.nombres_cliente, prioridad: a.prioridad } as L.MarkerOptions);
+      // El contenido se arma al abrir la tarjeta: así la distancia usa el auditor que esté elegido en ese momento.
+      m.bindPopup(() => renderToStaticMarkup(<TarjetaCliente a={a} auditor={datos.current.nombreAuditor(a.id_usuario_auditor)} conAuditor
+        distancia={datos.current.origen ? distanciaMetros(datos.current.origen.latitud, datos.current.origen.longitud, a.latitud, a.longitud) : null} etiquetaDistancia="desde el auditor elegido" />), { minWidth: 230, maxWidth: 300 });
+      m.on("popupopen", (ev) => {
+        const caja = ev.popup.getElement();
+        const enlace = caja?.querySelector("a[data-ver-exp]");
+        if (enlace) enlace.addEventListener("click", (c) => { c.preventDefault(); datos.current.onVer(Number(enlace.getAttribute("data-ver-exp"))); });
+        const aud = caja?.querySelector("a[data-ver-auditor]");
+        if (aud) aud.addEventListener("click", (c) => { c.preventDefault(); map.closePopup(); datos.current.onVerAuditor(aud.getAttribute("data-ver-auditor") || ""); });
+      });
       m.on("mouseover", () => { halo.clearLayers(); L.circle([a.latitud, a.longitud], { radius: GEOCERCA_M, color: PRIORIDAD_COLORS[a.prioridad] || DISPONIBLE_COLOR, weight: 1.5, dashArray: "4 4", fillOpacity: 0.08 }).addTo(halo); });
       m.on("mouseout", () => halo.clearLayers());
-      m.on("click", () => datos.current.onElegir(a.id_usuario_auditor));
       grupo.addLayer(m);
     }
     map.addLayer(grupo);
@@ -241,15 +294,22 @@ function distanciaMetros(lat1: number, lng1: number, lat2: number, lng2: number)
 function FitBounds({ coords, clave, nonce = 0 }: { coords: [number, number][]; clave?: string; nonce?: number }) {
   const map = useMap();
   useEffect(() => {
-    if (coords.length) map.fitBounds(coords, { padding: [60, 60], maxZoom: 15 });
+    if (coords.length) map.fitBounds(coords, { padding: [60, 60], maxZoom: 15, animate: false }); // sin animación: así no queda un zoom a medias que pise el vuelo a un auditor
   }, [clave ?? coords.length, clave ?? coords.map((c) => c.join(",")).join("|"), nonce]);
   return null;
 }
 
-// Vuela hasta un punto concreto (p. ej. el cliente que se buscó por nombre).
-function VolarA({ foco }: { foco: { lat: number; lng: number; n: number } | null }) {
+// Cámara del mapa: un solo lugar decide a dónde mira. Elegir un auditor lo centra a ÉL (no aleja el mapa para abarcar todos sus clientes,
+// que pueden estar a 200 km); buscar un cliente vuela hasta el cliente; «Ver ruta completa» sí encuadra todo, pero porque se pidió.
+type Camara = { n: number; modo: "auditor" | "cliente" | "ruta"; punto?: [number, number]; coords?: [number, number][] };
+function CamaraMapa({ camara }: { camara: Camara | null }) {
   const map = useMap();
-  useEffect(() => { if (foco) map.flyTo([foco.lat, foco.lng], 17, { duration: 1.2 }); }, [foco?.n]);
+  useEffect(() => {
+    if (!camara) return;
+    if (camara.modo === "cliente" && camara.punto) map.flyTo(camara.punto, 17, { duration: 1.1 });
+    else if (camara.modo === "auditor" && camara.punto) map.flyTo(camara.punto, Math.max(map.getZoom(), 15), { duration: 1.1 });
+    else if (camara.coords?.length) map.fitBounds(camara.coords, { padding: [60, 60], maxZoom: 15 });
+  }, [camara?.n]);
   return null;
 }
 
@@ -288,6 +348,8 @@ export default function SeguimientoPage() {
   // Hora del servidor menos la de esta PC, para medir la antigüedad de cada posición aunque el reloj de la PC esté desfasado.
   const offsetRef = useRef(0);
   const [ahoraMs, setAhoraMs] = useState(() => Date.now());
+  const navegar = useNavigate();
+  const verExpediente = (id: number) => navegar("/expedientes/" + id);
   const [eventos, setEventos] = useState<EventoCampo[]>([]);
   // Recorrido real del auditor elegido: día, momento que se está viendo (null = ver todo) y reproducción automática.
   const hoy = () => new Date().toLocaleDateString("en-CA"); // AAAA-MM-DD en hora local
@@ -300,7 +362,7 @@ export default function SeguimientoPage() {
   const [capas, setCapas] = useState({ auditores: true, clientes: true });
   const [leyenda, setLeyenda] = useState(true);
   const [reencuadre, setReencuadre] = useState(0);
-  const [foco, setFoco] = useState<{ lat: number; lng: number; n: number } | null>(null);
+  const [camara, setCamara] = useState<Camara | null>(null);
 
   const load = async () => {
     try {
@@ -522,14 +584,12 @@ export default function SeguimientoPage() {
     return [[origenRuta.latitud, origenRuta.longitud], ...enRuta.map((a) => [a.latitud, a.longitud] as [number, number])];
   }, [origenRuta, enRuta]);
 
-  // Con un auditor elegido el mapa se centra en él y en sus clientes (no en todo el país); sin elegir, en todos.
-  const fitCoords = useMemo<[number, number][]>(() => (origenRuta && seleccionado
-    ? [[origenRuta.latitud, origenRuta.longitud] as [number, number], ...clientesDelAuditorSeleccionado.map((a) => [a.latitud, a.longitud] as [number, number])]
-    : [
-      ...auditoresConMapa.map((u) => [u.latitud as number, u.longitud as number] as [number, number]),
-      ...clientesEnZona.map((a) => [a.latitud, a.longitud] as [number, number]),
-    ]), [auditoresConMapa, clientesEnZona, origenRuta, seleccionado, clientesDelAuditorSeleccionado]);
-  const fitClave = origenRuta && seleccionado ? `sel:${seleccionado}:${clientesDelAuditorSeleccionado.length}` : undefined;
+  // Vista general (sin auditor elegido): se encuadra todo lo de la zona al cargar y al cambiar de zona, no con cada posición nueva.
+  const coordsTodos = useMemo<[number, number][]>(() => [
+    ...auditoresConMapa.map((u) => [u.latitud as number, u.longitud as number] as [number, number]),
+    ...clientesEnZona.map((a) => [a.latitud, a.longitud] as [number, number]),
+  ], [auditoresConMapa, clientesEnZona]);
+  const zonaClave = [departamentoFiltro, provinciaFiltro, distritoFiltro, coordsTodos.length > 0 ? "con-datos" : "vacio"].join("|");
 
   const frescura = (u: AuditorInfo) => frescuraDe(u, ahoraMs);
   const enVivo = auditoresConMapa.filter((u) => frescura(u).estado === "VIVO").length;
@@ -563,7 +623,53 @@ export default function SeguimientoPage() {
     .filter((a) => [a.expediente.nombres_cliente, a.expediente.codigo_expediente, a.expediente.numero_documento_cliente].some((v) => norm(String(v || "")).includes(textoBuscado)))
     .slice(0, 5);
   const resumenZona = departamentoFiltro === "TODOS" ? "Todo el país" : [departamentoFiltro, provinciaFiltro, distritoFiltro].filter((x) => x !== "TODOS").join(" › ");
-  const auditoresOrdenados = [...auditoresVisibles].filter(pasaFiltros).sort((a, b) => prioridad(a) - prioridad(b) || `${a.nombres} ${a.apellidos}`.localeCompare(`${b.nombres} ${b.apellidos}`));
+  const auditoresOrdenados = [...auditoresVisibles].filter(pasaFiltros).sort((a, b) => prioridad(a) - prioridad(b) || (a.nombres + " " + a.apellidos).localeCompare(b.nombres + " " + b.apellidos));
+
+  // Estado en palabras (el mismo texto para la lista y para el resumen del auditor elegido).
+  const estadoTexto = (u: AuditorInfo) => {
+    const f = frescura(u); const hace = haceTexto(f.segundos);
+    // Dentro de la jornada, no tener señal es una alerta; fuera de ella solo es información.
+    const etiqueta = u.enJornada
+      ? (f.estado === "VIVO" ? "En jornada · en vivo " + hace : f.estado === "RECIENTE" ? "En jornada · reciente " + hace : f.estado === "SIN_UBICACION" ? (sinPosicionDesdeInicio(u) ? "Perdió la señal en plena jornada · no mandó ninguna posición" : "En jornada · esperando su primera posición") : "Perdió la señal en plena jornada · última " + hace)
+      : (f.estado === "VIVO" ? "En vivo · " + hace : f.estado === "RECIENTE" ? "Reciente · " + hace : f.estado === "SIN_SENAL" ? "Fuera de jornada · última " + hace + (u.jornadaFin ? " (terminó " + horaCorta(u.jornadaFin) + ")" : "") : "Sin GPS ahora");
+    const simulada = u.simulada && f.estado !== "SIN_UBICACION";
+    const clase = simulada || perdioSenal(u) ? " bad" : f.estado === "VIVO" ? " on" : f.estado === "RECIENTE" || (u.enJornada && f.estado === "SIN_UBICACION") ? " warn" : "";
+    return { etiqueta, clase, simulada };
+  };
+
+  const mover = (c: Omit<Camara, "n">) => setCamara({ ...c, n: Date.now() + Math.random() });
+  const LEJOS_M = 60_000; // más allá de esto un cliente se considera de otra zona y no entra en el encuadre automático
+  // Elegir (o soltar) a un auditor. Con un cliente, el mapa vuela al cliente; si no, se centra en el auditor (o, sin posición, en sus clientes cercanos).
+  const elegirAuditor = (id: string | null, cliente?: [number, number]) => {
+    setSeleccionado(id);
+    if (!id) return;
+    if (cliente) { mover({ modo: "cliente", punto: cliente }); return; }
+    const a = auditorPorId.get(id);
+    if (a?.enVivo) { mover({ modo: "auditor", punto: [a.latitud as number, a.longitud as number] }); return; }
+    const suyos = todosLosClientes.filter((c) => c.id_usuario_auditor === id);
+    if (!suyos.length) return;
+    const cerca = suyos.filter((c) => distanciaMetros(suyos[0].latitud, suyos[0].longitud, c.latitud, c.longitud) <= LEJOS_M);
+    mover({ modo: "ruta", coords: cerca.map((c) => [c.latitud, c.longitud] as [number, number]) });
+  };
+
+  // Resumen del auditor elegido.
+  const auditorSel = seleccionado ? auditorPorId.get(seleccionado) || null : null;
+  const visitadosHoy = new Set(eventos.filter((e) => e.id_usuario === seleccionado && e.tipo === "LLEGADA").map((e) => e.id_expediente)).size;
+  const proximo = enRuta[0] || null;
+  const rutaKm = rutaSugerida.reduce((suma, p, i) => (i === 0 ? 0 : suma + distanciaMetros(rutaSugerida[i - 1][0], rutaSugerida[i - 1][1], p[0], p[1])), 0);
+  const lejanos = origenRuta ? clientesDelAuditorSeleccionado.filter((c) => distanciaMetros(origenRuta.latitud, origenRuta.longitud, c.latitud, c.longitud) > LEJOS_M).length : 0;
+  // Frase bajo los botones de estado: qué hay en ese grupo (y qué hacer si está vacío).
+  const resumenChip = (() => {
+    if (estadoFiltro === "ALERTA") {
+      const sj = auditoresVisibles.filter(perdioSenal).length; const bj = auditoresVisibles.filter(bateriaBaja).length;
+      const gs = auditoresVisibles.filter((u) => u.simulada && frescura(u).estado !== "SIN_UBICACION").length;
+      const partes = [sj ? sj + " sin señal en plena jornada" : "", bj ? bj + " con batería baja" : "", gs ? gs + " con GPS simulado" : ""].filter(Boolean);
+      return partes.length ? partes.join(" · ") : "Sin alertas por ahora.";
+    }
+    if (estadoFiltro === "VIVO") return cuentas.vivo ? null : "Nadie transmite ahora. Aparecen aquí cuando inician su jornada.";
+    if (estadoFiltro === "SIN_SENAL") return cuentas.sinSenal + " sin posición en los últimos 5 min o que nunca transmitieron.";
+    return null;
+  })();
 
   return (
     <>
@@ -578,6 +684,33 @@ export default function SeguimientoPage() {
 
       <div className="seg-layout">
         <aside className="seg-side" aria-label="Zona, auditores y ruta">
+          {auditorSel ? (() => {
+            const est = estadoTexto(auditorSel);
+            const mov = textoMovimiento(auditorSel.movimiento, ahoraMs);
+            const lugar = eventos.find((x) => x.id_usuario === auditorSel.id);
+            return (
+              <section className="resumen-aud" aria-label={"Resumen de " + nombreAud(auditorSel)}>
+                <div className="resumen-cab">
+                  <Avatar nombre={nombreAud(auditorSel)} />
+                  <div className="resumen-quien"><b>{nombreAud(auditorSel)}</b><span className={"live" + est.clase}>{est.simulada ? "GPS simulado · " : ""}{est.etiqueta}</span></div>
+                  <button type="button" className="btn quiet small" onClick={() => elegirAuditor(null)}>Soltar</button>
+                </div>
+                <dl className="resumen-datos">
+                  <div><dt>Casos activos</dt><dd>{clientesDelAuditorSeleccionado.length}</dd></div>
+                  <div><dt>Visitados hoy</dt><dd>{visitadosHoy}</dd></div>
+                  <div><dt>Batería</dt><dd className={bateriaBaja(auditorSel) ? "bajo" : ""}>{auditorSel.bateria != null ? auditorSel.bateria + " %" + (auditorSel.cargando ? " · cargando" : "") : "—"}</dd></div>
+                  <div><dt>Movimiento</dt><dd>{mov || "—"}</dd></div>
+                </dl>
+                {lugar && lugar.tipo === "LLEGADA" ? <p className="resumen-linea">En la visita de <b>{lugar.cliente || "un cliente"}</b> desde {horaCorta(lugar.fecha)}</p> : null}
+                {proximo ? <p className="resumen-linea">Siguiente: <b>{proximo.expediente.nombres_cliente}</b> · {fmtDistancia(proximo.distanciaDesdeAsesor)}{rutaKm > 0 ? " · ruta de " + fmtDistancia(rutaKm) + " en total" : ""}</p> : null}
+                {lejanos > 0 ? <p className="resumen-linea apagado">{lejanos} {lejanos === 1 ? "cliente está" : "clientes están"} a más de 60 km: no entran en el encuadre.</p> : null}
+                <div className="resumen-acciones">
+                  {auditorSel.enVivo ? <button type="button" className="btn small" onClick={() => mover({ modo: "auditor", punto: [auditorSel.latitud as number, auditorSel.longitud as number] })}>Centrar en él</button> : null}
+                  {rutaSugerida.length > 1 ? <button type="button" className="btn small quiet" onClick={() => mover({ modo: "ruta", coords: rutaSugerida })}>Ver ruta completa</button> : null}
+                </div>
+              </section>
+            );
+          })() : null}
           <div className="seg-busca">
             <label className="sr-only" htmlFor="seg-busca">Buscar auditor o cliente</label>
             <input id="seg-busca" name="busqueda" type="search" autoComplete="off" spellCheck={false} placeholder="Buscar auditor o cliente…" value={busca} onChange={(e) => setBusca(e.target.value)} />
@@ -586,7 +719,7 @@ export default function SeguimientoPage() {
             <ul className="hallazgos" aria-label="Clientes encontrados">
               {hallazgos.map((a) => (
                 <li key={a.id_asignacion}>
-                  <button type="button" onClick={() => { setSeleccionado(a.id_usuario_auditor); setBusca(""); setFoco({ lat: a.latitud, lng: a.longitud, n: Date.now() }); }}>
+                  <button type="button" onClick={() => { elegirAuditor(a.id_usuario_auditor, [a.latitud, a.longitud]); setBusca(""); }}>
                     <b>{a.expediente.nombres_cliente}</b>
                     <small>{a.expediente.codigo_expediente} · {a.expediente.distrito || "-"} · {nombreAud(auditorPorId.get(a.id_usuario_auditor) || { nombres: "", apellidos: "", username: "sin auditor" })}</small>
                   </button>
@@ -599,6 +732,7 @@ export default function SeguimientoPage() {
               <button key={id} type="button" className={"seg-chip" + (estadoFiltro === id ? " on" : "") + (id === "ALERTA" && n ? " alerta" : "")} aria-pressed={estadoFiltro === id} onClick={() => setEstadoFiltro(id)}>{texto} <b>{n}</b></button>
             ))}
           </div>
+          {resumenChip ? <p className="seg-resumen" role="status">{resumenChip}</p> : null}
           <details className="zona-det">
             <summary><span>Zona</span><em>{resumenZona}</em></summary>
           {departamentos.length ? (
@@ -643,17 +777,11 @@ export default function SeguimientoPage() {
             {auditoresOrdenados.map((u) => {
               const nombreU = `${u.nombres || u.username} ${u.apellidos}`.trim();
               const f = frescura(u);
-              const hace = haceTexto(f.segundos);
-              // Dentro de la jornada, no tener señal es una alerta; fuera de ella solo es información.
-              const etiqueta = u.enJornada
-                ? (f.estado === "VIVO" ? `En jornada · en vivo ${hace}` : f.estado === "RECIENTE" ? `En jornada · reciente ${hace}` : f.estado === "SIN_UBICACION" ? (sinPosicionDesdeInicio(u) ? "Perdió la señal en plena jornada · no mandó ninguna posición" : "En jornada · esperando su primera posición") : `Perdió la señal en plena jornada · última ${hace}`)
-                : (f.estado === "VIVO" ? `En vivo · ${hace}` : f.estado === "RECIENTE" ? `Reciente · ${hace}` : f.estado === "SIN_SENAL" ? `Fuera de jornada · última ${hace}${u.jornadaFin ? ` (terminó ${horaCorta(u.jornadaFin)})` : ""}` : "Sin GPS ahora");
-              const simulada = u.simulada && f.estado !== "SIN_UBICACION";
+              const { etiqueta, clase, simulada } = estadoTexto(u);
               const mov = f.estado !== "SIN_SENAL" ? textoMovimiento(u.movimiento, ahoraMs) : null;
               const enVisita = eventos.find((x) => x.id_usuario === u.id); // el aviso más reciente: si es una llegada, sigue en la visita
-              const clase = simulada || perdioSenal(u) ? " bad" : f.estado === "VIVO" ? " on" : f.estado === "RECIENTE" || (u.enJornada && f.estado === "SIN_UBICACION") ? " warn" : "";
               return (
-                <button key={u.id} type="button" className={`pick${seleccionado === u.id ? " on" : ""}`} aria-pressed={seleccionado === u.id} onClick={() => setSeleccionado(u.id === seleccionado ? null : u.id)}>
+                <button key={u.id} type="button" className={`pick${seleccionado === u.id ? " on" : ""}`} aria-pressed={seleccionado === u.id} onClick={() => elegirAuditor(u.id === seleccionado ? null : u.id)}>
                   <Avatar nombre={nombreU} />
                   <span>
                     <b>{nombreU}</b>
@@ -687,7 +815,8 @@ export default function SeguimientoPage() {
 
           {seleccionado ? (
             <>
-              <h2 className="section-title">Recorrido real</h2>
+              <details className="seg-sec" open>
+              <summary>Recorrido real</summary>
               <div className="replay">
                 <Field label="Día">
                   <input type="date" name="fecha-recorrido" value={fechaRuta} max={hoy()} onChange={(e) => { if (e.target.value) setFechaRuta(e.target.value); }} />
@@ -709,7 +838,9 @@ export default function SeguimientoPage() {
                   </>
                 )}
               </div>
-              <h2 className="section-title">Ruta del día</h2>
+              </details>
+              <details className="seg-sec" open>
+              <summary>Ruta del día</summary>
               {puntoManual ? (
                 <div className="callout info" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
                   <span>Ruta simulada desde un punto de partida manual.</span>
@@ -743,6 +874,7 @@ export default function SeguimientoPage() {
                   </div>
                 </>
               )}
+              </details>
             </>
           ) : null}
         </aside>
@@ -750,8 +882,8 @@ export default function SeguimientoPage() {
         <div className="seg-mapcard">
           <MapContainer center={CENTER} zoom={5} className="seguimiento-map">
             <TileLayer attribution="&copy; OpenStreetMap" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-            <FitBounds coords={fitCoords} clave={fitClave} nonce={reencuadre} />
-            <VolarA foco={foco} />
+            {!seleccionado ? <FitBounds coords={coordsTodos} clave={zonaClave} nonce={reencuadre} /> : null}
+            <CamaraMapa camara={camara} />
             <ClickParaIniciar activo={Boolean(seleccionado && !origenRuta)} onClick={setPuntoManual} />
             {capas.auditores ? marcadores.map((u) => { const f = frescura(u); return f.estado !== "SIN_SENAL" && u.precision ? (
               <Circle key={"p-" + u.id} center={[u.latitud as number, u.longitud as number]} radius={Math.min(u.precision, 500)} pathOptions={{ color: u.simulada ? "#d92d20" : colorForRol(u.rol), weight: 1, fillOpacity: 0.08 }} />
@@ -759,7 +891,7 @@ export default function SeguimientoPage() {
             {capas.auditores ? marcadores.filter((u) => u.id !== seleccionado).map((u) => {
               const f = frescura(u);
               return (
-                <AuditorMarker key={u.id} posicion={[u.latitud as number, u.longitud as number]} icon={markerIcon(nombreAud(u), u.rol, f.estado, u.simulada, esAlerta(u), false)} onClick={() => setSeleccionado(u.id)}>
+                <AuditorMarker key={u.id} posicion={[u.latitud as number, u.longitud as number]} icon={markerIcon(nombreAud(u), u.rol, f.estado, u.simulada, esAlerta(u), false)} onClick={() => elegirAuditor(u.id)}>
                   <Popup>
                     <div className="pop">
                       <strong>{nombreAud(u)}</strong><span className="pop-rol">{u.rol}</span>
@@ -792,17 +924,14 @@ export default function SeguimientoPage() {
               </Marker>
             ) : null}
             {enRuta.map((a) => (
-              <Marker key={a.id_asignacion} position={[a.latitud, a.longitud]} icon={routeStopIcon(a.orden)}>
-                <Popup>
-                  <strong>{a.orden}. {a.expediente.nombres_cliente}</strong><br />
-                  {a.expediente.codigo_expediente}<br />
-                  {a.expediente.direccion_domicilio}<br />
-                  {fmtDistancia(a.distanciaDesdeAsesor)} desde el punto de partida
+              <Marker key={a.id_asignacion} position={[a.latitud, a.longitud]} icon={routeStopIcon(a.orden)} title={a.expediente.nombres_cliente}>
+                <Popup minWidth={230} maxWidth={300}>
+                  <TarjetaCliente a={a} auditor={nombreAud(auditorPorId.get(a.id_usuario_auditor) || { nombres: "", apellidos: "", username: "—" })} orden={a.orden} distancia={a.distanciaDesdeAsesor} onVer={verExpediente} />
                 </Popup>
               </Marker>
             ))}
             {enRuta.slice(0, 8).map((a) => <Circle key={"g-" + a.id_asignacion} center={[a.latitud, a.longitud]} radius={GEOCERCA_M} pathOptions={{ color: RUTA_COLOR, weight: 1, dashArray: "4 4", fillOpacity: 0.06 }} />)}
-            {capas.clientes ? <ClientesAgrupados clientes={clientesSinRuta} nombreAuditor={(id) => { const a = auditorPorId.get(id); return a ? (a.nombres || a.username) : "—"; }} onElegir={(id) => setSeleccionado((actual) => (actual === id ? null : id))} /> : null}
+            {capas.clientes ? <ClientesAgrupados clientes={clientesSinRuta} nombreAuditor={(id) => { const a = auditorPorId.get(id); return a ? (a.nombres || a.username) : "—"; }} onVerAuditor={(id) => elegirAuditor(id)} origen={origenRuta} onVer={verExpediente} /> : null}
             {rutaSugerida.length > 1 ? <Polyline positions={rutaSugerida} pathOptions={{ color: RUTA_COLOR, weight: 4, opacity: 0.85 }} /> : null}
             {polyline.length > 1 ? <Polyline positions={polyline} pathOptions={{ color: "#94a3b8", weight: 2, opacity: 0.7, dashArray: "4 6" }} /> : null}
             {rutaRecorrida.length > 1 ? <Polyline positions={rutaRecorrida} pathOptions={{ color: INICIO_COLOR, weight: 4, opacity: 0.9 }} /> : null}
