@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useQueryParam } from "../lib/useQueryParam";
 import { request } from "../api";
+import { useAuth } from "../AuthContext";
 import { Avatar, Badge, Empty, Skeleton } from "../components/ui";
 import { Icon } from "../components/icons";
 import { ActionMenu, Seg } from "../components/kit";
@@ -15,6 +16,19 @@ export default function AsignacionesPage() {
   const [asignaciones, setAsignaciones] = useState<any[]>([]);
   // Cuántos casos tomó cada auditor por su cuenta («Disponibles / Tomar este caso») frente a los asignados por un supervisor.
   const [resumen, setResumen] = useState<any>(null);
+  const { user } = useAuth();
+  const esAdmin = user?.rol === "ADMINISTRADOR";
+  // Cambiar el interruptor afecta a todos los auditores: primero se pide confirmar, y solo el administrador puede hacerlo.
+  const [confirmarInterruptor, setConfirmarInterruptor] = useState(false);
+  const [cambiandoInterruptor, setCambiandoInterruptor] = useState(false);
+  const cambiarInterruptor = async (activa: boolean) => {
+    setCambiandoInterruptor(true);
+    try {
+      const r: any = await request("/api/asignaciones/autoasignacion", { method: "PUT", body: JSON.stringify({ activa }) });
+      setResumen(r.data); setConfirmarInterruptor(false);
+      setAviso(activa ? "Los auditores ya pueden tomar casos disponibles de su zona." : "Los auditores ya no pueden tomar casos por su cuenta: solo trabajan los que asignes tú.");
+    } catch (x: any) { setError(x.message); } finally { setCambiandoInterruptor(false); }
+  };
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [aviso, setAviso] = useState("");
@@ -81,14 +95,31 @@ export default function AsignacionesPage() {
       </div>
       {error ? <div role="alert" className="error-box">{error}</div> : null}
       {aviso ? <div role="status" className="callout ok">{aviso}</div> : null}
-      {resumen && resumen.total > 0 ? (
-        <div role="status" className="callout info">
-          <b>Casos tomados por el propio auditor: {resumen.autoasignadas} de {resumen.total} ({resumen.porcentaje} %).</b>{" "}
-          {resumen.autoasignacion_activa ? "Los auditores pueden tomar casos disponibles de su zona." : "La toma de casos por cuenta propia está desactivada: solo trabajan lo que asigna un supervisor."}
-          {resumen.auditores.some((x: any) => x.autoasignadas > 0) ? (
-            <ul className="pausas" aria-label="Casos tomados por auditor">
-              {resumen.auditores.filter((x: any) => x.autoasignadas > 0).slice(0, 6).map((x: any) => <li key={x.id}>{x.nombre}: {x.autoasignadas} de {x.total} ({x.porcentaje} %)</li>)}
-            </ul>
+      {resumen ? (
+        <div className="callout info toma-casos">
+          <div className="toma-texto" role="status">
+            {resumen.total > 0 ? <b>Casos tomados por el propio auditor: {resumen.autoasignadas} de {resumen.total} ({resumen.porcentaje} %).</b> : <b>Aún no hay casos asignados.</b>}{" "}
+            {resumen.autoasignacion_activa ? "Los auditores pueden tomar casos disponibles de su zona." : "La toma de casos por cuenta propia está desactivada: solo trabajan lo que asigna un supervisor."}
+            {resumen.auditores.some((x: any) => x.autoasignadas > 0) ? (
+              <ul className="pausas" aria-label="Casos tomados por auditor">
+                {resumen.auditores.filter((x: any) => x.autoasignadas > 0).slice(0, 6).map((x: any) => <li key={x.id}>{x.nombre}: {x.autoasignadas} de {x.total} ({x.porcentaje} %)</li>)}
+              </ul>
+            ) : null}
+          </div>
+          {esAdmin ? (
+            <div className="toma-control">
+              <button type="button" role="switch" aria-checked={resumen.autoasignacion_activa} className={"interruptor" + (resumen.autoasignacion_activa ? " on" : "")} disabled={cambiandoInterruptor} onClick={() => setConfirmarInterruptor(true)}>
+                <span className="pista" aria-hidden="true"><span className="perilla" /></span>
+                <span>Los auditores pueden tomar casos</span>
+              </button>
+              {confirmarInterruptor ? (
+                <div className="toma-confirma" role="alert">
+                  <span>{resumen.autoasignacion_activa ? "¿Desactivarlo para todos los auditores?" : "¿Activarlo para todos los auditores?"}</span>
+                  <button type="button" className="btn small primary" disabled={cambiandoInterruptor} onClick={() => cambiarInterruptor(!resumen.autoasignacion_activa)}>{cambiandoInterruptor ? "Guardando…" : "Sí, cambiar"}</button>
+                  <button type="button" className="btn small quiet" onClick={() => setConfirmarInterruptor(false)}>Cancelar</button>
+                </div>
+              ) : null}
+            </div>
           ) : null}
         </div>
       ) : null}
