@@ -12,6 +12,7 @@ type Ubicacion = {
   latitud: number | null; longitud: number | null;
   actualizado_en?: string | null; precision?: number | null; simulada?: boolean;
   en_jornada?: boolean; jornada_inicio?: string | null; jornada_fin?: string | null;
+  bateria?: number | null; cargando?: boolean;
 };
 type Punto = { latitud: number; longitud: number; precision: number | null; fecha: string };
 type Asignacion = {
@@ -23,7 +24,17 @@ type AuditorInfo = {
   latitud: number | null; longitud: number | null; enVivo: boolean;
   actualizadoEn: string | null; precision: number | null; simulada: boolean;
   enJornada: boolean; jornadaInicio: string | null; jornadaFin: string | null;
+  bateria: number | null; cargando: boolean;
 };
+
+// Aviso de llegada o salida: el auditor entró al radio de un cliente (o de su negocio) o se alejó de él.
+type EventoCampo = {
+  id: string; tipo: "LLEGADA" | "SALIDA"; fecha: string; distancia_m: number | null;
+  id_usuario: string; auditor: string; id_expediente: number; codigo_expediente: string | null;
+  cliente: string | null; punto: string; direccion: string | null;
+};
+// Con 15 % o menos y sin cargador, el celular está por apagarse: el supervisor debe saberlo antes de que se pierda la señal.
+const bateriaBaja = (u: { bateria: number | null; cargando: boolean }) => u.bateria != null && u.bateria <= 15 && !u.cargando;
 
 // Qué tan fresca es la última posición de un auditor: «en vivo» (llegó hace menos de 45 s, la app envía cada ~7 s),
 // «reciente» (menos de 5 min) o «sin señal» (más antigua o sin hora guardada).
@@ -42,7 +53,7 @@ function haceTexto(s: number | null) {
   return `hace ${Math.floor(s / 86400)} d`;
 }
 
-const CENTER: [number, number] = [-12.0687, -75.2094]; // Huancayo, Junín
+const CENTER: [number, number] = [-9.19, -75.0152]; // vista nacional: el mapa se encuadra solo en cuanto hay auditores o clientes
 const RUTA_COLOR = "#0f9d6c";
 const INICIO_COLOR = "#2d41c4";
 const DISPONIBLE_COLOR = "#334155";
@@ -178,16 +189,19 @@ export default function SeguimientoPage() {
   // Hora del servidor menos la de esta PC, para medir la antigüedad de cada posición aunque el reloj de la PC esté desfasado.
   const offsetRef = useRef(0);
   const [ahoraMs, setAhoraMs] = useState(() => Date.now());
+  const [eventos, setEventos] = useState<EventoCampo[]>([]);
 
   const load = async () => {
     try {
-      const [ubis, asigs]: any[] = await Promise.all([
+      const [ubis, asigs, evs]: any[] = await Promise.all([
         request("/api/usuarios/ubicaciones"),
         request("/api/asignaciones?estado=ACTIVA&limit=300"),
+        request("/api/usuarios/eventos").catch(() => ({ data: null })), // los avisos no deben tumbar el mapa si fallan
       ]);
       if (ubis.ahora) { offsetRef.current = Date.parse(ubis.ahora) - Date.now(); setAhoraMs(Date.now() + offsetRef.current); }
       setUbicaciones(ubis.data);
       setAsignaciones(asigs.data);
+      if (evs.data) setEventos(evs.data);
     } catch (e: any) {
       setError(e.message);
     }
@@ -215,6 +229,7 @@ export default function SeguimientoPage() {
           rol: data.rol || "", latitud: Number(data.latitud), longitud: Number(data.longitud),
           actualizado_en: data.actualizado_en || data.fecha || new Date(Date.now() + offsetRef.current).toISOString(),
           precision: data.precision ?? null, simulada: Boolean(data.simulada),
+          bateria: data.bateria ?? null, cargando: Boolean(data.cargando),
         };
         const idx = prev.findIndex((u) => u.id === actualizado.id);
         if (idx === -1) return [...prev, actualizado];
@@ -223,6 +238,8 @@ export default function SeguimientoPage() {
         return next;
       });
     });
+    // Llegada o salida de un cliente: entra al principio de la lista al instante.
+    socket.on("evento_campo", (e: EventoCampo) => setEventos((prev) => (prev.some((x) => x.id === e.id) ? prev : [e, ...prev].slice(0, 300))));
     // El socket trae cada posición al instante; este refresco solo cubre cortes de conexión. El segundero actualiza «hace X s».
     const timer = setInterval(load, 10000);
     const reloj = setInterval(() => setAhoraMs(Date.now() + offsetRef.current), 5000);
@@ -253,7 +270,7 @@ export default function SeguimientoPage() {
         id: a.auditor.id_usuario, username: a.auditor.username,
         nombres: a.auditor.nombres || "", apellidos: a.auditor.apellidos || "",
         rol: "AUDITOR", latitud: null, longitud: null, enVivo: false, actualizadoEn: null, precision: null, simulada: false,
-        enJornada: false, jornadaInicio: null, jornadaFin: null,
+        enJornada: false, jornadaInicio: null, jornadaFin: null, bateria: null, cargando: false,
       });
     });
     ubicaciones.forEach((u) => {
@@ -266,6 +283,7 @@ export default function SeguimientoPage() {
         enVivo: u.latitud != null && u.longitud != null,
         actualizadoEn: u.actualizado_en ?? null, precision: u.precision ?? null, simulada: Boolean(u.simulada),
         enJornada: Boolean(u.en_jornada), jornadaInicio: u.jornada_inicio ?? null, jornadaFin: u.jornada_fin ?? null,
+        bateria: u.bateria ?? null, cargando: Boolean(u.cargando),
       });
     });
     return mapa;
@@ -391,6 +409,7 @@ export default function SeguimientoPage() {
   const perdieron = todosLosAuditores.filter(perdioSenal).length;
   const rango: Record<Frescura, number> = { VIVO: 0, RECIENTE: 1, SIN_SENAL: 2, SIN_UBICACION: 3 };
   const prioridad = (u: AuditorInfo) => (perdioSenal(u) ? -1 : rango[frescura(u).estado]);
+  const eventosVisibles = seleccionado ? eventos.filter((e) => e.id_usuario === seleccionado) : eventos;
   const auditoresOrdenados = [...auditoresVisibles].sort((a, b) => prioridad(a) - prioridad(b) || `${a.nombres} ${a.apellidos}`.localeCompare(`${b.nombres} ${b.apellidos}`));
 
   return (
@@ -444,7 +463,7 @@ export default function SeguimientoPage() {
           {!auditoresVisibles.length ? (
             <p className="subtle">{zonaActiva ? "Ningún auditor tiene clientes en esta zona." : "Nadie tiene casos asignados con ubicación todavía."}</p>
           ) : null}
-          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: 340, overflowY: "auto", overscrollBehavior: "contain" }}>
             {auditoresOrdenados.map((u) => {
               const nombreU = `${u.nombres || u.username} ${u.apellidos}`.trim();
               const f = frescura(u);
@@ -461,11 +480,30 @@ export default function SeguimientoPage() {
                   <span>
                     <b>{nombreU}</b>
                     <span className={`live${clase}`}>{simulada ? "GPS simulado · " : ""}{etiqueta}{zonaActiva ? ` · ${clientesPorAuditor.get(u.id) || 0} aquí` : ""}</span>
+                    {u.bateria != null ? <span className={`bat${bateriaBaja(u) ? " bajo" : ""}`}>Batería {u.bateria} %{u.cargando ? " · cargando" : ""}{bateriaBaja(u) ? (perdioSenal(u) ? " · posible batería agotada" : " · baja") : ""}</span> : null}
                   </span>
                 </button>
               );
             })}
           </div>
+
+          <h2 className="section-title">Llegadas y salidas de hoy ({eventosVisibles.length})</h2>
+          {!eventosVisibles.length ? (
+            <p className="subtle">Aún no hay llegadas ni salidas hoy. Aparecen solas cuando un auditor entra al radio de un cliente o se aleja de él.</p>
+          ) : (
+            <ul className="eventos" aria-live="polite" aria-label="Llegadas y salidas de hoy">
+              {eventosVisibles.slice(0, 40).map((e) => (
+                <li key={e.id} className={`evento ${e.tipo === "LLEGADA" ? "llegada" : "salida"}`}>
+                  <span className="ico" aria-hidden="true">{e.tipo === "LLEGADA" ? "→" : "←"}</span>
+                  <div>
+                    <b>{e.auditor}</b> {e.tipo === "LLEGADA" ? "llegó a" : "salió de"} <b>{e.cliente || "un cliente"}</b>
+                    <small>{e.direccion || "Sin dirección"}{e.punto.startsWith("NEGOCIO") ? " · negocio" : ""} · a {e.distancia_m ?? "?"} m</small>
+                  </div>
+                  <time dateTime={e.fecha}>{horaCorta(e.fecha)}</time>
+                </li>
+              ))}
+            </ul>
+          )}
 
           {seleccionado ? (
             <>
@@ -508,7 +546,7 @@ export default function SeguimientoPage() {
         </aside>
 
         <div className="seg-mapcard">
-          <MapContainer center={CENTER} zoom={12} className="seguimiento-map">
+          <MapContainer center={CENTER} zoom={5} className="seguimiento-map">
             <TileLayer attribution="&copy; OpenStreetMap" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
             <FitBounds coords={fitCoords} clave={fitClave} />
             <ClickParaIniciar activo={Boolean(seleccionado && !origenRuta)} onClick={setPuntoManual} />
@@ -528,6 +566,7 @@ export default function SeguimientoPage() {
                     <strong>{u.nombres || u.username} {u.apellidos}</strong><br />{u.rol}<br />
                     {f.estado === "VIVO" ? "En vivo" : f.estado === "RECIENTE" ? "Reciente" : "Sin señal"} · {haceTexto(f.segundos)}{u.precision ? ` · precisión ±${Math.round(u.precision)} m` : ""}
                     {u.simulada ? <><br /><strong style={{ color: "#d92d20" }}>El celular avisó GPS simulado</strong></> : null}
+                    {u.bateria != null ? <><br />Batería {u.bateria} %{u.cargando ? " · cargando" : ""}</> : null}
                   </Popup>
                 </Marker>
               );
