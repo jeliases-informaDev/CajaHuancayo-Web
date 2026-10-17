@@ -139,6 +139,7 @@ export default function ImportModal({ onClose, onDone }: { onClose: () => void; 
       {estado === "revision" && reporte ? (
         <>
           {repetido ? <div role="status" className="callout aviso">Este mismo archivo ya se importó el {fechaHora(repetido.fecha_creacion)}. Si no cambió, todo saldrá como «sin cambios».</div> : null}
+          {reporte.procesadas === 0 && errores.length ? <div role="alert" className="error-box">{errores[0].motivo}</div> : null}
           <p style={{ marginBottom: 12 }}>Así quedaría la importación de <b style={{ fontWeight: 600 }}>{archivo?.name}</b>. Aún no se guardó nada.</p>
           {resumen}
         </>

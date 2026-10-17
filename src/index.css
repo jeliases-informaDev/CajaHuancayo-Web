@@ -826,3 +826,9 @@ main:focus { outline: none; }
 .stickybar { background: var(--surface); color: var(--ink); border: 1px solid var(--line-2); box-shadow: var(--sh-2); }
 .stickybar select { border: 1px solid var(--line-2); background: var(--surface); color: var(--ink); }
 .stickybar select option { color: var(--ink); }
+
+/* En pantallas angostas las barras de filtros no pueden ensanchar la página: se desplazan dentro de su propio espacio. */
+.filters .fgroup { min-width: 0; max-width: 100%; }
+.seg { max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+.seg::-webkit-scrollbar { display: none; }
+.seg button { flex-shrink: 0; }
