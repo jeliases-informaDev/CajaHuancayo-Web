@@ -5,12 +5,13 @@ export type Senal = { tone: Tono; label: string };
 
 export function senalesDeLista(v: any, radio = 100): Senal[] {
   const dist = v.distancia_domicilio_m != null ? Number(v.distancia_domicilio_m) : null;
+  const lugar = v.ubicacion_visitada === "NEGOCIO" ? "negocio" : "domicilio"; // en MYPE el auditor puede ir a cualquiera de los dos
   const fotos = v.evidencias?.length || 0;
   return [
     { tone: v.mock_location ? "bad" : "ok", label: v.mock_location ? "GPS simulado" : "GPS real" },
     { tone: v.device_integrity_ok ? "ok" : "bad", label: v.device_integrity_ok ? "Dispositivo íntegro" : "Dispositivo con observaciones" },
     { tone: fotos ? "ok" : "bad", label: fotos ? `${fotos} ${fotos === 1 ? "fotografía" : "fotografías"}` : "Sin fotografías" },
-    dist == null ? { tone: "na", label: "Sin distancia calculada" } : dist <= radio ? { tone: "ok", label: `A ${Math.round(dist)} m del domicilio` } : { tone: "bad", label: `A ${Math.round(dist)} m: fuera del radio` },
+    dist == null ? { tone: "na", label: "Sin distancia calculada" } : dist <= radio ? { tone: "ok", label: `A ${Math.round(dist)} m del ${lugar}` } : { tone: "bad", label: `A ${Math.round(dist)} m: fuera del radio` },
   ];
 }
 

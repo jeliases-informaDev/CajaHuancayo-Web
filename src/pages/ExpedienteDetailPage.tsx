@@ -37,6 +37,44 @@ function TodosLosCampos({ e }: { e: any }) {
   );
 }
 
+// MYPE: el auditor puede ir al domicilio de la persona o a cada negocio de la base. Aquí se ve y se fija la
+// ubicación de cada negocio (si no se fija, la primera visita limpia a ese negocio la toma como referencia).
+function UbicacionNegocio({ e, indice, onSaved }: { e: any; indice: number; onSaved: () => void }) {
+  const negocio = e.datos_negocio.negocios[indice];
+  const tiene = negocio.latitud != null && negocio.longitud != null;
+  const [lat, setLat] = useState(negocio.latitud ?? "");
+  const [lng, setLng] = useState(negocio.longitud ?? "");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  const guardar = async () => {
+    setError("");
+    const la = Number(lat);
+    const lo = Number(lng);
+    if (lat === "" || lng === "" || !Number.isFinite(la) || !Number.isFinite(lo) || Math.abs(la) > 90 || Math.abs(lo) > 180) { setError("Escribe coordenadas válidas (ej. -12.119400 y -77.029500)."); return; }
+    setSaving(true);
+    try {
+      await request(`/api/expedientes/${e.id_expediente}/negocios/${indice}/ubicacion`, { method: "PUT", body: JSON.stringify({ latitud: la, longitud: lo }) });
+      onSaved();
+    } catch (err: any) { setError(err.message); } finally { setSaving(false); }
+  };
+
+  return (
+    <Card>
+      <p className="section-title">Ubicación del negocio {e.datos_negocio.negocios.length > 1 ? indice + 1 : ""}</p>
+      <InfoRow k="Dirección" v={dash([negocio.direccion, negocio.distrito].filter(Boolean).join(", "))} />
+      <InfoRow k="Estado" v={tiene ? <span className="tag campo">Con coordenadas</span> : <span className="tag alerta">Sin coordenadas</span>} />
+      <InfoRow k="Origen de la ubicación" v={negocio.ubicacion_origen ? ORIGEN_UBICACION[negocio.ubicacion_origen] || negocio.ubicacion_origen : "-"} />
+      <div className="row" style={{ marginTop: 10 }}>
+        <input className="input" name={`latitud_negocio_${indice}`} aria-label={`Latitud del negocio ${indice + 1}`} inputMode="decimal" autoComplete="off" spellCheck={false} placeholder="Ej. -12.119400…" value={lat} onChange={(ev) => setLat(ev.target.value)} style={{ width: 170 }} />
+        <input className="input" name={`longitud_negocio_${indice}`} aria-label={`Longitud del negocio ${indice + 1}`} inputMode="decimal" autoComplete="off" spellCheck={false} placeholder="Ej. -77.029500…" value={lng} onChange={(ev) => setLng(ev.target.value)} style={{ width: 170 }} />
+        <Button title={saving ? "Guardando…" : tiene ? "Corregir ubicación" : "Fijar ubicación"} onClick={guardar} disabled={saving} />
+      </div>
+      {error ? <div role="alert" className="error-box" style={{ marginTop: 10 }}>{error}</div> : null}
+    </Card>
+  );
+}
+
 function TrazabilidadDato({ e, onSaved }: { e: any; onSaved: () => void }) {
   const [lat, setLat] = useState(e.latitud ?? "");
   const [lng, setLng] = useState(e.longitud ?? "");
@@ -97,6 +135,10 @@ function TrazabilidadDato({ e, onSaved }: { e: any; onSaved: () => void }) {
         </div>
         {error ? <div role="alert" className="error-box" style={{ marginTop: 10 }}>{error}</div> : null}
       </Card>
+
+      {e.tipo_credito === "OTROS" && Array.isArray(e.datos_negocio?.negocios)
+        ? e.datos_negocio.negocios.map((_: any, i: number) => <UbicacionNegocio key={`${i}-${e.datos_negocio.negocios[i].latitud ?? ""}-${e.datos_negocio.negocios[i].longitud ?? ""}`} e={e} indice={i} onSaved={onSaved} />)
+        : null}
 
       <Card>
         <p className="section-title">Historial de cambios del dato</p>

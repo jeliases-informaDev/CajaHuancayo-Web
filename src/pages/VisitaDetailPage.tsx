@@ -162,8 +162,9 @@ function Trazabilidad({ visita, e }: { visita: any; e: any }) {
       </Card>
       <Card>
         <p className="section-title">Garantías de la visita</p>
-        <InfoRow k="Distancia al domicilio de la base" v={visita.distancia_domicilio_m != null ? `${Math.round(visita.distancia_domicilio_m)} m` : "No calculada (el domicilio no tenía coordenadas)"} />
-        <InfoRow k="Origen de la ubicación de referencia" v={e.ubicacion_origen ? ORIGEN_UBICACION[e.ubicacion_origen] || e.ubicacion_origen : "-"} />
+        {visita.ubicacion_visitada ? <InfoRow k="Dirección visitada" v={`${visita.ubicacion_visitada === "NEGOCIO" ? "Negocio" : "Domicilio"}${visita.direccion_visitada ? ` — ${visita.direccion_visitada}` : ""}`} /> : null}
+        <InfoRow k={`Distancia al ${visita.ubicacion_visitada === "NEGOCIO" ? "negocio" : "domicilio"} de la base`} v={visita.distancia_domicilio_m != null ? `${Math.round(visita.distancia_domicilio_m)} m` : `No calculada (${visita.ubicacion_visitada === "NEGOCIO" ? "el negocio" : "el domicilio"} no tenía coordenadas)`} />
+        {visita.ubicacion_visitada !== "NEGOCIO" ? <InfoRow k="Origen de la ubicación de referencia" v={e.ubicacion_origen ? ORIGEN_UBICACION[e.ubicacion_origen] || e.ubicacion_origen : "-"} /> : null}
         <InfoRow k="Ubicación simulada (Fake GPS)" v={visita.mock_location ? "SÍ — detectada" : "No detectada"} />
         <InfoRow k="Integridad del dispositivo" v={visita.device_integrity_ok ? "OK" : "Con observaciones"} />
         <InfoRow k="Identificador del dispositivo" v={<code style={{ fontSize: 11 }}>{dash(visita.device_id)}</code>} />
@@ -173,7 +174,12 @@ function Trazabilidad({ visita, e }: { visita: any; e: any }) {
       {t.cambios_ubicacion?.length ? (
         <Card>
           <p className="section-title">Cambios de ubicación del expediente</p>
-          {t.cambios_ubicacion.map((c: any) => <InfoRow key={c.id_cambio} k={fechaHora(c.fecha)} v={`${c.cambios?.ubicacion_origen?.despues || "-"}: ${c.cambios?.latitud?.despues}, ${c.cambios?.longitud?.despues}`} />)}
+          {t.cambios_ubicacion.map((c: any) => {
+            const k = c.cambios || {};
+            const claveNegocio = Object.keys(k).find((x) => /^negocio_\d+_latitud$/.test(x));
+            const pre = claveNegocio ? claveNegocio.replace("latitud", "") : "";
+            return <InfoRow key={c.id_cambio} k={fechaHora(c.fecha)} v={`${claveNegocio ? `Negocio ${pre.split("_")[1]} · ` : ""}${k[`${pre}ubicacion_origen`]?.despues || "-"}: ${k[`${pre}latitud`]?.despues}, ${k[`${pre}longitud`]?.despues}`} />;
+          })}
         </Card>
       ) : null}
       <p className="subtle">Todas las acciones de esta visita quedan además en el registro de auditoría de seguridad (menú Seguridad).</p>
@@ -189,12 +195,13 @@ function controlesDe(visita: any, esMype: boolean) {
   const tresRespuestas = ["entrego_dinero_asesor", "pago_comision_adicional", "recibio_monto_total"].every((k) => typeof r[k] === "boolean");
   const fotos = visita.evidencias?.length || 0;
   const distancia = visita.distancia_domicilio_m != null ? Math.round(Number(visita.distancia_domicilio_m)) : null;
+  const lugar = visita.ubicacion_visitada === "NEGOCIO" ? "negocio" : "domicilio"; // en MYPE el auditor puede ir a cualquiera de los dos
   const lista: { tone: "ok" | "warn" | "bad" | "na"; title: string; detail: string }[] = [
     distancia == null
-      ? { tone: "na", title: "Distancia al domicilio", detail: "El domicilio no tenía coordenadas en la base" }
+      ? { tone: "na", title: `Distancia al ${lugar}`, detail: `${lugar === "negocio" ? "El negocio" : "El domicilio"} no tenía coordenadas en la base` }
       : distancia <= radio
-        ? { tone: "ok", title: `A ${distancia} m del domicilio`, detail: `Máximo permitido: ${radio} m` }
-        : { tone: "bad", title: `A ${distancia} m del domicilio`, detail: `Supera el máximo de ${radio} m` },
+        ? { tone: "ok", title: `A ${distancia} m del ${lugar}`, detail: `Máximo permitido: ${radio} m` }
+        : { tone: "bad", title: `A ${distancia} m del ${lugar}`, detail: `Supera el máximo de ${radio} m` },
     visita.mock_location
       ? { tone: "bad", title: "GPS simulado", detail: "El dispositivo reportó una ubicación falsa" }
       : { tone: "ok", title: "GPS real", detail: "Sin ubicación simulada" },
