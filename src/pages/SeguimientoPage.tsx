@@ -1,14 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap, useMapEvents } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup, Polyline, Circle, useMap, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import { io, Socket } from "socket.io-client";
 import "leaflet/dist/leaflet.css";
 import { API_URL, getToken, request } from "../api";
 import { Avatar, Field } from "../components/ui";
+import { horaCorta } from "../lib/format";
 
 type Ubicacion = {
   id: string; username: string; nombres: string; apellidos: string; rol: string;
   latitud: number | null; longitud: number | null;
+  actualizado_en?: string | null; precision?: number | null; simulada?: boolean;
+  en_jornada?: boolean; jornada_inicio?: string | null; jornada_fin?: string | null;
 };
 type Punto = { latitud: number; longitud: number; precision: number | null; fecha: string };
 type Asignacion = {
@@ -18,7 +21,26 @@ type Asignacion = {
 type AuditorInfo = {
   id: string; username: string; nombres: string; apellidos: string; rol: string;
   latitud: number | null; longitud: number | null; enVivo: boolean;
+  actualizadoEn: string | null; precision: number | null; simulada: boolean;
+  enJornada: boolean; jornadaInicio: string | null; jornadaFin: string | null;
 };
+
+// Qué tan fresca es la última posición de un auditor: «en vivo» (llegó hace menos de 45 s, la app envía cada ~7 s),
+// «reciente» (menos de 5 min) o «sin señal» (más antigua o sin hora guardada).
+type Frescura = "VIVO" | "RECIENTE" | "SIN_SENAL" | "SIN_UBICACION";
+function frescuraDe(u: { latitud: number | null; actualizadoEn: string | null }, ahoraMs: number): { estado: Frescura; segundos: number | null } {
+  if (u.latitud == null) return { estado: "SIN_UBICACION", segundos: null };
+  if (!u.actualizadoEn) return { estado: "SIN_SENAL", segundos: null };
+  const segundos = Math.max(0, Math.round((ahoraMs - Date.parse(u.actualizadoEn)) / 1000));
+  return { estado: segundos < 45 ? "VIVO" : segundos < 300 ? "RECIENTE" : "SIN_SENAL", segundos };
+}
+function haceTexto(s: number | null) {
+  if (s == null) return "sin hora registrada";
+  if (s < 60) return `hace ${s} s`;
+  if (s < 3600) return `hace ${Math.floor(s / 60)} min`;
+  if (s < 86400) return `hace ${Math.floor(s / 3600)} h`;
+  return `hace ${Math.floor(s / 86400)} d`;
+}
 
 const CENTER: [number, number] = [-12.0687, -75.2094]; // Huancayo, Junín
 const RUTA_COLOR = "#0f9d6c";
@@ -30,11 +52,14 @@ function colorForRol(rol: string) {
   return rol === "SUPERVISOR" ? "#2c70e8" : "#0ead7a";
 }
 
-function markerIcon(rol: string) {
-  const color = colorForRol(rol);
+// El color del pin sigue al rol; el anillo dice la frescura: pulsa si está en vivo, gris si se perdió la señal y rojo si el GPS es simulado.
+function markerIcon(rol: string, estado: Frescura = "VIVO", simulada = false) {
+  const color = estado === "SIN_SENAL" ? "#94a3b8" : colorForRol(rol);
+  const anillo = simulada ? "0 0 0 3px #d92d20" : `0 0 0 2px ${color}66`;
+  const pulso = estado === "VIVO" && !simulada ? "animation:pulso-gps 1.8s ease-out infinite;" : "";
   return L.divIcon({
     className: "",
-    html: `<div style="width:16px;height:16px;border-radius:50%;background:${color};border:3px solid #fff;box-shadow:0 0 0 2px ${color}66"></div>`,
+    html: `<div class="${estado === "VIVO" ? "gps-vivo" : ""}" style="width:16px;height:16px;border-radius:50%;background:${color};border:3px solid #fff;box-shadow:${anillo};${pulso}"></div>`,
     iconSize: [16, 16],
     iconAnchor: [8, 8],
   });
@@ -148,6 +173,9 @@ export default function SeguimientoPage() {
   // empieza desde aquí?" sin tocar la ubicación real en vivo del auditor.
   const [puntoManual, setPuntoManual] = useState<{ latitud: number; longitud: number } | null>(null);
   const socketRef = useRef<Socket | null>(null);
+  // Hora del servidor menos la de esta PC, para medir la antigüedad de cada posición aunque el reloj de la PC esté desfasado.
+  const offsetRef = useRef(0);
+  const [ahoraMs, setAhoraMs] = useState(() => Date.now());
 
   const load = async () => {
     try {
@@ -155,6 +183,7 @@ export default function SeguimientoPage() {
         request("/api/usuarios/ubicaciones"),
         request("/api/asignaciones?estado=ACTIVA&limit=300"),
       ]);
+      if (ubis.ahora) { offsetRef.current = Date.parse(ubis.ahora) - Date.now(); setAhoraMs(Date.now() + offsetRef.current); }
       setUbicaciones(ubis.data);
       setAsignaciones(asigs.data);
     } catch (e: any) {
@@ -168,22 +197,34 @@ export default function SeguimientoPage() {
     if (!token) return;
     const socket = io(API_URL, { auth: { token }, transports: ["websocket", "polling"] });
     socketRef.current = socket;
+    // El auditor inicia o termina su jornada: se refleja al instante (aunque todavía no haya mandado ninguna posición).
+    socket.on("jornada_actualizada", (data: any) => {
+      setUbicaciones((prev) => {
+        const base = prev.find((u) => u.id === data.id_usuario) || { id: data.id_usuario, username: data.username, nombres: data.nombres || "", apellidos: data.apellidos || "", rol: "AUDITOR", latitud: null, longitud: null };
+        const nuevo: Ubicacion = { ...base, en_jornada: Boolean(data.en_jornada), jornada_inicio: data.jornada_inicio ?? null, jornada_fin: data.jornada_fin ?? null };
+        return prev.some((u) => u.id === nuevo.id) ? prev.map((u) => (u.id === nuevo.id ? nuevo : u)) : [...prev, nuevo];
+      });
+    });
     socket.on("ubicacion_actualizada", (data: any) => {
       setUbicaciones((prev) => {
         const actualizado: Ubicacion = {
           id: data.id_usuario, username: data.username,
           nombres: data.nombres || "", apellidos: data.apellidos || "",
           rol: data.rol || "", latitud: Number(data.latitud), longitud: Number(data.longitud),
+          actualizado_en: data.actualizado_en || data.fecha || new Date(Date.now() + offsetRef.current).toISOString(),
+          precision: data.precision ?? null, simulada: Boolean(data.simulada),
         };
         const idx = prev.findIndex((u) => u.id === actualizado.id);
         if (idx === -1) return [...prev, actualizado];
         const next = [...prev];
-        next[idx] = actualizado;
+        next[idx] = { ...next[idx], ...actualizado }; // conserva el estado de jornada que ya se conocía
         return next;
       });
     });
-    const timer = setInterval(load, 20000);
-    return () => { socket.disconnect(); clearInterval(timer); };
+    // El socket trae cada posición al instante; este refresco solo cubre cortes de conexión. El segundero actualiza «hace X s».
+    const timer = setInterval(load, 10000);
+    const reloj = setInterval(() => setAhoraMs(Date.now() + offsetRef.current), 5000);
+    return () => { socket.disconnect(); clearInterval(timer); clearInterval(reloj); };
   }, []);
 
   useEffect(() => {
@@ -209,7 +250,8 @@ export default function SeguimientoPage() {
       mapa.set(a.auditor.id_usuario, {
         id: a.auditor.id_usuario, username: a.auditor.username,
         nombres: a.auditor.nombres || "", apellidos: a.auditor.apellidos || "",
-        rol: "AUDITOR", latitud: null, longitud: null, enVivo: false,
+        rol: "AUDITOR", latitud: null, longitud: null, enVivo: false, actualizadoEn: null, precision: null, simulada: false,
+        enJornada: false, jornadaInicio: null, jornadaFin: null,
       });
     });
     ubicaciones.forEach((u) => {
@@ -220,6 +262,8 @@ export default function SeguimientoPage() {
         rol: u.rol || previo?.rol || "AUDITOR",
         latitud: u.latitud, longitud: u.longitud,
         enVivo: u.latitud != null && u.longitud != null,
+        actualizadoEn: u.actualizado_en ?? null, precision: u.precision ?? null, simulada: Boolean(u.simulada),
+        enJornada: Boolean(u.en_jornada), jornadaInicio: u.jornada_inicio ?? null, jornadaFin: u.jornada_fin ?? null,
       });
     });
     return mapa;
@@ -330,7 +374,18 @@ export default function SeguimientoPage() {
     ...clientesEnZona.map((a) => [a.latitud, a.longitud] as [number, number]),
   ], [auditoresConMapa, clientesEnZona]);
 
-  const enVivo = auditoresConMapa.length;
+  const frescura = (u: AuditorInfo) => frescuraDe(u, ahoraMs);
+  const enVivo = auditoresConMapa.filter((u) => frescura(u).estado === "VIVO").length;
+  const conSenalAntigua = auditoresConMapa.length - enVivo;
+  // Quien está transmitiendo ahora va primero; después los de señal reciente, los de señal antigua y los que nunca transmitieron.
+  // Quien perdió la señal en plena jornada va primero: es lo que el supervisor debe atender.
+  // (o si inició la jornada hace más de 2 min y todavía no mandó ninguna posición)
+  const sinPosicionDesdeInicio = (u: AuditorInfo) => u.enJornada && frescura(u).estado === "SIN_UBICACION" && u.jornadaInicio != null && ahoraMs - Date.parse(u.jornadaInicio) > 120_000;
+  const perdioSenal = (u: AuditorInfo) => u.enJornada && (frescura(u).estado === "SIN_SENAL" || sinPosicionDesdeInicio(u));
+  const perdieron = todosLosAuditores.filter(perdioSenal).length;
+  const rango: Record<Frescura, number> = { VIVO: 0, RECIENTE: 1, SIN_SENAL: 2, SIN_UBICACION: 3 };
+  const prioridad = (u: AuditorInfo) => (perdioSenal(u) ? -1 : rango[frescura(u).estado]);
+  const auditoresOrdenados = [...auditoresVisibles].sort((a, b) => prioridad(a) - prioridad(b) || `${a.nombres} ${a.apellidos}`.localeCompare(`${b.nombres} ${b.apellidos}`));
 
   return (
     <>
@@ -339,7 +394,7 @@ export default function SeguimientoPage() {
           <h1>Seguimiento <em>en vivo</em></h1>
           <p>Filtra por zona para ver qué auditores y qué clientes hay en cada bloque geográfico. Elige un auditor para ver su ruta sugerida del día.</p>
         </div>
-        <div className="actions"><span className={`live${enVivo ? " on" : ""}`} role="status">{enVivo ? `${enVivo} ${enVivo === 1 ? "auditor transmite" : "auditores transmiten"} su ubicación` : "Nadie transmite ubicación ahora"}</span></div>
+        <div className="actions"><span className={`live${enVivo ? " on" : ""}`} role="status">{enVivo ? `${enVivo} ${enVivo === 1 ? "auditor transmite" : "auditores transmiten"} su ubicación en vivo` : "Nadie transmite ubicación en vivo ahora"}{conSenalAntigua ? ` · ${conSenalAntigua} con señal antigua` : ""}{perdieron ? ` · ⚠ ${perdieron} sin señal en plena jornada` : ""}</span></div>
       </div>
       {error ? <div role="alert" className="error-box">{error}</div> : null}
 
@@ -384,14 +439,22 @@ export default function SeguimientoPage() {
             <p className="subtle">{zonaActiva ? "Ningún auditor tiene clientes en esta zona." : "Nadie tiene casos asignados con ubicación todavía."}</p>
           ) : null}
           <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            {auditoresVisibles.map((u) => {
+            {auditoresOrdenados.map((u) => {
               const nombreU = `${u.nombres || u.username} ${u.apellidos}`.trim();
+              const f = frescura(u);
+              const hace = haceTexto(f.segundos);
+              // Dentro de la jornada, no tener señal es una alerta; fuera de ella solo es información.
+              const etiqueta = u.enJornada
+                ? (f.estado === "VIVO" ? `En jornada · en vivo ${hace}` : f.estado === "RECIENTE" ? `En jornada · reciente ${hace}` : f.estado === "SIN_UBICACION" ? (sinPosicionDesdeInicio(u) ? "Perdió la señal en plena jornada · no mandó ninguna posición" : "En jornada · esperando su primera posición") : `Perdió la señal en plena jornada · última ${hace}`)
+                : (f.estado === "VIVO" ? `En vivo · ${hace}` : f.estado === "RECIENTE" ? `Reciente · ${hace}` : f.estado === "SIN_SENAL" ? `Fuera de jornada · última ${hace}${u.jornadaFin ? ` (terminó ${horaCorta(u.jornadaFin)})` : ""}` : "Sin GPS ahora");
+              const simulada = u.simulada && f.estado !== "SIN_UBICACION";
+              const clase = simulada || perdioSenal(u) ? " bad" : f.estado === "VIVO" ? " on" : f.estado === "RECIENTE" || (u.enJornada && f.estado === "SIN_UBICACION") ? " warn" : "";
               return (
                 <button key={u.id} type="button" className={`pick${seleccionado === u.id ? " on" : ""}`} aria-pressed={seleccionado === u.id} onClick={() => setSeleccionado(u.id === seleccionado ? null : u.id)}>
                   <Avatar nombre={nombreU} />
                   <span>
                     <b>{nombreU}</b>
-                    <span className={`live${u.enVivo ? " on" : ""}`}>{u.enVivo ? "En línea" : "Sin GPS ahora"}{zonaActiva ? ` · ${clientesPorAuditor.get(u.id) || 0} aquí` : ""}</span>
+                    <span className={`live${clase}`}>{simulada ? "GPS simulado · " : ""}{etiqueta}{zonaActiva ? ` · ${clientesPorAuditor.get(u.id) || 0} aquí` : ""}</span>
                   </span>
                 </button>
               );
@@ -443,16 +506,26 @@ export default function SeguimientoPage() {
             <TileLayer attribution="&copy; OpenStreetMap" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
             <FitBounds coords={fitCoords} />
             <ClickParaIniciar activo={Boolean(seleccionado && !origenRuta)} onClick={setPuntoManual} />
-            {auditoresConMapa.filter((u) => u.id !== seleccionado).map((u) => (
-              <Marker
-                key={u.id}
-                position={[u.latitud as number, u.longitud as number]}
-                icon={markerIcon(u.rol)}
-                eventHandlers={{ click: () => setSeleccionado(u.id === seleccionado ? null : u.id) }}
-              >
-                <Popup><strong>{u.nombres || u.username} {u.apellidos}</strong><br />{u.rol}</Popup>
-              </Marker>
-            ))}
+            {auditoresConMapa.map((u) => { const f = frescura(u); return f.estado !== "SIN_SENAL" && u.precision ? (
+              <Circle key={`p-${u.id}`} center={[u.latitud as number, u.longitud as number]} radius={Math.min(u.precision, 500)} pathOptions={{ color: u.simulada ? "#d92d20" : colorForRol(u.rol), weight: 1, fillOpacity: 0.08 }} />
+            ) : null; })}
+            {auditoresConMapa.filter((u) => u.id !== seleccionado).map((u) => {
+              const f = frescura(u);
+              return (
+                <Marker
+                  key={u.id}
+                  position={[u.latitud as number, u.longitud as number]}
+                  icon={markerIcon(u.rol, f.estado, u.simulada)}
+                  eventHandlers={{ click: () => setSeleccionado(u.id === seleccionado ? null : u.id) }}
+                >
+                  <Popup>
+                    <strong>{u.nombres || u.username} {u.apellidos}</strong><br />{u.rol}<br />
+                    {f.estado === "VIVO" ? "En vivo" : f.estado === "RECIENTE" ? "Reciente" : "Sin señal"} · {haceTexto(f.segundos)}{u.precision ? ` · precisión ±${Math.round(u.precision)} m` : ""}
+                    {u.simulada ? <><br /><strong style={{ color: "#d92d20" }}>El celular avisó GPS simulado</strong></> : null}
+                  </Popup>
+                </Marker>
+              );
+            })}
             {origenRuta ? (
               <Marker
                 position={[origenRuta.latitud, origenRuta.longitud]}
@@ -467,7 +540,7 @@ export default function SeguimientoPage() {
               >
                 <Popup>
                   <strong>{auditorSeleccionado?.nombres || "Inicio de ruta"} {auditorSeleccionado?.apellidos}</strong><br />
-                  {puntoManual ? "Punto de partida simulado" : "Ubicación en vivo"}<br />
+                  {puntoManual ? "Punto de partida simulado" : auditorSeleccionado ? `Ubicación ${haceTexto(frescura(auditorSeleccionado).segundos)}${auditorSeleccionado.precision ? ` · ±${Math.round(auditorSeleccionado.precision)} m` : ""}` : "Ubicación en vivo"}<br />
                   <em>Arrastra el pin para planificar desde otro punto.</em>
                 </Popup>
               </Marker>

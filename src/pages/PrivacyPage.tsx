@@ -18,7 +18,7 @@ export default function PrivacyPage() {
 
         <h2>Qué información recopila la app</h2>
         <ul>
-          <li><b>Ubicación (GPS):</b> se registra durante el checkin de cada visita y, mientras la pantalla de mapa está abierta, de forma continua, para verificar que el auditor estuvo físicamente en el domicilio del cliente y para que su supervisor pueda ubicarlo en el mapa de seguimiento.</li>
+          <li><b>Ubicación (GPS):</b> se registra durante el checkin de cada visita, para verificar que el auditor estuvo físicamente en el domicilio o negocio del cliente. Además, solo entre «Iniciar jornada» y «Terminar jornada», la app comparte la posición de forma continua, incluso con la pantalla apagada o usando otra aplicación de mapas, para que su supervisor pueda ubicarlo en el mapa de seguimiento. Mientras dure, Android muestra una notificación fija; fuera de la jornada no se comparte la ubicación y la jornada se cierra sola al cerrar sesión.</li>
           <li><b>Cámara:</b> para tomar las fotografías obligatorias de evidencia de cada visita. La app no permite adjuntar fotos de la galería.</li>
           <li><b>Identificador del dispositivo:</b> un identificador de instalación (no el IMEI ni datos de hardware), usado para vincular la cuenta del auditor a un único dispositivo autorizado.</li>
           <li><b>Datos del cliente auditado:</b> nombre, documento, dirección y respuestas del cuestionario de verificación, provistos por Caja Huancayo, no por el usuario de la app.</li>
