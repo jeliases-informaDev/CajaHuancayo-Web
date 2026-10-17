@@ -18,6 +18,8 @@ export default function UsuariosPage() {
   const [form, setForm] = useState(emptyForm);
   const [mfa, setMfa] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [clave, setClave] = useState<any | null>(null); // usuario al que se le cambia la contraseña
+  const [nuevaClave, setNuevaClave] = useState("");
   const [rol, setRol] = useQueryParam("rol");
   const [busqueda, setBusqueda] = useQueryParam("q");
 
@@ -38,6 +40,17 @@ export default function UsuariosPage() {
     try {
       await request("/api/usuarios", { method: "POST", body: JSON.stringify({ ...form, mfa_habilitado: mfa }) });
       setNuevo(false); setForm(emptyForm); setMfa(true); setOk("Usuario creado.");
+      await cargar();
+    } catch (x: any) { setError(x.message); } finally { setSaving(false); }
+  };
+
+  const cambiarClave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!clave) return;
+    setError(""); setSaving(true);
+    try {
+      await request(`/api/usuarios/${clave.id}`, { method: "PATCH", body: JSON.stringify({ password: nuevaClave }) });
+      setOk(`Contraseña de @${clave.username} actualizada. Sus sesiones abiertas se cerraron.`); setClave(null); setNuevaClave("");
       await cargar();
     } catch (x: any) { setError(x.message); } finally { setSaving(false); }
   };
@@ -96,6 +109,7 @@ export default function UsuariosPage() {
                       header={{ title: nombreDe(u) || u.username, sub: `@${u.username}` }}
                       items={[
                         { label: "Liberar dispositivo", hidden: u.rol === "ADMINISTRADOR", onClick: () => { if (window.confirm(`¿Liberar el dispositivo de @${u.username}? Podrá iniciar sesión desde otro teléfono.`)) accion(() => request(`/api/usuarios/${u.id}/device/reset`, { method: "POST" }), "Dispositivo liberado: podrá iniciar sesión desde otro teléfono."); } },
+                        { label: "Cambiar contraseña", onClick: () => { setClave(u); setNuevaClave(""); setOk(""); } },
                         { label: "Restablecer verificación en dos pasos", onClick: () => { if (window.confirm(`¿Restablecer la verificación en dos pasos de @${u.username}? Tendrá que configurarla de nuevo.`)) accion(() => request(`/api/usuarios/${u.id}/mfa/reset`, { method: "POST" }), "Verificación en dos pasos restablecida."); } },
                         u.estado === "ACTIVO"
                           ? { label: "Desactivar usuario", tone: "bad", separatorBefore: true, onClick: () => { if (window.confirm(`¿Desactivar a @${u.username}? No podrá iniciar sesión y sus casos activos se liberan.`)) accion(() => request(`/api/usuarios/${u.id}`, { method: "PATCH", body: JSON.stringify({ estado: "INACTIVO" }) }), "Usuario desactivado."); } }
@@ -109,6 +123,15 @@ export default function UsuariosPage() {
           </table>
         </div>
       )}
+
+      {clave ? (
+        <Drawer title="Cambiar contraseña" subtitle={`@${clave.username} · mínimo 12 caracteres. Se cerrarán sus sesiones abiertas.`} onClose={() => setClave(null)}
+          footer={<><button className="btn ghost" onClick={() => setClave(null)}>Cancelar</button><button className="btn" type="submit" form="form-clave" disabled={saving}>{saving ? "Guardando…" : "Guardar contraseña"}</button></>}>
+          <form id="form-clave" onSubmit={cambiarClave}>
+            <Field label="Nueva contraseña"><input name="password" type="password" autoComplete="new-password" spellCheck={false} required minLength={12} maxLength={128} value={nuevaClave} onChange={(e) => setNuevaClave(e.target.value)} /></Field>
+          </form>
+        </Drawer>
+      ) : null}
 
       {nuevo ? (
         <Drawer title="Nuevo usuario" subtitle="La contraseña debe tener al menos 12 caracteres." onClose={cerrarNuevo}
