@@ -16,6 +16,7 @@ export default function UsuariosPage() {
   const [ok, setOk] = useState("");
   const [nuevo, setNuevo] = useState(false);
   const [form, setForm] = useState(emptyForm);
+  const [mfa, setMfa] = useState(true);
   const [saving, setSaving] = useState(false);
   const [rol, setRol] = useQueryParam("rol");
   const [busqueda, setBusqueda] = useQueryParam("q");
@@ -28,15 +29,15 @@ export default function UsuariosPage() {
 
   const cerrarNuevo = () => {
     if (JSON.stringify(form) !== JSON.stringify(emptyForm) && !window.confirm("Hay datos sin guardar. ¿Cerrar y descartarlos?")) return;
-    setNuevo(false); setForm(emptyForm);
+    setNuevo(false); setForm(emptyForm); setMfa(true);
   };
 
   const crear = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(""); setSaving(true);
     try {
-      await request("/api/usuarios", { method: "POST", body: JSON.stringify(form) });
-      setNuevo(false); setForm(emptyForm); setOk("Usuario creado.");
+      await request("/api/usuarios", { method: "POST", body: JSON.stringify({ ...form, mfa_habilitado: mfa }) });
+      setNuevo(false); setForm(emptyForm); setMfa(true); setOk("Usuario creado.");
       await cargar();
     } catch (x: any) { setError(x.message); } finally { setSaving(false); }
   };
@@ -127,6 +128,10 @@ export default function UsuariosPage() {
                 <p className="subtle" style={{ marginTop: -6 }}>Si lo dejas vacío, el sistema no podrá impedir que le asignen clientes de otra ciudad.</p>
               </>
             ) : null}
+            <label className="check-inline" style={{ height: "auto", marginTop: 12, alignItems: "flex-start" }}>
+              <input type="checkbox" name="mfa_habilitado" checked={mfa} onChange={(e) => setMfa(e.target.checked)} style={{ marginTop: 3 }} />
+              <span>Exigir verificación en dos pasos (recomendado). En su primer ingreso configurará una app autenticadora.</span>
+            </label>
           </form>
         </Drawer>
       ) : null}
