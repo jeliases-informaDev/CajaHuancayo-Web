@@ -183,7 +183,7 @@ function Trazabilidad({ visita, e }: { visita: any; e: any }) {
 
 // Controles que el revisor comprueba antes de dar por buena una visita. Salen de lo que ya guarda el sistema.
 function controlesDe(visita: any, esMype: boolean) {
-  const radio = Number(visita.trazabilidad?.geocerca_m) || 300;
+  const radio = Number(visita.trazabilidad?.geocerca_m) || 100;
   const llegoAlCliente = ["CONFORME", "OBSERVADO"].includes(visita.resultado);
   const r = visita.respuestas_cuestionario || {};
   const tresRespuestas = ["entrego_dinero_asesor", "pago_comision_adicional", "recibio_monto_total"].every((k) => typeof r[k] === "boolean");

@@ -3,7 +3,7 @@
 export type Tono = "ok" | "warn" | "bad" | "na";
 export type Senal = { tone: Tono; label: string };
 
-export function senalesDeLista(v: any, radio = 300): Senal[] {
+export function senalesDeLista(v: any, radio = 100): Senal[] {
   const dist = v.distancia_domicilio_m != null ? Number(v.distancia_domicilio_m) : null;
   const fotos = v.evidencias?.length || 0;
   return [
