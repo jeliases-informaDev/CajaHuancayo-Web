@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { MapContainer, TileLayer, Marker, Popup, Polyline, Circle, useMap, useMapEvents } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup, Polyline, Circle, CircleMarker, useMap, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import { io, Socket } from "socket.io-client";
 import "leaflet/dist/leaflet.css";
@@ -12,7 +12,7 @@ type Ubicacion = {
   latitud: number | null; longitud: number | null;
   actualizado_en?: string | null; precision?: number | null; simulada?: boolean;
   en_jornada?: boolean; jornada_inicio?: string | null; jornada_fin?: string | null;
-  bateria?: number | null; cargando?: boolean;
+  bateria?: number | null; cargando?: boolean; movimiento?: Movimiento | null;
 };
 type Punto = { latitud: number; longitud: number; precision: number | null; fecha: string };
 type Asignacion = {
@@ -24,7 +24,7 @@ type AuditorInfo = {
   latitud: number | null; longitud: number | null; enVivo: boolean;
   actualizadoEn: string | null; precision: number | null; simulada: boolean;
   enJornada: boolean; jornadaInicio: string | null; jornadaFin: string | null;
-  bateria: number | null; cargando: boolean;
+  bateria: number | null; cargando: boolean; movimiento: Movimiento | null;
 };
 
 // Aviso de llegada o salida: el auditor entró al radio de un cliente (o de su negocio) o se alejó de él.
@@ -33,6 +33,31 @@ type EventoCampo = {
   id_usuario: string; auditor: string; id_expediente: number; codigo_expediente: string | null;
   cliente: string | null; punto: string; direccion: string | null;
 };
+// Cómo se está moviendo el auditor, calculado por el servidor con sus últimos puntos (no depende de nada extra del celular).
+type Movimiento = { estado: "SIN_DATOS" | "DETENIDO" | "EN_MOVIMIENTO"; desde: string | null; velocidad_kmh: number | null; modo: "A_PIE" | "VEHICULO" | "SALTO_GPS" | null };
+function textoMovimiento(m: Movimiento | null | undefined, ahoraMs: number): string | null {
+  if (!m || m.estado === "SIN_DATOS") return null;
+  if (m.estado === "DETENIDO" && m.desde) {
+    const min = Math.max(0, Math.floor((ahoraMs - Date.parse(m.desde)) / 60000));
+    return min >= 60 ? "Detenido hace más de 1 h" : "Detenido hace " + min + " min";
+  }
+  if (m.modo === "SALTO_GPS") return "Salto de GPS: posición imposible";
+  if (m.modo === "VEHICULO") return "En vehículo · " + Math.round(m.velocidad_kmh ?? 0) + " km/h";
+  if (m.modo === "A_PIE") return "A pie · " + Math.round(m.velocidad_kmh ?? 0) + " km/h";
+  return null;
+}
+const horaConSegundos = (iso: string) => new Date(iso).toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+// Tramos del recorrido en los que no llegó ninguna posición durante más de 5 min (sin señal, sin batería o app cerrada).
+type Pausa = { desde: string; hasta: string; minutos: number };
+function pausasSinSenal(puntos: { fecha: string }[]): Pausa[] {
+  const lista: Pausa[] = [];
+  for (let i = 1; i < puntos.length; i += 1) {
+    const dt = (Date.parse(puntos[i].fecha) - Date.parse(puntos[i - 1].fecha)) / 1000;
+    if (dt > 300) lista.push({ desde: puntos[i - 1].fecha, hasta: puntos[i].fecha, minutos: Math.round(dt / 60) });
+  }
+  return lista;
+}
+
 // Con 15 % o menos y sin cargador, el celular está por apagarse: el supervisor debe saberlo antes de que se pierda la señal.
 const bateriaBaja = (u: { bateria: number | null; cargando: boolean }) => u.bateria != null && u.bateria <= 15 && !u.cargando;
 
@@ -164,6 +189,13 @@ function FitBounds({ coords, clave }: { coords: [number, number][]; clave?: stri
 // Cuando el auditor elegido no está transmitiendo ubicación en vivo no hay ningún
 // pin de inicio que arrastrar, así que se deja tocar el mapa directamente para
 // fijar un punto de partida manual y poder planificar igual su ruta del día.
+// Durante la reproducción del recorrido el mapa sigue al punto, para que no se salga de la vista.
+function SeguirPunto({ latitud, longitud }: { latitud: number; longitud: number }) {
+  const map = useMap();
+  useEffect(() => { map.panTo([latitud, longitud], { animate: true, duration: 0.2 }); }, [latitud, longitud]);
+  return null;
+}
+
 function ClickParaIniciar({ activo, onClick }: { activo: boolean; onClick: (p: { latitud: number; longitud: number }) => void }) {
   useMapEvents({
     click(e) {
@@ -190,6 +222,11 @@ export default function SeguimientoPage() {
   const offsetRef = useRef(0);
   const [ahoraMs, setAhoraMs] = useState(() => Date.now());
   const [eventos, setEventos] = useState<EventoCampo[]>([]);
+  // Recorrido real del auditor elegido: día, momento que se está viendo (null = ver todo) y reproducción automática.
+  const hoy = () => new Date().toLocaleDateString("en-CA"); // AAAA-MM-DD en hora local
+  const [fechaRuta, setFechaRuta] = useState(hoy);
+  const [idxRepeticion, setIdxRepeticion] = useState<number | null>(null);
+  const [reproduciendo, setReproduciendo] = useState(false);
 
   const load = async () => {
     try {
@@ -247,11 +284,19 @@ export default function SeguimientoPage() {
   }, []);
 
   useEffect(() => {
+    setIdxRepeticion(null); setReproduciendo(false);
     if (!seleccionado) { setRuta([]); return; }
-    request(`/api/usuarios/${seleccionado}/tracking`)
+    request("/api/usuarios/" + seleccionado + "/tracking?fecha=" + fechaRuta)
       .then((r: any) => setRuta(r.data))
       .catch(() => setRuta([]));
-  }, [seleccionado]);
+  }, [seleccionado, fechaRuta]);
+  // Reproducción: un punto cada 250 ms hasta el final del día.
+  useEffect(() => {
+    if (!reproduciendo) return;
+    const t = setInterval(() => setIdxRepeticion((i) => Math.min((i ?? 0) + 1, ruta.length - 1)), 250);
+    return () => clearInterval(t);
+  }, [reproduciendo, ruta.length]);
+  useEffect(() => { if (reproduciendo && idxRepeticion != null && idxRepeticion >= ruta.length - 1) setReproduciendo(false); }, [reproduciendo, idxRepeticion, ruta.length]);
 
   // El filtro de zona es independiente de a quién elijas (ver más abajo): al cambiar
   // de auditor solo se limpia el punto de partida simulado, que es propio de esa
@@ -270,7 +315,7 @@ export default function SeguimientoPage() {
         id: a.auditor.id_usuario, username: a.auditor.username,
         nombres: a.auditor.nombres || "", apellidos: a.auditor.apellidos || "",
         rol: "AUDITOR", latitud: null, longitud: null, enVivo: false, actualizadoEn: null, precision: null, simulada: false,
-        enJornada: false, jornadaInicio: null, jornadaFin: null, bateria: null, cargando: false,
+        enJornada: false, jornadaInicio: null, jornadaFin: null, bateria: null, cargando: false, movimiento: null,
       });
     });
     ubicaciones.forEach((u) => {
@@ -283,13 +328,21 @@ export default function SeguimientoPage() {
         enVivo: u.latitud != null && u.longitud != null,
         actualizadoEn: u.actualizado_en ?? null, precision: u.precision ?? null, simulada: Boolean(u.simulada),
         enJornada: Boolean(u.en_jornada), jornadaInicio: u.jornada_inicio ?? null, jornadaFin: u.jornada_fin ?? null,
-        bateria: u.bateria ?? null, cargando: Boolean(u.cargando),
+        bateria: u.bateria ?? null, cargando: Boolean(u.cargando), movimiento: u.movimiento ?? null,
       });
     });
     return mapa;
   }, [asignaciones, ubicaciones]);
   const todosLosAuditores = useMemo(() => Array.from(auditorPorId.values()), [auditorPorId]);
   const polyline = useMemo<[number, number][]>(() => ruta.map((p) => [p.latitud, p.longitud]), [ruta]);
+  const pausas = useMemo(() => pausasSinSenal(ruta), [ruta]);
+  const puntoRepeticion = idxRepeticion != null && ruta[idxRepeticion] ? ruta[idxRepeticion] : null;
+  const rutaRecorrida = useMemo<[number, number][]>(() => (idxRepeticion == null ? [] : ruta.slice(0, idxRepeticion + 1).map((p) => [p.latitud, p.longitud] as [number, number])), [ruta, idxRepeticion]);
+  const alternarReproduccion = () => {
+    if (reproduciendo) { setReproduciendo(false); return; }
+    if (idxRepeticion == null || idxRepeticion >= ruta.length - 1) setIdxRepeticion(0);
+    setReproduciendo(true);
+  };
 
   const auditorSeleccionado = (seleccionado && auditorPorId.get(seleccionado)?.enVivo ? auditorPorId.get(seleccionado) : null) || null;
   const origenRuta = useMemo(() => {
@@ -473,6 +526,8 @@ export default function SeguimientoPage() {
                 ? (f.estado === "VIVO" ? `En jornada · en vivo ${hace}` : f.estado === "RECIENTE" ? `En jornada · reciente ${hace}` : f.estado === "SIN_UBICACION" ? (sinPosicionDesdeInicio(u) ? "Perdió la señal en plena jornada · no mandó ninguna posición" : "En jornada · esperando su primera posición") : `Perdió la señal en plena jornada · última ${hace}`)
                 : (f.estado === "VIVO" ? `En vivo · ${hace}` : f.estado === "RECIENTE" ? `Reciente · ${hace}` : f.estado === "SIN_SENAL" ? `Fuera de jornada · última ${hace}${u.jornadaFin ? ` (terminó ${horaCorta(u.jornadaFin)})` : ""}` : "Sin GPS ahora");
               const simulada = u.simulada && f.estado !== "SIN_UBICACION";
+              const mov = f.estado !== "SIN_SENAL" ? textoMovimiento(u.movimiento, ahoraMs) : null;
+              const enVisita = eventos.find((x) => x.id_usuario === u.id); // el aviso más reciente: si es una llegada, sigue en la visita
               const clase = simulada || perdioSenal(u) ? " bad" : f.estado === "VIVO" ? " on" : f.estado === "RECIENTE" || (u.enJornada && f.estado === "SIN_UBICACION") ? " warn" : "";
               return (
                 <button key={u.id} type="button" className={`pick${seleccionado === u.id ? " on" : ""}`} aria-pressed={seleccionado === u.id} onClick={() => setSeleccionado(u.id === seleccionado ? null : u.id)}>
@@ -481,6 +536,8 @@ export default function SeguimientoPage() {
                     <b>{nombreU}</b>
                     <span className={`live${clase}`}>{simulada ? "GPS simulado · " : ""}{etiqueta}{zonaActiva ? ` · ${clientesPorAuditor.get(u.id) || 0} aquí` : ""}</span>
                     {u.bateria != null ? <span className={`bat${bateriaBaja(u) ? " bajo" : ""}`}>Batería {u.bateria} %{u.cargando ? " · cargando" : ""}{bateriaBaja(u) ? (perdioSenal(u) ? " · posible batería agotada" : " · baja") : ""}</span> : null}
+                    {mov ? <span className={"bat" + (u.movimiento?.modo === "SALTO_GPS" ? " bajo" : "")}>{mov}</span> : null}
+                    {enVisita && enVisita.tipo === "LLEGADA" ? <span className="bat">En la visita de {enVisita.cliente || "un cliente"} desde {horaCorta(enVisita.fecha)}</span> : null}
                   </span>
                 </button>
               );
@@ -507,6 +564,28 @@ export default function SeguimientoPage() {
 
           {seleccionado ? (
             <>
+              <h2 className="section-title">Recorrido real</h2>
+              <div className="replay">
+                <Field label="Día">
+                  <input type="date" name="fecha-recorrido" value={fechaRuta} max={hoy()} onChange={(e) => { if (e.target.value) setFechaRuta(e.target.value); }} />
+                </Field>
+                {ruta.length < 2 ? <p className="subtle">Sin recorrido registrado ese día.</p> : (
+                  <>
+                    <div className="replay-barra">
+                      <button type="button" className="btn small" onClick={alternarReproduccion}>{reproduciendo ? "Pausar" : "Reproducir"}</button>
+                      <input type="range" name="momento" aria-label="Momento del recorrido" min={0} max={ruta.length - 1} value={idxRepeticion ?? ruta.length - 1} onChange={(e) => { setReproduciendo(false); setIdxRepeticion(Number(e.target.value)); }} />
+                    </div>
+                    <p className="subtle" role="status">
+                      {puntoRepeticion ? horaConSegundos(puntoRepeticion.fecha) + (puntoRepeticion.precision ? " · ±" + Math.round(puntoRepeticion.precision) + " m" : "") : "Mueve la barra para ver dónde estaba."} · {ruta.length} puntos de {horaCorta(ruta[0].fecha)} a {horaCorta(ruta[ruta.length - 1].fecha)}
+                    </p>
+                    {pausas.length ? (
+                      <ul className="pausas" aria-label="Tramos sin señal">
+                        {pausas.map((p) => <li key={p.desde}>Sin señal de {horaCorta(p.desde)} a {horaCorta(p.hasta)} ({p.minutos} min)</li>)}
+                      </ul>
+                    ) : null}
+                  </>
+                )}
+              </div>
               <h2 className="section-title">Ruta del día</h2>
               {puntoManual ? (
                 <div className="callout info" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
@@ -620,6 +699,9 @@ export default function SeguimientoPage() {
             })}
             {rutaSugerida.length > 1 ? <Polyline positions={rutaSugerida} pathOptions={{ color: RUTA_COLOR, weight: 4, opacity: 0.85 }} /> : null}
             {polyline.length > 1 ? <Polyline positions={polyline} pathOptions={{ color: "#94a3b8", weight: 2, opacity: 0.7, dashArray: "4 6" }} /> : null}
+            {rutaRecorrida.length > 1 ? <Polyline positions={rutaRecorrida} pathOptions={{ color: INICIO_COLOR, weight: 4, opacity: 0.9 }} /> : null}
+            {puntoRepeticion ? <CircleMarker center={[puntoRepeticion.latitud, puntoRepeticion.longitud]} radius={9} pathOptions={{ color: "#ffffff", weight: 3, fillColor: INICIO_COLOR, fillOpacity: 1 }} /> : null}
+            {reproduciendo && puntoRepeticion ? <SeguirPunto latitud={puntoRepeticion.latitud} longitud={puntoRepeticion.longitud} /> : null}
           </MapContainer>
           <div className="maplegend" aria-label="Leyenda del mapa">
             <span style={{ ["--c" as any]: INICIO_COLOR }}><i />Inicio de ruta (arrastrable)</span>
