@@ -140,11 +140,13 @@ function distanciaMetros(lat1: number, lng1: number, lat2: number, lng2: number)
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-function FitBounds({ coords }: { coords: [number, number][] }) {
+// Encuadra el mapa. Con «clave» solo se vuelve a encuadrar cuando esa clave cambia (p. ej. al elegir otro auditor), no en cada posición
+// nueva: así el mapa no se mueve solo mientras el supervisor está mirando o haciendo zoom.
+function FitBounds({ coords, clave }: { coords: [number, number][]; clave?: string }) {
   const map = useMap();
   useEffect(() => {
     if (coords.length) map.fitBounds(coords, { padding: [60, 60], maxZoom: 15 });
-  }, [coords.length, coords.map((c) => c.join(",")).join("|")]);
+  }, [clave ?? coords.length, clave ?? coords.map((c) => c.join(",")).join("|")]);
   return null;
 }
 
@@ -369,10 +371,14 @@ export default function SeguimientoPage() {
     return [[origenRuta.latitud, origenRuta.longitud], ...enRuta.map((a) => [a.latitud, a.longitud] as [number, number])];
   }, [origenRuta, enRuta]);
 
-  const fitCoords = useMemo<[number, number][]>(() => [
-    ...auditoresConMapa.map((u) => [u.latitud as number, u.longitud as number] as [number, number]),
-    ...clientesEnZona.map((a) => [a.latitud, a.longitud] as [number, number]),
-  ], [auditoresConMapa, clientesEnZona]);
+  // Con un auditor elegido el mapa se centra en él y en sus clientes (no en todo el país); sin elegir, en todos.
+  const fitCoords = useMemo<[number, number][]>(() => (origenRuta && seleccionado
+    ? [[origenRuta.latitud, origenRuta.longitud] as [number, number], ...clientesDelAuditorSeleccionado.map((a) => [a.latitud, a.longitud] as [number, number])]
+    : [
+      ...auditoresConMapa.map((u) => [u.latitud as number, u.longitud as number] as [number, number]),
+      ...clientesEnZona.map((a) => [a.latitud, a.longitud] as [number, number]),
+    ]), [auditoresConMapa, clientesEnZona, origenRuta, seleccionado, clientesDelAuditorSeleccionado]);
+  const fitClave = origenRuta && seleccionado ? `sel:${seleccionado}:${clientesDelAuditorSeleccionado.length}` : undefined;
 
   const frescura = (u: AuditorInfo) => frescuraDe(u, ahoraMs);
   const enVivo = auditoresConMapa.filter((u) => frescura(u).estado === "VIVO").length;
@@ -504,7 +510,7 @@ export default function SeguimientoPage() {
         <div className="seg-mapcard">
           <MapContainer center={CENTER} zoom={12} className="seguimiento-map">
             <TileLayer attribution="&copy; OpenStreetMap" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-            <FitBounds coords={fitCoords} />
+            <FitBounds coords={fitCoords} clave={fitClave} />
             <ClickParaIniciar activo={Boolean(seleccionado && !origenRuta)} onClick={setPuntoManual} />
             {auditoresConMapa.map((u) => { const f = frescura(u); return f.estado !== "SIN_SENAL" && u.precision ? (
               <Circle key={`p-${u.id}`} center={[u.latitud as number, u.longitud as number]} radius={Math.min(u.precision, 500)} pathOptions={{ color: u.simulada ? "#d92d20" : colorForRol(u.rol), weight: 1, fillOpacity: 0.08 }} />
