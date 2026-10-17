@@ -664,6 +664,41 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--brand); width:
 .interruptor:disabled { opacity: .6; cursor: progress; }
 .toma-confirma { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 13px; }
 @media (prefers-reduced-motion: reduce) { .interruptor .pista, .interruptor .perilla { transition: none; } }
+.sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.seg-busca input { width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--ink); font: inherit; }
+.seg-busca input:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+.hallazgos { list-style: none; margin: 6px 0 0; padding: 4px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.hallazgos button { width: 100%; text-align: left; background: none; border: 0; border-radius: 8px; padding: 8px 10px; font: inherit; color: var(--ink); cursor: pointer; }
+.hallazgos button:hover, .hallazgos button:focus-visible { background: var(--brand-soft); }
+.hallazgos b { display: block; font-weight: 500; }
+.hallazgos small { color: var(--muted); font-size: 12px; }
+.seg-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 4px; }
+.seg-chip { border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 999px; padding: 5px 11px; font: inherit; font-size: 12.5px; cursor: pointer; }
+.seg-chip b { font-weight: 600; font-variant-numeric: tabular-nums; margin-left: 2px; }
+.seg-chip:hover { background: var(--surface-2); }
+.seg-chip.on { background: var(--brand); border-color: var(--brand); color: #fff; }
+.seg-chip.alerta:not(.on) { border-color: var(--bad, #d92d20); color: var(--bad, #b42318); }
+.zona-det { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 10px; }
+.zona-det summary { cursor: pointer; display: flex; justify-content: space-between; gap: 10px; align-items: baseline; font-weight: 600; list-style: none; }
+.zona-det summary::-webkit-details-marker { display: none; }
+.zona-det summary em { font-style: normal; font-weight: 400; color: var(--muted); font-size: 12.5px; text-align: right; }
+.zona-det[open] summary { margin-bottom: 8px; }
+.map-tools { position: absolute; top: 12px; left: 56px; z-index: 500; display: flex; flex-wrap: wrap; gap: 6px; max-width: calc(100% - 140px); }
+.map-tools button { border: 1px solid var(--line); background: color-mix(in srgb, var(--surface) 92%, transparent); color: var(--ink); border-radius: 999px; padding: 6px 12px; font: inherit; font-size: 12.5px; font-weight: 500; cursor: pointer; box-shadow: var(--sh-1); backdrop-filter: blur(6px); }
+.map-tools button:hover { background: var(--surface); }
+.map-tools button.on { background: var(--brand); border-color: var(--brand); color: #fff; }
+.map-tools button:focus-visible, .seg-chip:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.maplegend.cerrada { display: none; }
+.avatar-pin { border-radius: 50%; background: var(--c); color: #fff; border: 3px solid #fff; box-shadow: 0 2px 8px rgba(0,0,0,.28); display: flex; align-items: center; justify-content: center; font: 600 12px var(--font-ui); letter-spacing: .02em; transition: width .2s, height .2s; }
+.avatar-pin.gps-vivo { animation: pulso-gps 1.8s ease-out infinite; }
+.avatar-pin.elegido { font-size: 14px; box-shadow: 0 0 0 4px color-mix(in srgb, var(--c) 35%, transparent), 0 4px 14px rgba(0,0,0,.35); }
+.cluster-pin { width: 38px; height: 38px; border-radius: 50%; background: var(--brand); color: #fff; border: 3px solid #fff; box-shadow: 0 2px 8px rgba(0,0,0,.3); display: flex; align-items: center; justify-content: center; font: 600 13px var(--font-ui); font-variant-numeric: tabular-nums; }
+.pop { display: flex; flex-direction: column; gap: 2px; font-size: 13px; line-height: 1.4; min-width: 150px; }
+.pop strong { font-weight: 600; font-size: 14px; }
+.pop .pop-rol { font-size: 11.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.pick { border-radius: 12px; }
+.pick.on { box-shadow: 0 0 0 1px color-mix(in srgb, var(--brand) 35%, transparent); }
+@media (prefers-reduced-motion: reduce) { .avatar-pin.gps-vivo { animation: none; } .avatar-pin { transition: none; } }
 .replay-barra { display: flex; gap: 10px; align-items: center; margin: 6px 0; }
 .replay-barra input[type=range] { flex: 1; min-width: 0; accent-color: var(--brand); }
 .pausas { list-style: none; margin: 4px 0 0; padding: 0; font-size: 12px; color: var(--muted); }
