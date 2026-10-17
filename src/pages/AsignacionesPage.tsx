@@ -13,6 +13,8 @@ export default function AsignacionesPage() {
   const [auditores, setAuditores] = useState<any[]>([]);
   const [pool, setPool] = useState<any[]>([]);
   const [asignaciones, setAsignaciones] = useState<any[]>([]);
+  // Cuántos casos tomó cada auditor por su cuenta («Disponibles / Tomar este caso») frente a los asignados por un supervisor.
+  const [resumen, setResumen] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [aviso, setAviso] = useState("");
@@ -26,12 +28,13 @@ export default function AsignacionesPage() {
 
   const cargar = async () => {
     try {
-      const [a, e, s]: any[] = await Promise.all([
+      const [a, e, s, o]: any[] = await Promise.all([
         request("/api/usuarios/auditores"),
         request("/api/expedientes?estado=PENDIENTE&limit=200"),
         request("/api/asignaciones?limit=100"),
+        request("/api/asignaciones/resumen-origen").catch(() => ({ data: null })), // el reporte no debe tumbar la pantalla si falla
       ]);
-      setAuditores(a.data); setPool(e.data); setAsignaciones(s.data);
+      setAuditores(a.data); setPool(e.data); setAsignaciones(s.data); setResumen(o.data);
       setError("");
     } catch (x: any) { setError(x.message); } finally { setLoading(false); }
   };
@@ -78,6 +81,17 @@ export default function AsignacionesPage() {
       </div>
       {error ? <div role="alert" className="error-box">{error}</div> : null}
       {aviso ? <div role="status" className="callout ok">{aviso}</div> : null}
+      {resumen && resumen.total > 0 ? (
+        <div role="status" className="callout info">
+          <b>Casos tomados por el propio auditor: {resumen.autoasignadas} de {resumen.total} ({resumen.porcentaje} %).</b>{" "}
+          {resumen.autoasignacion_activa ? "Los auditores pueden tomar casos disponibles de su zona." : "La toma de casos por cuenta propia está desactivada: solo trabajan lo que asigna un supervisor."}
+          {resumen.auditores.some((x: any) => x.autoasignadas > 0) ? (
+            <ul className="pausas" aria-label="Casos tomados por auditor">
+              {resumen.auditores.filter((x: any) => x.autoasignadas > 0).slice(0, 6).map((x: any) => <li key={x.id}>{x.nombre}: {x.autoasignadas} de {x.total} ({x.porcentaje} %)</li>)}
+            </ul>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className="planner">
         <div>
