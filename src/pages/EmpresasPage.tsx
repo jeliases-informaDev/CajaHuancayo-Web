@@ -4,8 +4,9 @@ import { useAuth } from "../AuthContext";
 import { Badge, Empty, Field, Skeleton } from "../components/ui";
 
 // Catálogo de empresas (clientes de Sulotec). Solo lo ve el administrador universal; desde aquí «entra» a cada empresa.
-type Empresa = { id: string; nombre: string; nombre_corto: string; slug: string; estado: string; marca: { nombre?: string; color?: string; logo_url?: string }; reglas: { geocerca_radio_m: number; precision_maxima_m: number } };
-const vacia = { nombre: "", nombre_corto: "", geocerca_radio_m: "", precision_maxima_m: "", color: "" };
+type Empresa = { id: string; nombre: string; nombre_corto: string; slug: string; estado: string; prefijo?: string | null; marca: { nombre?: string; color?: string; logo_url?: string }; reglas: { geocerca_radio_m: number; precision_maxima_m: number } };
+const vacia = { nombre: "", nombre_corto: "", prefijo: "", geocerca_radio_m: "", precision_maxima_m: "", color: "" };
+const COLOR_HEX = /^#[0-9a-fA-F]{6}$/;
 
 export default function EmpresasPage() {
   const { empresaElegida, elegirEmpresa } = useAuth();
@@ -22,7 +23,7 @@ export default function EmpresasPage() {
   };
   useEffect(() => { cargar(); }, []);
 
-  const abrirEdicion = (e: Empresa) => { setEditando(e); setForm({ nombre: e.nombre, nombre_corto: e.nombre_corto, geocerca_radio_m: String(e.reglas.geocerca_radio_m), precision_maxima_m: String(e.reglas.precision_maxima_m), color: e.marca.color || "" }); };
+  const abrirEdicion = (e: Empresa) => { setEditando(e); setForm({ nombre: e.nombre, nombre_corto: e.nombre_corto, prefijo: e.prefijo || "", geocerca_radio_m: String(e.reglas.geocerca_radio_m), precision_maxima_m: String(e.reglas.precision_maxima_m), color: e.marca.color || "" }); };
   const cerrar = () => { setEditando(null); setForm(vacia); };
   const guardar = async (ev: React.FormEvent) => {
     ev.preventDefault(); setGuardando(true); setError(""); setAviso("");
@@ -30,6 +31,8 @@ export default function EmpresasPage() {
     if (form.geocerca_radio_m) cuerpo.configuracion.geocerca_radio_m = Number(form.geocerca_radio_m);
     if (form.precision_maxima_m) cuerpo.configuracion.precision_maxima_m = Number(form.precision_maxima_m);
     if (form.color) cuerpo.marca.color = form.color;
+    // Al crear, sin abreviatura el servidor la sugiere desde el nombre; al editar, vacío quita la abreviatura.
+    if (editando || form.prefijo.trim()) cuerpo.prefijo = form.prefijo.trim().toLowerCase();
     try {
       if (editando) { await request(`/api/empresas/${editando.id}`, { method: "PUT", body: JSON.stringify(cuerpo) }); setAviso("Empresa actualizada."); }
       else { await request("/api/empresas", { method: "POST", body: JSON.stringify(cuerpo) }); setAviso("Empresa creada. Ya puedes entrar a ella y crear sus usuarios."); }
@@ -60,9 +63,15 @@ export default function EmpresasPage() {
           <form onSubmit={guardar} className="form-grid">
             <Field label="Nombre"><input id="f-nombre" name="nombre" className="input" required maxLength={150} value={form.nombre} onChange={(e) => setForm({ ...form, nombre: e.target.value })} placeholder="Caja Municipal de…" /></Field>
             <Field label="Nombre corto (se muestra en la app)"><input name="nombre_corto" className="input" maxLength={60} value={form.nombre_corto} onChange={(e) => setForm({ ...form, nombre_corto: e.target.value })} placeholder="Caja…" /></Field>
+            <Field label="Abreviatura (prefijo fijo de sus usuarios)"><input name="prefijo" className="input" maxLength={8} value={form.prefijo} onChange={(e) => setForm({ ...form, prefijo: e.target.value })} placeholder="arq" pattern="[A-Za-z0-9]{2,8}" title="De 2 a 8 letras o números" autoCapitalize="none" spellCheck={false} /><span className="help">Sus usuarios se crean como <code translate="no">{(form.prefijo.trim() || "arq").toLowerCase()}.jorge</code>; las cuentas ya creadas no cambian.</span></Field>
             <Field label="Geocerca (m)"><input name="geocerca_radio_m" className="input" type="number" min={10} max={50000} value={form.geocerca_radio_m} onChange={(e) => setForm({ ...form, geocerca_radio_m: e.target.value })} placeholder="100" /></Field>
             <Field label="Precisión máxima del GPS (m)"><input name="precision_maxima_m" className="input" type="number" min={5} max={5000} value={form.precision_maxima_m} onChange={(e) => setForm({ ...form, precision_maxima_m: e.target.value })} placeholder="100" /></Field>
-            <Field label="Color de la marca"><input name="color" className="input" value={form.color} onChange={(e) => setForm({ ...form, color: e.target.value })} placeholder="#2d41c4" pattern="#[0-9a-fA-F]{6}" /></Field>
+            <Field label="Color de la marca (tiñe el panel de esa empresa)">
+              <div className="color-marca">
+                <input type="color" aria-label="Elegir color" value={COLOR_HEX.test(form.color) ? form.color : "#2d41c4"} onChange={(e) => setForm({ ...form, color: e.target.value })} />
+                <input name="color" className="input" value={form.color} onChange={(e) => setForm({ ...form, color: e.target.value })} placeholder="#2d41c4" pattern="#[0-9a-fA-F]{6}" spellCheck={false} />
+              </div>
+            </Field>
             <div className="stickybar">
               {editando ? <button type="button" className="btn quiet" onClick={cerrar}>Cancelar</button> : null}
               <button className="btn" disabled={guardando}>{guardando ? "Guardando…" : editando ? "Guardar cambios" : "Crear empresa"}</button>
@@ -78,7 +87,7 @@ export default function EmpresasPage() {
                 <tbody>
                   {lista.map((e) => (
                     <tr key={e.id} className={empresaElegida === e.id ? "selected" : ""}>
-                      <td><b>{e.nombre}</b><span className="sub" translate="no">{e.slug}</span></td>
+                      <td><b>{e.marca.color ? <span className="swatch" style={{ background: e.marca.color }} aria-hidden="true" /> : null}{e.nombre}</b><span className="sub" translate="no">{e.slug}{e.prefijo ? " · usuarios " + e.prefijo + ".…" : " · sin abreviatura"}</span></td>
                       <td>Geocerca {e.reglas.geocerca_radio_m} m · GPS ±{e.reglas.precision_maxima_m} m</td>
                       <td><Badge label={e.estado} /></td>
                       <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>

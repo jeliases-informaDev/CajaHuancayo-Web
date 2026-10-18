@@ -11,7 +11,7 @@ const emptyForm = { username: "", password: "", rol: "AUDITOR", nombres: "", ape
 const nombreDe = (u: any) => `${u.nombres || ""} ${u.apellidos || ""}`.trim();
 
 export default function UsuariosPage() {
-  const { user } = useAuth();
+  const { user, empresa } = useAuth();
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -139,7 +139,12 @@ export default function UsuariosPage() {
         <Drawer title="Nuevo usuario" subtitle="La contraseña debe tener al menos 12 caracteres." onClose={cerrarNuevo}
           footer={<><button className="btn ghost" onClick={cerrarNuevo}>Cancelar</button><button className="btn" type="submit" form="form-usuario" disabled={saving}>{saving ? "Creando…" : "Crear usuario"}</button></>}>
           <form id="form-usuario" onSubmit={crear}>
-            {campo("username", "Usuario", "text", { required: true, autoCapitalize: "none" })}
+            {empresa?.prefijo && form.rol !== "UNIVERSAL" ? (
+              // La abreviatura de la empresa va fija delante: el usuario escribe solo su parte (jorge → arq.jorge).
+              <Field label={"Usuario (quedará como " + empresa.prefijo + ".…)"}>
+                <div className="prefijo-fijo"><span translate="no" aria-hidden="true">{empresa.prefijo}.</span><input name="username" type="text" autoComplete="off" spellCheck={false} required autoCapitalize="none" value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} placeholder="jorge" /></div>
+              </Field>
+            ) : campo("username", "Usuario", "text", { required: true, autoCapitalize: "none" })}
             {campo("password", "Contraseña", "password", { required: true, minLength: 12, autoComplete: "new-password", spellCheck: false })}
             <Field label="Rol">
               <select name="rol" value={form.rol} onChange={(e) => setForm({ ...form, rol: e.target.value })}><option value="AUDITOR">Auditor de campo</option><option value="SUPERVISOR">Supervisor</option><option value="ADMINISTRADOR">Administrador</option>{user?.rol === "UNIVERSAL" ? <option value="UNIVERSAL">Administrador universal (Sulotec)</option> : null}</select>
