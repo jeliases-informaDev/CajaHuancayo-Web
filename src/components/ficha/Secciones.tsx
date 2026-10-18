@@ -20,10 +20,10 @@ export function ClienteSeccion({ e }: { e: any }) {
           <InfoRow k="Nombres y apellidos" v={dash(e.nombres_cliente)} />
           <InfoRow k="Documento" v={`${dash(e.tipo_documento_cliente)} ${dash(e.numero_documento_cliente)}`} />
           <InfoRow k="Fecha de nacimiento / edad" v={`${fecha(c.fecha_nacimiento)} · ${dash(c.edad)} años`} />
-          <InfoRow k="Estado civil" v={dash(c.estado_civil)} />
+          <InfoRow k="Estado civil / sexo" v={dash([c.estado_civil, c.sexo].filter(Boolean).join(" · "))} />
           <InfoRow k="Teléfono" v={dash(telefonos)} />
           <InfoRow k="Tipo de cliente" v={dash(c.tipo_cliente)} />
-          <InfoRow k="Código de cliente" v={dash(c.codigo_cliente)} />
+          <InfoRow k="Código de cliente / expediente (core)" v={dash([c.codigo_cliente, c.codigo_expediente_core].filter(Boolean).join(" / "))} />
         </div>
         <div>
           <InfoRow k="Dirección del domicilio" v={dash(e.direccion_domicilio)} />
@@ -31,6 +31,7 @@ export function ClienteSeccion({ e }: { e: any }) {
           <InfoRow k="Referencia" v={dash(c.referencia_domicilio)} />
           <InfoRow k="Tipo de vivienda" v={dash(c.tipo_vivienda)} />
           <InfoRow k="N.º de suministro" v={dash(c.numero_suministro)} />
+          <InfoRow k="Zona" v={dash(c.zona)} />
           <InfoRow k="Fuente" v={dash(c.fuente)} />
           <InfoRow k="Oficina / agencia" v={dash(e.oficina)} />
         </div>
@@ -76,6 +77,18 @@ export function NegocioSeccion({ e }: { e: any }) {
   );
 }
 
+// Códigos internos del core (moneda, tipo, producto, pagaré, oficina…): la base los trae y aquí se ven todos, compactos.
+const CODIGOS: [string, string][] = [["moneda", "Moneda"], ["tipo_credito", "Tipo"], ["producto", "Producto"], ["subproducto", "Subproducto"], ["pagare", "Pagaré"], ["normal_refinanciado", "Normal/refin."], ["estado_contable", "Estado contable"], ["modalidad", "Modalidad"], ["plazo", "Plazo"], ["oficina", "Oficina"]];
+function CodigosCore({ cr, cliente }: { cr: any; cliente: any }) {
+  const codigos = cr.codigos || {};
+  const items = CODIGOS.filter(([k]) => codigos[k]).map(([k, etiqueta]) => `${etiqueta} ${codigos[k]}`);
+  const cc = cliente.codigos || {};
+  if (cc.sexo) items.push(`Sexo ${cc.sexo}`);
+  if (cc.estado_civil) items.push(`Est. civil ${cc.estado_civil}`);
+  if (!items.length) return null;
+  return <p className="subtle" style={{ marginTop: 8 }} translate="no"><b style={{ fontWeight: 600 }}>Códigos del core:</b> {items.join(" · ")}</p>;
+}
+
 export function CreditoSeccion({ e }: { e: any }) {
   const cr = e.datos_credito || {};
   const apr = cr.nivel_aprobador || {};
@@ -87,23 +100,26 @@ export function CreditoSeccion({ e }: { e: any }) {
         <Grid>
           <div>
             <InfoRow k="N.º de crédito" v={dash(cr.numero_credito || e.codigo_expediente)} />
-            <InfoRow k="Producto" v={dash(cr.producto)} />
-            <InfoRow k="Monto desembolsado" v={`${e.moneda === "USD" ? "US$" : "S/"} ${n2(e.monto_desembolso)}`} />
-            <InfoRow k="Saldo de capital" v={n2(cr.saldo_capital)} />
+            <InfoRow k="Producto / subproducto" v={dash([cr.producto, cr.subproducto].filter(Boolean).join(" / "))} />
+            <InfoRow k="Tipo / modalidad / línea" v={dash([cr.tipo_credito_desc, cr.modalidad, cr.linea_credito].filter(Boolean).join(" · "))} />
+            <InfoRow k="Monto desembolsado" v={`${e.moneda === "USD" ? "US$" : "S/"} ${n2(e.monto_desembolso)}` + (e.moneda === "USD" && cr.monto_desembolsado_soles != null ? ` (S/ ${n2(cr.monto_desembolsado_soles)}, T.C. ${n2(cr.tipo_cambio)})` : "")} />
+            <InfoRow k="Saldo de capital" v={n2(cr.saldo_capital) + (e.moneda === "USD" && cr.saldo_capital_soles != null ? ` (S/ ${n2(cr.saldo_capital_soles)})` : "")} />
+            <InfoRow k="Solicitud / días de gracia" v={`${dash(cr.solicitud)} / ${dash(cr.dias_gracia)}`} />
             <InfoRow k="Cuota" v={`${n2(cr.monto_cuota)} · ${dash(cr.plazo_cuotas)} cuotas`} />
             <InfoRow k="Destino" v={dash(cr.destino)} />
             <InfoRow k="Estado / condición contable" v={`${dash(cr.estado)} / ${dash(cr.condicion_contable)}`} />
           </div>
           <div>
-            <InfoRow k="Asesor responsable" v={dash(e.asesor_responsable)} />
-            <InfoRow k="Asesor de la solicitud" v={dash(cr.asesor_solicitud)} />
-            <InfoRow k="Nivel aprobador" v={dash([apr.nombre, apr.cargo].filter(Boolean).join(" - "))} />
-            <InfoRow k="Cónyuge / aval / rep. legal" v={`${dash(cr.conyuge)} / ${dash(cr.aval)} / ${dash(cr.rep_legal)}`} />
+            <InfoRow k="Asesor responsable" v={dash([cr.asesor_actual || e.asesor_responsable, cr.usuario_asesor_actual].filter(Boolean).join(" · "))} />
+            <InfoRow k="Asesor de la solicitud" v={dash([cr.asesor_solicitud, cr.usuario_asesor_solicitud].filter(Boolean).join(" · "))} />
+            <InfoRow k="Nivel aprobador" v={dash([apr.nombre, apr.cargo, apr.usuario].filter(Boolean).join(" - "))} />
+            <InfoRow k="Cónyuge / aval / rep. legal" v={`${dash(cr.conyuge)}${cr.marca_conyuge && cr.marca_conyuge !== "NOCONYU" ? ` (${cr.marca_conyuge})` : ""} / ${dash(cr.aval)} / ${dash(cr.rep_legal)}`} />
             <InfoRow k="Vencimiento / último pago" v={`${fecha(cr.fecha_vencimiento)} / ${fecha(cr.fecha_ultimo_pago)}`} />
             <InfoRow k="Calificación SBS / entidades" v={`${dash(cr.calificacion_sbs)} / ${dash(cr.numero_entidades)}`} />
             <InfoRow k="Días de atraso / cuota más atrasada" v={`${dash(cr.dias_atraso)} / ${dash(cr.cuota_mas_atrasada)}`} />
           </div>
         </Grid>
+        <CodigosCore cr={cr} cliente={e.datos_cliente || {}} />
       </Card>
       <Card>
         <p className="section-title">Historial crediticio <Origen tipo="base" /></p>
@@ -135,7 +151,7 @@ const BALANCE: [string, string, boolean?][] = [
   ["Activo corriente", "activo_corriente", true], ["   Disponibles", "disponibles"], ["   Cuentas por cobrar", "cuentas_por_cobrar"], ["   Otras cuentas por cobrar", "otras_cuentas_por_cobrar"],
   ["   Adelanto a proveedores", "adelanto_proveedores"], ["   Existencias", "existencias"], ["Activo no corriente (activo fijo)", "activo_no_corriente", true], ["TOTAL ACTIVO", "total_activo", true],
   ["Pasivo corriente", "pasivo_corriente", true], ["   Proveedores", "proveedores"], ["   Otras cuentas por pagar", "otras_cuentas_por_pagar"], ["   Préstamos corto plazo", "prestamos_corto_plazo"],
-  ["Pasivo no corriente (préstamos L/P)", "pasivo_no_corriente", true], ["TOTAL PASIVO", "total_pasivo", true], ["PATRIMONIO", "patrimonio", true], ["TOTAL PASIVO + PATRIMONIO", "total_pasivo_patrimonio", true],
+  ["Pasivo no corriente", "pasivo_no_corriente", true], ["   Préstamos largo plazo", "prestamos_largo_plazo"], ["TOTAL PASIVO", "total_pasivo", true], ["PATRIMONIO", "patrimonio", true], ["TOTAL PASIVO + PATRIMONIO", "total_pasivo_patrimonio", true],
 ];
 const RESULTADOS: [string, string, boolean?][] = [
   ["VENTAS NETAS", "ventas_netas", true], ["Costo de mercaderías / producción", "costo_ventas"], ["UTILIDAD BRUTA", "utilidad_bruta", true], ["Gastos operativos del negocio", "gastos_operativos"],
@@ -203,7 +219,7 @@ export function EvaluacionMype({ e, conformidad }: { e: any; conformidad?: any }
                 <th scope="col" rowSpan={2}>Descripción</th><th scope="col" rowSpan={2} className="num">Frec./mes</th>
                 <th scope="col" colSpan={2} className="num">Días buenos</th><th scope="col" colSpan={2} className="num">Días malos</th><th scope="col" colSpan={2} className="num">Días estándar</th>
                 <th scope="col" rowSpan={2} className="num">P. compra</th><th scope="col" rowSpan={2} className="num">P. venta</th><th scope="col" rowSpan={2} className="num">Total mercad.</th>
-                <th scope="col" rowSpan={2} className="num">Total compras</th><th scope="col" rowSpan={2} className="num">Total ventas</th>
+                <th scope="col" rowSpan={2} className="num">Total compras</th><th scope="col" rowSpan={2} className="num">Total ventas</th><th scope="col" rowSpan={2} className="num">Cant. fin</th>
               </tr>
               <tr><th scope="col" className="num">Cant</th><th scope="col" className="num">Días</th><th scope="col" className="num">Cant</th><th scope="col" className="num">Días</th><th scope="col" className="num">Cant</th><th scope="col" className="num">Días</th></tr>
             </thead>
@@ -215,7 +231,7 @@ export function EvaluacionMype({ e, conformidad }: { e: any; conformidad?: any }
                   <td className="num">{n2(l.dias_malos?.cantidad)}</td><td className="num">{entero(l.dias_malos?.dias)}</td>
                   <td className="num">{n2(l.dias_estandar?.cantidad)}</td><td className="num">{entero(l.dias_estandar?.dias)}</td>
                   <td className="num">{n2(l.precio_compra)}</td><td className="num">{n2(l.precio_venta)}</td>
-                  <td className="num">{n2(l.total_mercaderias)}</td><td className="num">{n2(l.total_compras)}</td><td className="num">{n2(l.total_ventas)}</td>
+                  <td className="num">{n2(l.total_mercaderias)}</td><td className="num">{n2(l.total_compras)}</td><td className="num">{n2(l.total_ventas)}</td><td className="num">{n2(l.cantidad_estandar_fin)}</td>
                 </tr>
               ))}
             </tbody>
