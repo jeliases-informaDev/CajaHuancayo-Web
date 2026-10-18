@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useQueryParam } from "../lib/useQueryParam";
 import { request } from "../api";
@@ -40,28 +40,63 @@ export default function AsignacionesPage() {
   const [tipoRaw, setTipo] = useQueryParam("tipo");
   const tipo = tipoRaw as "" | "OTROS" | "CONSUMO";
 
+  // Nada de esta pantalla depende de que todo quepa en una respuesta: los expedientes sin asignar y las asignaciones se piden por páginas,
+  // con la búsqueda y los filtros en el servidor, y la carga de cada auditor es un conteo de la base.
+  const [poolInfo, setPoolInfo] = useState<{ page: number; pages: number; total: number } | null>(null);
+  const [asigInfo, setAsigInfo] = useState<{ page: number; pages: number; total: number } | null>(null);
+  const [cargandoMas, setCargandoMas] = useState(false);
+  const [carga, setCarga] = useState<Map<string, number>>(new Map());
+
+  const cargarPool = async (pagina = 1) => {
+    if (pagina > 1) setCargandoMas(true);
+    try {
+      const q = new URLSearchParams({ estado: "PENDIENTE", limit: "100", page: String(pagina) });
+      if (busqueda.trim()) q.set("search", busqueda.trim());
+      if (tipo) q.set("tipo_credito", tipo);
+      const r: any = await request("/api/expedientes?" + q.toString());
+      setPool((prev) => (pagina === 1 ? r.data : [...prev, ...r.data]));
+      setPoolInfo(r.pagination ? { page: r.pagination.page, pages: r.pagination.pages, total: r.pagination.total } : null);
+      setError("");
+    } catch (x: any) { setError(x.message); } finally { setCargandoMas(false); setLoading(false); }
+  };
+  const cargarAsignaciones = async (pagina = 1) => {
+    if (pagina > 1) setCargandoMas(true);
+    try {
+      const q = new URLSearchParams({ limit: "50", page: String(pagina) });
+      if (auditorId) q.set("auditor", auditorId);
+      const r: any = await request("/api/asignaciones?" + q.toString());
+      setAsignaciones((prev) => (pagina === 1 ? r.data : [...prev, ...r.data]));
+      setAsigInfo(r.pagination ? { page: r.pagination.page, pages: r.pagination.pages, total: r.pagination.total } : null);
+    } catch (x: any) { setError(x.message); } finally { setCargandoMas(false); }
+  };
   const cargar = async () => {
     try {
-      const [a, e, s, o]: any[] = await Promise.all([
+      const [a, o, c]: any[] = await Promise.all([
         request("/api/usuarios/auditores"),
-        request("/api/expedientes?estado=PENDIENTE&limit=200"),
-        request("/api/asignaciones?limit=100"),
         request("/api/asignaciones/resumen-origen").catch(() => ({ data: null })), // el reporte no debe tumbar la pantalla si falla
+        request("/api/asignaciones/carga").catch(() => ({ data: [] })),
       ]);
-      setAuditores(a.data); setPool(e.data); setAsignaciones(s.data); setResumen(o.data);
+      setAuditores(a.data); setResumen(o.data);
+      setCarga(new Map<string, number>((c.data || []).map((x: any) => [x.id_usuario_auditor, x.activas])));
       setError("");
-    } catch (x: any) { setError(x.message); } finally { setLoading(false); }
+    } catch (x: any) { setError(x.message); }
+    await Promise.all([cargarPool(1), cargarAsignaciones(1)]);
   };
   useEffect(() => { cargar(); }, []);
+  // Al escribir o cambiar el tipo se vuelve a pedir la primera página (con una pequeña espera para no pedir en cada letra).
+  const primeraCarga = useRef(true);
+  useEffect(() => {
+    if (primeraCarga.current) { primeraCarga.current = false; return; }
+    const t = window.setTimeout(() => cargarPool(1), 300);
+    return () => window.clearTimeout(t);
+  }, [busqueda, tipoRaw]);
+  const primeraCargaAsig = useRef(true);
+  useEffect(() => {
+    if (primeraCargaAsig.current) { primeraCargaAsig.current = false; return; }
+    cargarAsignaciones(1);
+  }, [auditorId]);
 
-  const carga = useMemo(() => {
-    const m = new Map<string, number>();
-    asignaciones.filter((x) => x.estado === "ACTIVA").forEach((x) => m.set(x.id_usuario_auditor, (m.get(x.id_usuario_auditor) || 0) + 1));
-    return m;
-  }, [asignaciones]);
-
-  const q = busqueda.trim().toLowerCase();
-  const visibles = pool.filter((x) => (!tipo || x.tipo_credito === tipo) && (!q || [x.codigo_expediente, x.nombres_cliente, x.numero_documento_cliente, x.distrito].some((v) => String(v || "").toLowerCase().includes(q))));
+  const visibles = pool; // el servidor ya aplicó la búsqueda y el tipo
   const todosMarcados = visibles.length > 0 && visibles.every((x) => seleccion.includes(x.id_expediente));
   const alternar = (id: number) => setSeleccion((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
   const alternarTodos = () => setSeleccion((p) => (todosMarcados ? p.filter((id) => !visibles.some((x) => x.id_expediente === id)) : [...new Set([...p, ...visibles.map((x) => x.id_expediente)])]));
@@ -83,7 +118,7 @@ export default function AsignacionesPage() {
     try { await request(`/api/asignaciones/${id}/cancelar`, { method: "POST" }); await cargar(); } catch (x: any) { setError(x.message); }
   };
 
-  const activas = asignaciones.filter((x) => (!auditorId || x.id_usuario_auditor === auditorId));
+  const activas = asignaciones; // ya vienen del servidor filtradas por el auditor elegido
 
   return (
     <>
@@ -144,7 +179,7 @@ export default function AsignacionesPage() {
         </div>
 
         <div>
-          <div className="section-head"><h2>Expedientes sin asignar</h2><span className="meta">{visibles.length} de {pool.length}</span></div>
+          <div className="section-head"><h2>Expedientes sin asignar</h2><span className="meta">{pool.length} de {poolInfo ? poolInfo.total : pool.length}</span></div>
           <div className="filters">
             <div className="fgroup grow"><label className="lbl" htmlFor="b-asig">Buscar</label><input id="b-asig" name="q" type="search" autoComplete="off" spellCheck={false} className="input" placeholder="Crédito, cliente, documento o distrito…" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} /></div>
             <div className="fgroup"><span className="lbl">Tipo de crédito</span><Seg label="Tipo de crédito" value={tipo} onChange={setTipo} options={[{ value: "", label: "Todos" }, { value: "OTROS", label: "MYPE" }, { value: "CONSUMO", label: "Consumo" }]} /></div>
@@ -169,6 +204,9 @@ export default function AsignacionesPage() {
               </table>
             </div>
           )}
+          {poolInfo && poolInfo.page < poolInfo.pages ? (
+            <button type="button" className="btn quiet" style={{ marginTop: 8 }} disabled={cargandoMas} onClick={() => cargarPool(poolInfo.page + 1)}>{cargandoMas ? "Cargando…" : "Ver más (quedan " + (poolInfo.total - pool.length) + ")"}</button>
+          ) : null}
 
           <div className="stickybar">
             <span className="grow">{seleccion.length ? <><b style={{ fontWeight: 600 }}>{seleccion.length}</b> {seleccion.length === 1 ? "expediente marcado" : "expedientes marcados"}{auditor ? <> para <b style={{ fontWeight: 600 }}>{nombreDe(auditor)}</b></> : <>: elige un auditor a la izquierda</>}</> : "Marca los expedientes que quieres asignar"}</span>
@@ -178,7 +216,7 @@ export default function AsignacionesPage() {
           </div>
 
           <div className="section">
-            <div className="section-head"><h2>Asignaciones {auditor ? `de ${nombreDe(auditor)}` : "recientes"}</h2><span className="meta">{activas.length}</span></div>
+            <div className="section-head"><h2>Asignaciones {auditor ? `de ${nombreDe(auditor)}` : "recientes"}</h2><span className="meta">{asigInfo ? asigInfo.total : activas.length}</span></div>
             {!activas.length ? <Empty tipo="asignar" title="Sin asignaciones" text="Cuando asignes expedientes aparecerán aquí." /> : (
               <div className="table-wrap">
                 <table>
@@ -198,6 +236,9 @@ export default function AsignacionesPage() {
                 </table>
               </div>
             )}
+            {asigInfo && asigInfo.page < asigInfo.pages ? (
+              <button type="button" className="btn quiet" style={{ marginTop: 8 }} disabled={cargandoMas} onClick={() => cargarAsignaciones(asigInfo.page + 1)}>{cargandoMas ? "Cargando…" : "Ver más (quedan " + (asigInfo.total - asignaciones.length) + ")"}</button>
+            ) : null}
           </div>
         </div>
       </div>
