@@ -10,6 +10,10 @@ export class ApiError extends Error {
 }
 
 export function getToken() { return localStorage.getItem(TOKEN_KEY); }
+// Empresa elegida por el administrador universal de Sulotec (los usuarios de empresa no la necesitan: el servidor la toma de su cuenta).
+const EMPRESA_KEY = "ch_empresa";
+export function getEmpresaElegida() { try { return localStorage.getItem(EMPRESA_KEY); } catch { return null; } }
+export function setEmpresaElegida(id: string | null) { try { if (id) localStorage.setItem(EMPRESA_KEY, id); else localStorage.removeItem(EMPRESA_KEY); } catch { /* sin almacenamiento */ } }
 export function setToken(token: string) { localStorage.setItem(TOKEN_KEY, token); }
 export function clearToken() { localStorage.removeItem(TOKEN_KEY); }
 
@@ -22,6 +26,7 @@ export async function request<T>(path: string, options: RequestInit = {}): Promi
       Accept: "application/json",
       "x-client-platform": "web",
       ...(token ? { Authorization: "Bearer " + token } : {}),
+      ...(getEmpresaElegida() ? { "x-empresa-id": getEmpresaElegida() as string } : {}),
       ...(options.headers || {}),
     },
   });
@@ -37,7 +42,7 @@ export async function request<T>(path: string, options: RequestInit = {}): Promi
 async function authenticatedBlob(path: string): Promise<Blob> {
   const token = getToken();
   const response = await fetch(API_URL + path, {
-    headers: { "x-client-platform": "web", ...(token ? { Authorization: "Bearer " + token } : {}) },
+    headers: { "x-client-platform": "web", ...(token ? { Authorization: "Bearer " + token } : {}), ...(getEmpresaElegida() ? { "x-empresa-id": getEmpresaElegida() as string } : {}) },
   });
   if (!response.ok) throw new ApiError(response.status, await response.json().catch(() => ({})));
   return response.blob();

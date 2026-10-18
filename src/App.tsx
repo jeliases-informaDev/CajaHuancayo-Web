@@ -14,12 +14,17 @@ import UsuariosPage from "./pages/UsuariosPage";
 import SeguridadPage from "./pages/SeguridadPage";
 import PrivacyPage from "./pages/PrivacyPage";
 import NotFoundPage from "./pages/NotFoundPage";
+import EmpresasPage from "./pages/EmpresasPage";
 
-function Protected({ children, adminOnly = false }: { children: React.ReactNode; adminOnly?: boolean }) {
-  const { user, loading } = useAuth();
+function Protected({ children, adminOnly = false, universalOnly = false }: { children: React.ReactNode; adminOnly?: boolean; universalOnly?: boolean }) {
+  const { user, loading, empresaElegida } = useAuth();
   if (loading) return <div className="login-screen" />;
   if (!user) return <Navigate to="/login" replace />;
-  if (adminOnly && user.rol !== "ADMINISTRADOR") return <Navigate to="/" replace />;
+  const esUniversal = user.rol === "UNIVERSAL";
+  if (universalOnly && !esUniversal) return <Navigate to="/" replace />;
+  // El administrador universal sin empresa elegida solo puede estar en el catálogo de empresas.
+  if (esUniversal && !empresaElegida && !universalOnly) return <Navigate to="/empresas" replace />;
+  if (adminOnly && user.rol !== "ADMINISTRADOR" && !esUniversal) return <Navigate to="/" replace />;
   return <Layout>{children}</Layout>;
 }
 
@@ -37,6 +42,7 @@ export default function App() {
       <Route path="/visitas/:id" element={<Protected><VisitaDetailPage /></Protected>} />
       <Route path="/usuarios" element={<Protected adminOnly><UsuariosPage /></Protected>} />
       <Route path="/seguridad" element={<Protected><SeguridadPage /></Protected>} />
+      <Route path="/empresas" element={<Protected universalOnly><EmpresasPage /></Protected>} />
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
   );
