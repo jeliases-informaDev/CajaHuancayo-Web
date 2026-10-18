@@ -19,6 +19,7 @@ type Ubicacion = {
   bateria?: number | null; cargando?: boolean; movimiento?: Movimiento | null;
 };
 type Punto = { latitud: number; longitud: number; precision: number | null; fecha: string };
+type ZonaMapa = { departamento: string | null; provincia: string | null; distrito: string | null; n: number };
 type Asignacion = {
   id_asignacion: number; id_usuario_auditor: string; prioridad: string; expediente: any;
   auditor?: { id_usuario: string; username: string; nombres: string; apellidos: string } | null;
@@ -346,6 +347,13 @@ function ClickParaIniciar({ activo, onClick }: { activo: boolean; onClick: (p: {
 export default function SeguimientoPage() {
   const [ubicaciones, setUbicaciones] = useState<Ubicacion[]>([]);
   const [asignaciones, setAsignaciones] = useState<Asignacion[]>([]);
+  // Los clientes del mapa llegan filtrados por zona desde el servidor (con tope de seguridad); las zonas disponibles y el roster de auditores
+  // se piden aparte, así nada depende de que todos los casos del país quepan en una sola respuesta.
+  const [zonas, setZonas] = useState<ZonaMapa[]>([]);
+  const [truncado, setTruncado] = useState(false);
+  const [totalMapa, setTotalMapa] = useState(0);
+  const [roster, setRoster] = useState<{ id: string; username: string; nombres?: string; apellidos?: string }[]>([]);
+  const [hallazgosSrv, setHallazgosSrv] = useState<any[]>([]);
   const [seleccionado, setSeleccionado] = useState<string | null>(null);
   const [departamentoFiltro, setDepartamentoFiltro] = useState("TODOS");
   const [provinciaFiltro, setProvinciaFiltro] = useState("TODOS");
@@ -375,24 +383,42 @@ export default function SeguimientoPage() {
   const [reencuadre, setReencuadre] = useState(0);
   const [camara, setCamara] = useState<Camara | null>(null);
 
-  const load = async () => {
+  // Posiciones y avisos: cambian a cada rato (además llegan por socket). Los casos asignados cambian poco y se piden aparte.
+  const cargarVivo = async () => {
     try {
-      const [ubis, asigs, evs]: any[] = await Promise.all([
+      const [ubis, evs]: any[] = await Promise.all([
         request("/api/usuarios/ubicaciones"),
-        request("/api/asignaciones?estado=ACTIVA&limit=300"),
         request("/api/usuarios/eventos").catch(() => ({ data: null })), // los avisos no deben tumbar el mapa si fallan
       ]);
       if (ubis.ahora) { offsetRef.current = Date.parse(ubis.ahora) - Date.now(); setAhoraMs(Date.now() + offsetRef.current); }
       setUbicaciones(ubis.data);
-      setAsignaciones(asigs.data);
       if (evs.data) setEventos(evs.data);
     } catch (e: any) {
       setError(e.message);
     }
   };
+  const cargarMapa = async () => {
+    try {
+      const q = new URLSearchParams();
+      if (departamentoFiltro !== "TODOS") q.set("departamento", departamentoFiltro);
+      if (provinciaFiltro !== "TODOS") q.set("provincia", provinciaFiltro);
+      if (distritoFiltro !== "TODOS") q.set("distrito", distritoFiltro);
+      const r: any = await request("/api/asignaciones/mapa?" + q.toString());
+      setAsignaciones(r.data); setTruncado(Boolean(r.truncado)); setTotalMapa(r.total ?? r.data.length);
+      if (r.zonas) setZonas(r.zonas);
+    } catch (e: any) {
+      setError(e.message);
+    }
+  };
+  const cargarMapaRef = useRef(cargarMapa);
+  cargarMapaRef.current = cargarMapa;
+  const cargarRoster = async () => {
+    try { const r: any = await request("/api/usuarios/auditores"); setRoster(r.data || []); } catch { /* el roster completa la lista; sin él se usan los auditores con casos o con ubicación */ }
+  };
 
   useEffect(() => {
-    load();
+    cargarVivo();
+    cargarRoster();
     const token = getToken();
     if (!token) return;
     const socket = io(API_URL, { auth: { token }, transports: ["websocket", "polling"] });
@@ -425,10 +451,30 @@ export default function SeguimientoPage() {
     // Llegada o salida de un cliente: entra al principio de la lista al instante.
     socket.on("evento_campo", (e: EventoCampo) => setEventos((prev) => (prev.some((x) => x.id === e.id) ? prev : [e, ...prev].slice(0, 300))));
     // El socket trae cada posición al instante; este refresco solo cubre cortes de conexión. El segundero actualiza «hace X s».
-    const timer = setInterval(load, 10000);
+    const timer = setInterval(cargarVivo, 10000);
+    // Los casos asignados cambian poco: se piden cada minuto y, enseguida, cuando el servidor avisa que cambió la muestra o se registró una visita.
+    const timerMapa = setInterval(() => cargarMapaRef.current(), 60000);
+    let espera = 0;
+    const recargarMapa = () => { window.clearTimeout(espera); espera = window.setTimeout(() => cargarMapaRef.current(), 800); };
+    socket.on("muestra_actualizada", recargarMapa);
+    socket.on("visita_registrada", recargarMapa);
     const reloj = setInterval(() => setAhoraMs(Date.now() + offsetRef.current), 5000);
-    return () => { socket.disconnect(); clearInterval(timer); clearInterval(reloj); };
+    return () => { socket.disconnect(); clearInterval(timer); clearInterval(timerMapa); window.clearTimeout(espera); clearInterval(reloj); };
   }, []);
+  // Al cambiar de zona se piden al servidor solo los clientes de esa zona.
+  useEffect(() => { cargarMapaRef.current(); }, [departamentoFiltro, provinciaFiltro, distritoFiltro]);
+  // Buscar un cliente por nombre, código o documento se hace en el servidor (en todo el país, no solo entre los que están en pantalla).
+  useEffect(() => {
+    const texto = busca.trim();
+    if (texto.length < 2) { setHallazgosSrv([]); return; }
+    const t = window.setTimeout(async () => {
+      try {
+        const r: any = await request("/api/asignaciones/mapa?limite=5&q=" + encodeURIComponent(texto));
+        setHallazgosSrv((r.data || []).map((a: any) => ({ ...a, latitud: Number(a.expediente.latitud), longitud: Number(a.expediente.longitud) })));
+      } catch { setHallazgosSrv([]); }
+    }, 300);
+    return () => window.clearTimeout(t);
+  }, [busca]);
 
   useEffect(() => {
     setIdxRepeticion(null); setReproduciendo(false);
@@ -462,6 +508,13 @@ export default function SeguimientoPage() {
   // auditor no "desaparece" de su zona solo porque no tiene la app abierta.
   const auditorPorId = useMemo(() => {
     const mapa = new Map<string, AuditorInfo>();
+    roster.forEach((r) => {
+      mapa.set(r.id, {
+        id: r.id, username: r.username, nombres: r.nombres || "", apellidos: r.apellidos || "",
+        rol: "AUDITOR", latitud: null, longitud: null, enVivo: false, actualizadoEn: null, precision: null, simulada: false,
+        enJornada: false, jornadaInicio: null, jornadaFin: null, bateria: null, cargando: false, movimiento: null,
+      });
+    });
     asignaciones.forEach((a) => {
       if (!a.auditor || mapa.has(a.auditor.id_usuario)) return;
       mapa.set(a.auditor.id_usuario, {
@@ -485,7 +538,7 @@ export default function SeguimientoPage() {
       });
     });
     return mapa;
-  }, [asignaciones, ubicaciones]);
+  }, [asignaciones, ubicaciones, roster]);
   const todosLosAuditores = useMemo(() => Array.from(auditorPorId.values()), [auditorPorId]);
   const polyline = useMemo<[number, number][]>(() => ruta.map((p) => [p.latitud, p.longitud]), [ruta]);
   const pausas = useMemo(() => pausasSinSenal(ruta), [ruta]);
@@ -517,29 +570,16 @@ export default function SeguimientoPage() {
   // Filtro geográfico en cascada: cada nivel solo ofrece las opciones que existen
   // dentro del nivel superior ya elegido, para no mostrar una lista plana de
   // decenas de distritos de todo el país.
-  const departamentos = useMemo(
-    () => Array.from(new Set(todosLosClientes.map((a) => a.expediente.departamento).filter(Boolean))).sort(),
-    [todosLosClientes]
-  );
-  const enDepartamento = useMemo(
-    () => todosLosClientes.filter((a) => departamentoFiltro === "TODOS" || a.expediente.departamento === departamentoFiltro),
-    [todosLosClientes, departamentoFiltro]
-  );
-  const provincias = useMemo(
-    () => Array.from(new Set(enDepartamento.map((a) => a.expediente.provincia).filter(Boolean))).sort(),
-    [enDepartamento]
-  );
-  const enProvincia = useMemo(
-    () => enDepartamento.filter((a) => provinciaFiltro === "TODOS" || a.expediente.provincia === provinciaFiltro),
-    [enDepartamento, provinciaFiltro]
-  );
-  const distritos = useMemo(
-    () => Array.from(new Set(enProvincia.map((a) => a.expediente.distrito).filter(Boolean))).sort(),
-    [enProvincia]
-  );
+  const suma = (lista: ZonaMapa[]) => lista.reduce((n, z) => n + z.n, 0);
+  const departamentos = useMemo(() => Array.from(new Set(zonas.map((z) => z.departamento).filter(Boolean) as string[])).sort(), [zonas]);
+  const enDepartamento = useMemo(() => zonas.filter((z) => departamentoFiltro === "TODOS" || z.departamento === departamentoFiltro), [zonas, departamentoFiltro]);
+  const provincias = useMemo(() => Array.from(new Set(enDepartamento.map((z) => z.provincia).filter(Boolean) as string[])).sort(), [enDepartamento]);
+  const enProvincia = useMemo(() => enDepartamento.filter((z) => provinciaFiltro === "TODOS" || z.provincia === provinciaFiltro), [enDepartamento, provinciaFiltro]);
+  const distritos = useMemo(() => Array.from(new Set(enProvincia.map((z) => z.distrito).filter(Boolean) as string[])).sort(), [enProvincia]);
+  // El servidor ya filtró por la zona elegida; aquí solo se vuelve a asegurar (por si la respuesta llega después de cambiar de zona).
   const clientesEnZona = useMemo(
-    () => enProvincia.filter((a) => distritoFiltro === "TODOS" || a.expediente.distrito === distritoFiltro),
-    [enProvincia, distritoFiltro]
+    () => todosLosClientes.filter((a) => (departamentoFiltro === "TODOS" || a.expediente.departamento === departamentoFiltro) && (provinciaFiltro === "TODOS" || a.expediente.provincia === provinciaFiltro) && (distritoFiltro === "TODOS" || a.expediente.distrito === distritoFiltro)),
+    [todosLosClientes, departamentoFiltro, provinciaFiltro, distritoFiltro]
   );
   const zonaActiva = departamentoFiltro !== "TODOS";
 
@@ -630,9 +670,7 @@ export default function SeguimientoPage() {
     && (!textoBuscado || norm(`${u.nombres} ${u.apellidos} ${u.username}`).includes(textoBuscado)));
   const marcadores = auditoresConMapa.filter(pasaFiltros);
   // Clientes que coinciden con lo buscado: al elegir uno se selecciona a su auditor y el mapa vuela hasta él.
-  const hallazgos = textoBuscado.length < 2 ? [] : todosLosClientes
-    .filter((a) => [a.expediente.nombres_cliente, a.expediente.codigo_expediente, a.expediente.numero_documento_cliente].some((v) => norm(String(v || "")).includes(textoBuscado)))
-    .slice(0, 5);
+  const hallazgos = textoBuscado.length < 2 ? [] : hallazgosSrv;
   const resumenZona = departamentoFiltro === "TODOS" ? "Todo el país" : [departamentoFiltro, provinciaFiltro, distritoFiltro].filter((x) => x !== "TODOS").join(" › ");
   const auditoresOrdenados = [...auditoresVisibles].filter(pasaFiltros).sort((a, b) => prioridad(a) - prioridad(b) || (a.nombres + " " + a.apellidos).localeCompare(b.nombres + " " + b.apellidos));
 
@@ -692,6 +730,7 @@ export default function SeguimientoPage() {
         <div className="actions"><span className={`live${enVivo ? " on" : ""}`} role="status">{enVivo ? `${enVivo} ${enVivo === 1 ? "auditor transmite" : "auditores transmiten"} su ubicación en vivo` : "Nadie transmite ubicación en vivo ahora"}{conSenalAntigua ? ` · ${conSenalAntigua} con señal antigua` : ""}{perdieron ? ` · ⚠ ${perdieron} sin señal en plena jornada` : ""}</span></div>
       </div>
       {error ? <div role="alert" className="error-box">{error}</div> : null}
+      {truncado ? <div role="status" className="callout aviso">Hay {totalMapa} clientes con caso activo en esta vista y se muestran los primeros {asignaciones.length}. Elige una zona (departamento, provincia o distrito) para verlos todos.</div> : null}
 
       <div className="seg-layout">
         <aside className="seg-side" aria-label="Zona, auditores y ruta">
@@ -750,18 +789,18 @@ export default function SeguimientoPage() {
             <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
               <Field label="Departamento">
                 <select name="departamento" value={departamentoFiltro} onChange={(e) => { setDepartamentoFiltro(e.target.value); setProvinciaFiltro("TODOS"); setDistritoFiltro("TODOS"); }}>
-                  <option value="TODOS">Todos ({todosLosClientes.length})</option>
+                  <option value="TODOS">Todos ({suma(zonas)})</option>
                   {departamentos.map((d) => (
-                    <option key={d} value={d}>{d} ({todosLosClientes.filter((a) => a.expediente.departamento === d).length})</option>
+                    <option key={d} value={d}>{d} ({suma(zonas.filter((z) => z.departamento === d))})</option>
                   ))}
                 </select>
               </Field>
               {provincias.length > 1 ? (
                 <Field label="Provincia">
                   <select name="provincia" value={provinciaFiltro} onChange={(e) => { setProvinciaFiltro(e.target.value); setDistritoFiltro("TODOS"); }}>
-                    <option value="TODOS">Todas ({enDepartamento.length})</option>
+                    <option value="TODOS">Todas ({suma(enDepartamento)})</option>
                     {provincias.map((p) => (
-                      <option key={p} value={p}>{p} ({enDepartamento.filter((a) => a.expediente.provincia === p).length})</option>
+                      <option key={p} value={p}>{p} ({suma(enDepartamento.filter((z) => z.provincia === p))})</option>
                     ))}
                   </select>
                 </Field>
@@ -769,9 +808,9 @@ export default function SeguimientoPage() {
               {distritos.length > 1 ? (
                 <Field label="Distrito">
                   <select name="distrito" value={distritoFiltro} onChange={(e) => setDistritoFiltro(e.target.value)}>
-                    <option value="TODOS">Todos ({enProvincia.length})</option>
+                    <option value="TODOS">Todos ({suma(enProvincia)})</option>
                     {distritos.map((d) => (
-                      <option key={d} value={d}>{d} ({enProvincia.filter((a) => a.expediente.distrito === d).length})</option>
+                      <option key={d} value={d}>{d} ({suma(enProvincia.filter((z) => z.distrito === d))})</option>
                     ))}
                   </select>
                 </Field>
