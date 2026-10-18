@@ -53,6 +53,16 @@ export async function fetchEvidenceBlobUrl(idEvidencia: string) {
   return URL.createObjectURL(blob);
 }
 
+// Descarga autenticada de un archivo cualquiera de la API (plantillas de Excel, etc.).
+export async function descargarArchivo(path: string, filename: string) {
+  const blob = await authenticatedBlob(path);
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url; link.download = filename;
+  document.body.appendChild(link); link.click(); link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 export async function downloadWordExport(idVisita: number, filename: string) {
   const blob = await authenticatedBlob(`/api/reportes/visita/${idVisita}/word`);
   const url = URL.createObjectURL(blob);

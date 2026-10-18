@@ -15,6 +15,7 @@ import SeguridadPage from "./pages/SeguridadPage";
 import PrivacyPage from "./pages/PrivacyPage";
 import NotFoundPage from "./pages/NotFoundPage";
 import EmpresasPage from "./pages/EmpresasPage";
+import SsoPage from "./pages/SsoPage";
 
 function Protected({ children, adminOnly = false, universalOnly = false }: { children: React.ReactNode; adminOnly?: boolean; universalOnly?: boolean }) {
   const { user, loading, empresaElegida } = useAuth();
@@ -32,6 +33,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/sso" element={<SsoPage />} />
       <Route path="/privacidad" element={<PrivacyPage />} />
       <Route path="/" element={<Protected><DashboardPage /></Protected>} />
       <Route path="/seguimiento" element={<Protected><SeguimientoPage /></Protected>} />

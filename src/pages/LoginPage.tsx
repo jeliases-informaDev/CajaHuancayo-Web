@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import QRCode from "qrcode";
 import { useAuth } from "../AuthContext";
@@ -25,6 +25,9 @@ export default function LoginPage() {
   const [qrDataUrl, setQrDataUrl] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  // Si el servidor tiene activo el inicio con la cuenta Sulotec, se ofrece como segunda puerta (la misma cuenta de sulotec.com).
+  const [ssoActivo, setSsoActivo] = useState(false);
+  useEffect(() => { request<any>("/api/auth/sso/config").then((c) => setSsoActivo(Boolean(c?.activo))).catch(() => setSsoActivo(false)); }, []);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -145,6 +148,7 @@ export default function LoginPage() {
           )}
           {error ? <div role="alert" className="error-box">{error}</div> : null}
           <button type="submit" className="btn" disabled={busy}>{busy ? "Validando…" : challenge ? "Verificar acceso" : "Ingresar"}</button>
+          {ssoActivo && !challenge ? <a className="btn ghost login-sso" href="/sso">Entrar con mi cuenta Sulotec</a> : null}
           <div className="login-foot"><a href="/privacidad">Política de privacidad</a><span>Soporte: serviciosdigitales@informaperu.com</span></div>
         </form>
       </div>
