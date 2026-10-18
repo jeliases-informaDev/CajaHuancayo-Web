@@ -200,7 +200,18 @@ function ClientesAgrupados({ clientes, nombreAuditor, onVerAuditor, origen, onVe
       const popup = L.popup({ minWidth: 220, maxWidth: 280 }).setLatLng(ev.layer.getLatLng())
         .setContent('<div class="pop pop-grupo"><strong>' + hijos.length + ' clientes en este punto</strong><div class="pop-chips">' + chips + "</div><ul>" + nombres + '</ul><button type="button" class="pop-btn" data-acercar>Acercar para verlos</button></div>')
         .openOn(map);
-      popup.getElement()?.querySelector("[data-acercar]")?.addEventListener("click", () => { map.closePopup(); ev.layer.zoomToBounds({ padding: [50, 50] }); });
+      const abrirGrupo = () => {
+        map.closePopup();
+        // Si al llegar al zoom máximo siguen juntos (mismo edificio o misma dirección), se abren en abanico para poder tocarlos uno por uno.
+        const separar = () => {
+          const padre = (hijos[0] as any).__parent;
+          if (padre && padre.spiderfy && map.getZoom() >= map.getMaxZoom() && map.hasLayer(padre) && padre.getChildCount() > 1) padre.spiderfy();
+        };
+        if (map.getZoom() >= map.getMaxZoom()) { separar(); return; }
+        ev.layer.zoomToBounds({ padding: [50, 50] });
+        map.once("moveend", () => setTimeout(separar, 700));
+      };
+      popup.getElement()?.querySelector("[data-acercar]")?.addEventListener("click", () => abrirGrupo());
     });
     const halo = L.layerGroup().addTo(map);
     for (const a of datos.current.clientes) {
