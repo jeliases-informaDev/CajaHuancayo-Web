@@ -1,9 +1,10 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { ApiError, clearToken, getEmpresaElegida, getToken, request, setEmpresaElegida, setToken } from "./api";
+import { aplicarColorMarca } from "./marca";
 
 type User = { id: string; username: string; rol: string; nombres?: string; apellidos?: string; empresa_id?: string | null };
 // La empresa de la cuenta (o la elegida por el administrador universal): nombre, marca y reglas que ve el panel.
-export type Empresa = { id: string; nombre: string; nombre_corto: string; slug: string; marca: { nombre?: string; producto?: string; color?: string; logo_url?: string }; reglas: { geocerca_radio_m: number; precision_maxima_m: number } };
+export type Empresa = { id: string; nombre: string; nombre_corto: string; slug: string; prefijo?: string | null; marca: { nombre?: string; producto?: string; color?: string; logo_url?: string }; reglas: { geocerca_radio_m: number; precision_maxima_m: number } };
 type AuthValue = {
   user: User | null;
   empresa: Empresa | null;
@@ -48,6 +49,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     })();
   }, []);
+
+  // El color de la marca de la empresa tiñe el panel (y se recalcula si cambia el tema claro/oscuro).
+  useEffect(() => {
+    const aplicar = () => aplicarColorMarca(empresa?.marca?.color);
+    aplicar();
+    const observador = new MutationObserver(aplicar);
+    observador.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+    return () => observador.disconnect();
+  }, [empresa]);
 
   // Al entrar o cambiar de empresa se vuelve a pedir la sesión: trae la empresa (nombre, marca, reglas) que corresponde.
   const refrescarEmpresa = async () => {

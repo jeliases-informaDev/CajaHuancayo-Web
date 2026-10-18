@@ -924,3 +924,11 @@ main:focus { outline: none; }
 .seg { max-width: 100%; overflow-x: auto; scrollbar-width: none; }
 .seg::-webkit-scrollbar { display: none; }
 .seg button { flex-shrink: 0; }
+/* Abreviatura fija de la empresa delante del usuario, selector de color de la marca y muestra de color en el catálogo */
+.prefijo-fijo { display: flex; align-items: stretch; }
+.prefijo-fijo span { display: flex; align-items: center; padding: 0 10px; border: 1px solid var(--line); border-right: 0; border-radius: var(--r) 0 0 var(--r); background: var(--sunken); color: var(--muted); font-family: var(--font-mono); font-size: 13px; }
+.prefijo-fijo input { flex: 1; min-width: 0; border-top-left-radius: 0; border-bottom-left-radius: 0; }
+.color-marca { display: flex; gap: 8px; align-items: stretch; }
+.color-marca input[type="color"] { width: 48px; padding: 3px; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); cursor: pointer; }
+.color-marca .input { flex: 1; min-width: 0; }
+.swatch { display: inline-block; width: 12px; height: 12px; border-radius: 4px; margin-right: 6px; vertical-align: -1px; border: 1px solid rgba(0, 0, 0, 0.12); }
