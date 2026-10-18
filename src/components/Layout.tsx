@@ -8,7 +8,7 @@ import Palette from "./Palette";
 import { useRail, useTheme, type Tema } from "../lib/theme";
 import { olvidarResumen, useResumen } from "../lib/resumen";
 
-type Enlace = { to: string; label: string; icon: string; end?: boolean; adminOnly?: boolean };
+type Enlace = { universalOnly?: boolean; to: string; label: string; icon: string; end?: boolean; adminOnly?: boolean };
 const GRUPOS: { titulo: string; enlaces: Enlace[] }[] = [
   { titulo: "Operación", enlaces: [
     { to: "/", label: "Resumen", icon: "resumen", end: true },
@@ -21,6 +21,7 @@ const GRUPOS: { titulo: string; enlaces: Enlace[] }[] = [
   ] },
   { titulo: "Administración", enlaces: [
     { to: "/usuarios", label: "Usuarios", icon: "usuarios", adminOnly: true },
+    { to: "/empresas", label: "Empresas", icon: "usuarios", universalOnly: true },
     { to: "/seguridad", label: "Seguridad", icon: "seguridad" },
   ] },
 ];
@@ -28,11 +29,12 @@ const GRUPOS: { titulo: string; enlaces: Enlace[] }[] = [
 const NOMBRES: Record<string, string> = {
   "": "Resumen", seguimiento: "Seguimiento", visitas: "Visitas", expedientes: "Expedientes", asignaciones: "Asignaciones", usuarios: "Usuarios", seguridad: "Seguridad", privacidad: "Privacidad",
 };
-const ROL: Record<string, string> = { ADMINISTRADOR: "Administrador", SUPERVISOR: "Supervisor" };
+const ROL: Record<string, string> = { ADMINISTRADOR: "Administrador", SUPERVISOR: "Supervisor", UNIVERSAL: "Administrador universal" };
 const TEMAS: { id: Tema; label: string; icon: string }[] = [{ id: "light", label: "Claro", icon: "sol" }, { id: "dark", label: "Oscuro", icon: "luna" }, { id: "auto", label: "Sistema", icon: "auto" }];
 
 export default function Layout({ children }: { children: React.ReactNode }) {
-  const { user, logout } = useAuth();
+  const { user, empresa, empresaElegida, logout } = useAuth();
+  const esUniversal = user?.rol === "UNIVERSAL";
   const navigate = useNavigate();
   const location = useLocation();
   const { resumen } = useResumen();
@@ -66,7 +68,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   }, []);
 
   const salir = async () => { await logout(); olvidarResumen(); navigate("/login"); };
-  const esAdmin = user?.rol === "ADMINISTRADOR";
+  const esAdmin = user?.rol === "ADMINISTRADOR" || (esUniversal && Boolean(empresaElegida));
+  // Marca que ve el usuario: la de su empresa (o la elegida por el universal); sin empresa, la de la plantilla.
+  const marcaNombre = empresa?.marca?.nombre || empresa?.nombre_corto || (esUniversal ? "Sulotec" : "");
+  const marcaProducto = empresa?.marca?.producto || "Auditoría de Visitas";
   const nombre = [user?.nombres, user?.apellidos].filter(Boolean).join(" ") || user?.username || "";
   const porRevisar = resumen?.cola_revision.length || 0;
 
@@ -82,16 +87,18 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     <div className="app" data-open={abierto}>
       <a className="skip-link" href="#contenido">Saltar al contenido</a>
       <aside className="sidebar" aria-label="Navegación principal">
-        <Link to="/" className="ws" aria-label="Auditoría de Visitas, Caja Huancayo. Ir al resumen" translate="no">
+        <Link to={esUniversal && !empresaElegida ? "/empresas" : "/"} className="ws" aria-label={`${marcaProducto}, ${marcaNombre || "Sulotec"}. Ir al inicio`} translate="no">
           <Marca size={38} className="ws-mark" />
-          <div><b>Auditoría de Visitas</b><span>Caja Huancayo</span></div>
+          <div><b>{marcaProducto}</b><span>{marcaNombre || "Sulotec"}</span></div>
         </Link>
+        {esUniversal ? <Link to="/empresas" className="empresa-actual" aria-label="Cambiar de empresa">{empresaElegida && empresa ? `Dentro de ${empresa.nombre}` : "Elige una empresa"}</Link> : null}
         <button className="side-search" onClick={() => setPaleta(true)} data-tip="Buscar o ir a…" aria-label="Buscar o ir a… (Ctrl K)">
           <Icon name="buscar" size={18} /><span>Buscar o ir a…</span><kbd>Ctrl K</kbd>
         </button>
         <nav className="side-nav" aria-label="Secciones">
           {GRUPOS.map((g) => {
-            const visibles = g.enlaces.filter((e) => !e.adminOnly || esAdmin);
+            // Sin empresa elegida, el universal solo tiene el catálogo de empresas; dentro de una, todo lo de un administrador.
+            const visibles = g.enlaces.filter((e) => (e.universalOnly ? esUniversal : (esUniversal && !empresaElegida ? false : !e.adminOnly || esAdmin)));
             if (!visibles.length) return null;
             return (
               <React.Fragment key={g.titulo}>

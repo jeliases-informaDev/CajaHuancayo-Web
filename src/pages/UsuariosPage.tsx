@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { request } from "../api";
+import { useAuth } from "../AuthContext";
 import { Avatar, Badge, Empty, Field, Skeleton } from "../components/ui";
 import { Icon } from "../components/icons";
 import { ActionMenu, Drawer, Seg } from "../components/kit";
@@ -10,6 +11,7 @@ const emptyForm = { username: "", password: "", rol: "AUDITOR", nombres: "", ape
 const nombreDe = (u: any) => `${u.nombres || ""} ${u.apellidos || ""}`.trim();
 
 export default function UsuariosPage() {
+  const { user } = useAuth();
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -140,7 +142,7 @@ export default function UsuariosPage() {
             {campo("username", "Usuario", "text", { required: true, autoCapitalize: "none" })}
             {campo("password", "Contraseña", "password", { required: true, minLength: 12, autoComplete: "new-password", spellCheck: false })}
             <Field label="Rol">
-              <select name="rol" value={form.rol} onChange={(e) => setForm({ ...form, rol: e.target.value })}><option value="AUDITOR">Auditor de campo</option><option value="SUPERVISOR">Supervisor</option><option value="ADMINISTRADOR">Administrador</option></select>
+              <select name="rol" value={form.rol} onChange={(e) => setForm({ ...form, rol: e.target.value })}><option value="AUDITOR">Auditor de campo</option><option value="SUPERVISOR">Supervisor</option><option value="ADMINISTRADOR">Administrador</option>{user?.rol === "UNIVERSAL" ? <option value="UNIVERSAL">Administrador universal (Sulotec)</option> : null}</select>
             </Field>
             {campo("nombres", "Nombres")}
             {campo("apellidos", "Apellidos")}

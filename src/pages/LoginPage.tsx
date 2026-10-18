@@ -79,7 +79,7 @@ export default function LoginPage() {
         </svg>
         <div className="brand">
           <Marca size={40} />
-          <div><b translate="no">Auditoría de Visitas</b><span>Caja Huancayo</span></div>
+          <div><b translate="no">Auditoría de Visitas</b><span>Sulotec · Authentication Work</span></div>
         </div>
         <div>
           <h2>Cada visita, <em>comprobada</em> en campo.</h2>
@@ -92,7 +92,7 @@ export default function LoginPage() {
             ))}
           </ul>
         </div>
-        <small>Acceso exclusivo para personal autorizado de Informa Perú y Caja Huancayo.</small>
+        <small>Acceso exclusivo para personal autorizado. Tu cuenta ya sabe a qué empresa perteneces.</small>
       </section>
 
       <div className="login-panel">
@@ -100,7 +100,7 @@ export default function LoginPage() {
           <Icon name={tema === "dark" ? "luna" : tema === "light" ? "sol" : "auto"} size={17} />
         </button>
         <form className="login-card" onSubmit={submit}>
-          <div className="login-mobile-brand"><Marca size={38} /><div><b translate="no">Auditoría de Visitas</b><span>Caja Huancayo</span></div></div>
+          <div className="login-mobile-brand"><Marca size={38} /><div><b translate="no">Auditoría de Visitas</b><span>Sulotec</span></div></div>
           <h1 className="login-title">{challenge ? "Verificación en dos pasos" : "Iniciar sesión"}</h1>
           <p className="login-sub">
             {challenge ? "Confirma tu identidad para continuar." : "Ingresa con tu usuario del panel de administración."}
