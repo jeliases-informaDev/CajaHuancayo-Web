@@ -935,3 +935,10 @@ main:focus { outline: none; }
 /* Plantillas descargables en «Cargar expedientes» y botón de entrada con la cuenta Sulotec */
 .plantillas { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; }
 .login-sso { margin-top: 10px; text-align: center; }
+
+/* Ubicación del expediente sin latitud/longitud a mano (pegar enlace, marcar en el mapa o usar la ubicación del navegador) y tarjetas de plantillas */
+.ubicacion-picker { display: flex; flex-direction: column; gap: 8px; margin: 2px 0 14px; }
+.ubicacion-mapa { height: 250px; border-radius: 12px; overflow: hidden; border: 1px solid var(--line); }
+.plantillas-card { display: flex; flex-direction: column; gap: 4px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface-2); margin-top: 14px; }
+.plantillas-card b { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; }
+.plantillas-card + .plantillas-card { margin-top: 10px; }

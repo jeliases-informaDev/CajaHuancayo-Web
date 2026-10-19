@@ -5,6 +5,8 @@ import { request } from "../api";
 import { Avatar, Badge, Empty, Field, Skeleton } from "../components/ui";
 import { Drawer, Seg } from "../components/kit";
 import ImportModal from "../components/ImportModal";
+import PlantillasDescarga from "../components/PlantillasDescarga";
+import UbicacionPicker, { type Coordenadas } from "../components/UbicacionPicker";
 import { Icon } from "../components/icons";
 import { useResumen } from "../lib/resumen";
 import { dash, fechaHora, n2, GEO_ESTADO } from "../lib/format";
@@ -12,7 +14,7 @@ import { dash, fechaHora, n2, GEO_ESTADO } from "../lib/format";
 const LIMITE = 50;
 const emptyForm = {
   codigo_expediente: "", tipo_credito: "CONSUMO", oficina: "", numero_documento_cliente: "", nombres_cliente: "", telefono_cliente: "",
-  direccion_domicilio: "", distrito: "", provincia: "", latitud: "", longitud: "", asesor_responsable: "", monto_desembolso: "", moneda: "PEN",
+  direccion_domicilio: "", distrito: "", provincia: "", departamento: "", asesor_responsable: "", monto_desembolso: "", moneda: "PEN",
 };
 
 function Vista({ id, onClose }: { id: number; onClose: () => void }) {
@@ -84,8 +86,11 @@ export default function ExpedientesPage() {
   const [error, setError] = useState("");
   const [vista, setVista] = useState<number | null>(null);
   const [importando, setImportando] = useState(false);
+  const [plantillas, setPlantillas] = useState(false);
   const [nuevo, setNuevo] = useState(false);
   const [form, setForm] = useState(emptyForm);
+  // La ubicación no se escribe a mano: se pega un enlace, se marca en el mapa o se usa la del navegador (ver UbicacionPicker).
+  const [ubicacion, setUbicacion] = useState<Coordenadas | null>(null);
   const [guardando, setGuardando] = useState(false);
   const [historial, setHistorial] = useState<any[] | null>(null);
   const { resumen } = useResumen();
@@ -112,9 +117,15 @@ export default function ExpedientesPage() {
     setError(""); setGuardando(true);
     try {
       const payload: any = { ...form };
-      ["latitud", "longitud", "monto_desembolso"].forEach((k) => { if (!payload[k]) delete payload[k]; else payload[k] = Number(payload[k]); });
-      await request("/api/expedientes", { method: "POST", body: JSON.stringify(payload) });
-      setNuevo(false); setForm(emptyForm);
+      Object.keys(payload).forEach((k) => { if (payload[k] === "") delete payload[k]; });
+      if (payload.monto_desembolso !== undefined) payload.monto_desembolso = Number(payload.monto_desembolso);
+      if (ubicacion) { payload.latitud = ubicacion.latitud; payload.longitud = ubicacion.longitud; }
+      const r: any = await request("/api/expedientes", { method: "POST", body: JSON.stringify(payload) });
+      // Sin punto marcado, si este servidor tiene encendida la búsqueda de ubicaciones, se busca la dirección escrita de inmediato.
+      if (!ubicacion && geoResumen?.activa && form.direccion_domicilio.trim() && r?.data?.id_expediente) {
+        request(`/api/expedientes/${r.data.id_expediente}/geocodificar`, { method: "POST" }).catch(() => {});
+      }
+      setNuevo(false); setForm(emptyForm); setUbicacion(null);
       await cargar();
     } catch (e: any) { setError(e.message); } finally { setGuardando(false); }
   };
@@ -124,12 +135,12 @@ export default function ExpedientesPage() {
   };
 
   const cerrarNuevo = () => {
-    if (JSON.stringify(form) !== JSON.stringify(emptyForm) && !window.confirm("Hay datos sin guardar. ¿Cerrar y descartarlos?")) return;
-    setNuevo(false); setForm(emptyForm);
+    if ((JSON.stringify(form) !== JSON.stringify(emptyForm) || ubicacion) && !window.confirm("Hay datos sin guardar. ¿Cerrar y descartarlos?")) return;
+    setNuevo(false); setForm(emptyForm); setUbicacion(null);
   };
   const paginas = Math.max(1, Math.ceil(total / LIMITE));
   const campo = (k: keyof typeof emptyForm, etiqueta: string, requerido = false, tipoInput = "text") => (
-    <Field label={etiqueta}><input name={k} required={requerido} type={tipoInput} autoComplete="off" spellCheck={false} inputMode={["latitud", "longitud", "monto_desembolso"].includes(k) ? "decimal" : undefined} value={form[k]} onChange={(e) => setForm({ ...form, [k]: e.target.value })} /></Field>
+    <Field label={etiqueta}><input name={k} required={requerido} type={tipoInput} autoComplete="off" spellCheck={false} inputMode={k === "monto_desembolso" ? "decimal" : undefined} value={form[k]} onChange={(e) => setForm({ ...form, [k]: e.target.value })} /></Field>
   );
 
   return (
@@ -141,6 +152,7 @@ export default function ExpedientesPage() {
         </div>
         <div className="actions">
           <button className="btn quiet" onClick={verHistorial}><Icon name="reloj" size={17} />Historial de cargas</button>
+          <button className="btn quiet" onClick={() => setPlantillas(true)}><Icon name="descargar" size={17} />Plantillas</button>
           <button className="btn ghost" onClick={() => setNuevo(true)}><Icon name="mas" size={17} />Nuevo expediente</button>
           <button className="btn" onClick={() => setImportando(true)}><Icon name="subir" size={17} />Cargar archivo</button>
         </div>
@@ -207,7 +219,7 @@ export default function ExpedientesPage() {
       {loading && !data.length ? (
         <div className="table-wrap" style={{ padding: 18 }}>{[0, 1, 2, 3, 4, 5].map((i) => <Skeleton key={i} height={26} radius={8} style={{ display: "block", margin: "14px 0" }} />)}</div>
       ) : !data.length ? (
-        <Empty tipo={search || tipo || estado || sinUbicacion ? "busqueda" : "vacio"} title="Sin expedientes" text={search || tipo || estado || sinUbicacion ? "Ningún expediente coincide con estos filtros." : "Carga un archivo de Excel para empezar."} />
+        <Empty tipo={search || tipo || estado || sinUbicacion ? "busqueda" : "vacio"} title="Sin expedientes" text={search || tipo || estado || sinUbicacion ? "Ningún expediente coincide con estos filtros." : "Carga un archivo de Excel para empezar (en «Plantillas» tienes el formato listo para llenar)."} />
       ) : (
         <>
           <div className="table-wrap" style={{ opacity: loading ? 0.55 : 1 }}>
@@ -242,6 +254,13 @@ export default function ExpedientesPage() {
       {vista !== null ? <Vista id={vista} onClose={() => setVista(null)} /> : null}
       {importando ? <ImportModal onClose={() => setImportando(false)} onDone={cargar} /> : null}
 
+      {plantillas ? (
+        <Drawer title="Plantillas para la carga masiva" subtitle="Descarga el Excel con las columnas exactas y 3 filas de ejemplo, llénalo y súbelo con «Cargar archivo»." onClose={() => setPlantillas(false)}
+          footer={<button className="btn" onClick={() => { setPlantillas(false); setImportando(true); }}><Icon name="subir" size={17} />Cargar archivo</button>}>
+          <PlantillasDescarga />
+        </Drawer>
+      ) : null}
+
       {nuevo ? (
         <Drawer title="Nuevo expediente" subtitle="Para cargas grandes usa «Cargar archivo»." onClose={cerrarNuevo}
           footer={<><button className="btn ghost" onClick={cerrarNuevo}>Cancelar</button><button className="btn" form="form-expediente" type="submit" disabled={guardando}>{guardando ? "Guardando…" : "Guardar expediente"}</button></>}>
@@ -256,9 +275,9 @@ export default function ExpedientesPage() {
             {campo("oficina", "Oficina")}
             {campo("telefono_cliente", "Teléfono")}
             {campo("direccion_domicilio", "Dirección del domicilio")}
-            {campo("distrito", "Distrito")}
-            {campo("provincia", "Provincia")}
-            <div className="grid grid-2">{campo("latitud", "Latitud")}{campo("longitud", "Longitud")}</div>
+            <div className="grid grid-2">{campo("distrito", "Distrito")}{campo("provincia", "Provincia")}</div>
+            {campo("departamento", "Departamento")}
+            <UbicacionPicker valor={ubicacion} onChange={setUbicacion} />
             <div className="grid grid-2">{campo("monto_desembolso", "Monto desembolsado")}{campo("moneda", "Moneda")}</div>
           </form>
         </Drawer>
