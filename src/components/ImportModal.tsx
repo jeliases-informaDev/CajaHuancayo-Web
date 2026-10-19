@@ -1,8 +1,8 @@
 import { useRef, useState } from "react";
-import { API_URL, descargarArchivo, getToken, request } from "../api";
-import { useAuth } from "../AuthContext";
+import { API_URL, getToken, request } from "../api";
 import { Modal } from "./kit";
 import { Icon } from "./icons";
+import PlantillasDescarga from "./PlantillasDescarga";
 import { ADVERTENCIAS, fechaHora } from "../lib/format";
 
 // Carga de expedientes en tres pasos: elegir el archivo, revisar el reporte de validación (no guarda
@@ -23,16 +23,6 @@ export default function ImportModal({ onClose, onDone }: { onClose: () => void; 
   const [liberados, setLiberados] = useState<number | null>(null);
   const [error, setError] = useState("");
   const entrada = useRef<HTMLInputElement>(null);
-  const { empresa } = useAuth();
-  // Plantillas descargables: una por formato que acepta la empresa (CORE_262 = base del core, SIMPLE = columnas mínimas).
-  const formatos = empresa?.reglas?.formatos_importacion?.length ? empresa.reglas.formatos_importacion : ["CORE_262", "SIMPLE"];
-  const [descargando, setDescargando] = useState("");
-  const descargarPlantilla = async (formato: string) => {
-    setDescargando(formato); setError("");
-    try { await descargarArchivo("/api/expedientes/plantilla?formato=" + formato, "plantilla-expedientes-" + formato.toLowerCase() + ".xlsx"); }
-    catch (e: any) { setError(e.message || "No se pudo descargar la plantilla."); }
-    finally { setDescargando(""); }
-  };
 
   const ejecutar = async (file: File, simular: boolean) => {
     setError(""); setAvance(0);
@@ -133,14 +123,7 @@ export default function ImportModal({ onClose, onDone }: { onClose: () => void; 
           </div>
           <input ref={entrada} type="file" accept=".xlsx" aria-label="Archivo de Excel" hidden onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) { setArchivo(f); ejecutar(f, true); } }} />
           <p className="subtle" style={{ marginTop: 14 }}>Primero se revisa todo el archivo sin guardar nada. Después decides si importarlo.</p>
-          <div className="plantillas">
-            <span className="subtle">¿No tienes el archivo? Descarga una plantilla con las columnas y 3 ejemplos:</span>
-            {formatos.map((f) => (
-              <button key={f} type="button" className="btn quiet small" disabled={Boolean(descargando)} onClick={() => descargarPlantilla(f)}>
-                {descargando === f ? "Descargando…" : f === "CORE_262" ? "Plantilla base del core (262 columnas)" : "Plantilla simple (16 columnas)"}
-              </button>
-            ))}
-          </div>
+          <PlantillasDescarga compacto onError={setError} />
           <label className="check-inline" style={{ height: "auto", marginTop: 12, alignItems: "flex-start" }}>
             <input type="checkbox" checked={autoasignable} onChange={(e) => setAutoasignable(e.target.checked)} style={{ marginTop: 3 }} />
             <span>Dejar los expedientes nuevos disponibles para que los auditores de su zona los tomen por su cuenta. Si no lo marcas, solo un supervisor los asigna.</span>
