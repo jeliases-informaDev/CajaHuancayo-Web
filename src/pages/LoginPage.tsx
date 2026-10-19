@@ -5,17 +5,24 @@ import { useAuth } from "../AuthContext";
 import { request } from "../api";
 import { Icon, Marca } from "../components/icons";
 import { useTheme } from "../lib/theme";
+import "../login.css";
 
-const PRUEBAS = [
-  { icon: "seguimiento", titulo: "Ubicación contrastada", texto: "La posición de cada visita se compara con el domicilio de la base y se detecta el GPS simulado." },
-  { icon: "huella", titulo: "Evidencia con huella", texto: "Las fotografías se toman solo con la cámara de la app y cada una guarda su huella digital." },
-  { icon: "firma", titulo: "Ficha firmada por el cliente", texto: "Del archivo de origen a la ficha cerrada, cada paso queda registrado y no se puede editar." },
-];
+// Lo que se ve en el lado izquierdo (empresa, titular, chips, foto, mapa y puntos) se lee de public/marca/login.json: cambiar la
+// imagen o los textos de una instalación no requiere tocar código. Si el archivo falta, se usan estos valores.
+type Punto = { nombre: string; x: number; y: number; tono: string };
+type MarcaLogin = { empresa: string; producto: string; titular: [string, string, string]; chips: string[]; foto: string; mapa: string; puntos: Punto[] };
+const MARCA_DEFECTO: MarcaLogin = {
+  empresa: "Caja Huancayo", producto: "Auditoría de Visitas", titular: ["Cada visita,", "comprobada", "en campo"],
+  chips: ["Ubicación en tiempo real", "KPI e información al instante"], foto: "/marca/auditor.webp", mapa: "/marca/mapa-peru.webp",
+  puntos: [{ nombre: "La Libertad", x: 28, y: 36, tono: "amarillo" }, { nombre: "Lima", x: 38.5, y: 60, tono: "verde" }, { nombre: "Huancayo", x: 44.5, y: 58, tono: "rojo" }],
+};
+const TONOS: Record<string, string> = { amarillo: "#e2c21a", verde: "#1fb866", rojo: "#d7263d", azul: "#2d41c4" };
 
 export default function LoginPage() {
   const { login, verifyMfa } = useAuth();
   const navigate = useNavigate();
   const [tema, fijarTema] = useTheme();
+  const [marca, setMarca] = useState<MarcaLogin>(MARCA_DEFECTO);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [code, setCode] = useState("");
@@ -28,6 +35,12 @@ export default function LoginPage() {
   // Si el servidor tiene activo el inicio con la cuenta Sulotec, se ofrece como segunda puerta (la misma cuenta de sulotec.com).
   const [ssoActivo, setSsoActivo] = useState(false);
   useEffect(() => { request<any>("/api/auth/sso/config").then((c) => setSsoActivo(Boolean(c?.activo))).catch(() => setSsoActivo(false)); }, []);
+  useEffect(() => {
+    fetch("/marca/login.json", { cache: "no-cache" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((m) => { if (m?.titular?.length === 3) setMarca({ ...MARCA_DEFECTO, ...m }); })
+      .catch(() => {});
+  }, []);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -70,32 +83,20 @@ export default function LoginPage() {
 
   return (
     <div className="login-screen">
-      <section className="login-hero" aria-hidden="true">
-        <div className="mesh" />
-        <svg className="routes" viewBox="0 0 800 900" preserveAspectRatio="xMidYMid slice" focusable="false">
-          <defs><linearGradient id="rg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#c11f8c" /><stop offset="1" stopColor="#2d41c4" /></linearGradient></defs>
-          <path className="r" d="M-20 700 C 120 620, 180 760, 320 640 S 520 470, 640 520 S 760 380, 840 300" />
-          <path className="r" d="M60 120 C 200 180, 240 80, 380 180 S 560 330, 700 250" style={{ animationDuration: "42s" }} />
-          <g transform="translate(320 640)"><circle className="h" r="9" /><circle className="p" r="4.5" /></g>
-          <g transform="translate(640 520)"><circle className="h" r="9" style={{ animationDelay: "1.1s" }} /><circle className="p" r="4.5" /></g>
-          <g transform="translate(380 180)"><circle className="h" r="9" style={{ animationDelay: "2s" }} /><circle className="p" r="4.5" /></g>
-        </svg>
+      <section className="login-hero v2" aria-hidden="true">
         <div className="brand">
           <Marca size={40} />
-          <div><b translate="no">Auditoría de Visitas</b><span>Sulotec · Authentication Work</span></div>
+          <div><b translate="no">{marca.producto}</b><span translate="no">{marca.empresa}</span></div>
         </div>
-        <div>
-          <h2>Cada visita, <em>comprobada</em> en campo.</h2>
-          <ul>
-            {PRUEBAS.map((p) => (
-              <li key={p.titulo}>
-                <span className="ic"><Icon name={p.icon} size={20} /></span>
-                <div><b>{p.titulo}</b><span>{p.texto}</span></div>
-              </li>
-            ))}
-          </ul>
+        <h2 className="titular">{marca.titular[0]} <em>{marca.titular[1]}</em> {marca.titular[2]}</h2>
+        <div className="chips">{marca.chips.map((c) => <span key={c}>{c}</span>)}</div>
+        <img className="mapa" src={marca.mapa} alt="" width={2000} height={1457} decoding="async" />
+        <div className="puntos">
+          {marca.puntos.map((p) => (
+            <div key={p.nombre} className="punto" style={{ left: `${p.x}%`, top: `${p.y}%`, ["--c" as any]: TONOS[p.tono] || TONOS.azul }}><i /><span>{p.nombre}</span></div>
+          ))}
         </div>
-        <small>Acceso exclusivo para personal autorizado. Tu cuenta ya sabe a qué empresa perteneces.</small>
+        <img className="foto" src={marca.foto} alt="" width={1356} height={1234} decoding="async" fetchPriority="high" />
       </section>
 
       <div className="login-panel">
@@ -103,8 +104,8 @@ export default function LoginPage() {
           <Icon name={tema === "dark" ? "luna" : tema === "light" ? "sol" : "auto"} size={17} />
         </button>
         <form className="login-card" onSubmit={submit}>
-          <div className="login-mobile-brand"><Marca size={38} /><div><b translate="no">Auditoría de Visitas</b><span>Sulotec</span></div></div>
-          <h1 className="login-title">{challenge ? "Verificación en dos pasos" : "Iniciar sesión"}</h1>
+          <div className="login-mobile-brand"><Marca size={38} /><div><b translate="no">{marca.producto}</b><span translate="no">{marca.empresa}</span></div></div>
+          <h1 className="login-title">{challenge ? "Verificación en dos pasos" : "Inicia sesión"}</h1>
           <p className="login-sub">
             {challenge ? "Confirma tu identidad para continuar." : "Ingresa con tu usuario del panel de administración."}
           </p>
@@ -147,9 +148,10 @@ export default function LoginPage() {
             </>
           )}
           {error ? <div role="alert" className="error-box">{error}</div> : null}
-          <button type="submit" className="btn" disabled={busy}>{busy ? "Validando…" : challenge ? "Verificar acceso" : "Ingresar"}</button>
+          <button type="submit" className="btn login-cta" disabled={busy}>{busy ? "Validando…" : challenge ? "Verificar acceso" : "Ingresar"}</button>
           {ssoActivo && !challenge ? <a className="btn ghost login-sso" href="/sso">Entrar con mi cuenta Sulotec</a> : null}
           <div className="login-foot"><a href="/privacidad">Política de privacidad</a><span>Soporte: serviciosdigitales@informaperu.com</span></div>
+          <p className="login-nota">Acceso exclusivo para personal autorizado. Tu cuenta ya sabe a qué empresa perteneces.</p>
         </form>
       </div>
     </div>

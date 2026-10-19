@@ -16,6 +16,7 @@ import PrivacyPage from "./pages/PrivacyPage";
 import NotFoundPage from "./pages/NotFoundPage";
 import EmpresasPage from "./pages/EmpresasPage";
 import SsoPage from "./pages/SsoPage";
+import TerminosGate from "./components/TerminosGate";
 
 function Protected({ children, adminOnly = false, universalOnly = false }: { children: React.ReactNode; adminOnly?: boolean; universalOnly?: boolean }) {
   const { user, loading, empresaElegida } = useAuth();
@@ -26,7 +27,8 @@ function Protected({ children, adminOnly = false, universalOnly = false }: { chi
   // El administrador universal sin empresa elegida solo puede estar en el catálogo de empresas.
   if (esUniversal && !empresaElegida && !universalOnly) return <Navigate to="/empresas" replace />;
   if (adminOnly && user.rol !== "ADMINISTRADOR" && !esUniversal) return <Navigate to="/" replace />;
-  return <Layout>{children}</Layout>;
+  // Los términos y condiciones de la empresa se aceptan una vez por versión antes de usar el panel.
+  return <Layout>{children}<TerminosGate userId={user.id} rol={user.rol} /></Layout>;
 }
 
 export default function App() {

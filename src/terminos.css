@@ -1,0 +1,16 @@
+/* Términos y condiciones: ventana obligatoria al entrar (no se cierra con Escape ni clic afuera); la casilla se habilita al leer hasta el final */
+.modal.terminos { width: min(720px, calc(100% - 28px)); }
+.terminos-head { display: flex; align-items: flex-start; gap: 14px; }
+.terminos-head h2 { font-size: 24px; margin: 0; }
+.terminos-head .subtle { margin: 2px 0 0; }
+.terminos-ic { width: 46px; height: 46px; border-radius: 14px; background: var(--brand-soft); color: var(--brand); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.terminos-version { white-space: nowrap; margin-top: 4px; }
+.terminos-texto { max-height: min(46vh, 420px); overflow-y: auto; border: 1px solid var(--line); border-radius: 14px; background: var(--surface-2); padding: 18px 22px; overscroll-behavior: contain; }
+.terminos-texto:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.terminos-texto section + section { margin-top: 14px; }
+.terminos-texto h3 { font-size: 15px; font-weight: 600; margin: 0 0 4px; }
+.terminos-texto p { margin: 0; color: var(--ink-2); line-height: 1.55; font-size: 14.5px; }
+.terminos-hint { margin: 10px 0 0; font-size: 12.5px; }
+.terminos-check { height: auto; margin-top: 12px; align-items: flex-start; font-size: 14.5px; }
+.terminos-check.off { opacity: 0.6; }
+.terminos-check input { margin-top: 3px; }

@@ -97,7 +97,7 @@ export default function UsuariosPage() {
       ) : (
         <div className="table-wrap">
           <table>
-            <thead><tr><th scope="col">Usuario</th><th scope="col">Rol</th><th scope="col">Zona</th><th scope="col">Estado</th><th scope="col">Último acceso</th><th scope="col" style={{ width: 48 }}></th></tr></thead>
+            <thead><tr><th scope="col">Usuario</th><th scope="col">Rol</th><th scope="col">Zona</th><th scope="col">Estado</th><th scope="col">Último acceso</th><th scope="col">Términos</th><th scope="col" style={{ width: 48 }}></th></tr></thead>
             <tbody>
               {visibles.map((u) => (
                 <tr key={u.id}>
@@ -106,6 +106,7 @@ export default function UsuariosPage() {
                   <td>{dash(u.departamento)}</td>
                   <td><Badge label={u.estado} /></td>
                   <td>{u.ultimo_acceso ? fechaHora(u.ultimo_acceso) : <span className="muted">Nunca</span>}</td>
+                  <td>{u.rol === "UNIVERSAL" ? <span className="muted">No aplica</span> : u.terminos ? <span className="state ok" title={`Aceptados desde ${u.terminos.plataforma === "MOVIL" ? "la app" : "el panel"}`}>v{u.terminos.version} · {fechaHora(u.terminos.fecha)}</span> : <span className="state warn">Pendientes</span>}</td>
                   <td style={{ textAlign: "right" }}>
                     <ActionMenu
                       header={{ title: nombreDe(u) || u.username, sub: `@${u.username}` }}
