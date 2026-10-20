@@ -29,7 +29,7 @@
   background: linear-gradient(180deg, #d3dbff 0%, #e4edff 21%, #e7f1ff 36%, #e7f1ff 100%);
 }
 .login-hero img { display: block; max-width: none; user-select: none; -webkit-user-drag: none; pointer-events: none; }
-.login-hero .mapa { position: absolute; left: calc(304 * var(--u)); top: calc(-36 * var(--u)); width: calc(768 * var(--u)); height: auto; opacity: 0.62; }
+.login-hero .mapa { position: absolute; left: calc(300 * var(--u)); top: 0; width: calc(776 * var(--u)); height: auto; opacity: 0.8; }
 .login-hero .foto { position: absolute; left: 0; bottom: calc(-62 * var(--u)); width: calc(679 * var(--u)); height: auto; z-index: 1; }
 
 .login-hero .brand { position: absolute; left: calc(65 * var(--u)); top: calc(65 * var(--u)); display: flex; align-items: flex-start; gap: calc(9 * var(--u)); z-index: 3; }
@@ -56,9 +56,9 @@
 
 /* ─────────────── Lado derecho ─────────────── */
 .login-panel { flex: 1 1 auto; min-width: 0; min-height: max(100vh, calc(1024 * var(--u))); background: #f9faff; display: flex; justify-content: center; align-items: center; container-type: inline-size; }
-/* El formulario ocupa ~62 % del ancho de su panel (lo que ocupa en el diseño): en pantallas anchas crece con el panel en vez de quedar chico entre mucho blanco.
+/* El formulario ocupa 62 % del ancho de su panel en el tamaño del diseño (1440 de ancho) y crece hasta ~80 % en pantallas más anchas, para llenar el blanco en vez de quedar chico entre mucho espacio.
    Mínimo 0,83 px de diseño (formulario de ~320 px) y tope para que el bloque nunca pase de ~78 % de la altura. Se centra en vertical con el leve desplazamiento del diseño. */
-.login-card { --uf: max(var(--u), 0.83px, min(calc(62cqw / 387), calc(var(--u) * 1.6), calc(100vh / 560))); width: calc(387 * var(--uf)); max-width: none; margin-top: calc(16 * var(--uf)); }
+.login-card { --relleno: clamp(62cqw, calc(62cqw + (100vw - 1440px) * 0.24), 80cqw); --uf: max(var(--u), 0.83px, min(calc(var(--relleno) / 387), calc(var(--u) * 1.9), calc(100vh / 560))); width: calc(387 * var(--uf)); max-width: none; margin-top: calc(16 * var(--uf)); }
 .login-mobile-brand { display: none; }
 
 .login-title { margin: 0; font-family: "Beiruti", "Be Vietnam Pro", sans-serif; font-weight: 600; font-size: max(24px, calc(40 * var(--uf))); line-height: calc(48 * var(--uf)); letter-spacing: 0.2em; color: #000; }
