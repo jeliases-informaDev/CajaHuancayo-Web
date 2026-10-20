@@ -25,7 +25,7 @@
 
 /* ─────────────── Lado izquierdo ─────────────── */
 .login-hero {
-  position: relative; flex: 0 0 clamp(calc(819 * var(--u)), 57vw, calc(1060 * var(--u))); height: max(100vh, calc(1024 * var(--u))); overflow: hidden;
+  position: relative; flex: 0 0 calc(819 * var(--u)); height: max(100vh, calc(1024 * var(--u))); overflow: hidden;
   background: linear-gradient(180deg, #d3dbff 0%, #e4edff 21%, #e7f1ff 36%, #e7f1ff 100%);
 }
 .login-hero img { display: block; max-width: none; user-select: none; -webkit-user-drag: none; pointer-events: none; }
