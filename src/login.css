@@ -1,37 +1,128 @@
-/* Pantalla de inicio de sesión: lado izquierdo claro con el mapa del Perú, la foto del equipo en campo y los puntos de visita.
-   Los textos, la foto, el mapa y los puntos se leen de public/marca/login.json (cambiarlos no requiere tocar código). */
-.login-hero.v2 { position: relative; overflow: hidden; display: flex; flex-direction: column; justify-content: flex-start; padding: 40px 48px; color: var(--ink); background: linear-gradient(165deg, #f7f9ff 0%, #eef2ff 45%, #e5ecff 100%); }
-/* El mapa ocupa la mitad derecha, centrado en vertical; la capa de puntos tiene exactamente su misma caja para que las coordenadas
-   en porcentaje caigan sobre la ciudad correcta. Con mix-blend multiply cualquier blanco de la imagen desaparece. */
-.login-hero.v2 .mapa, .login-hero.v2 .puntos { position: absolute; right: -12%; top: 48%; width: 82%; height: auto; max-width: none; transform: translateY(-50%); pointer-events: none; }
-.login-hero.v2 .mapa { opacity: 0.95; mix-blend-mode: multiply; user-select: none; }
-.login-hero.v2 .puntos { aspect-ratio: 2000 / 1457; }
-.login-hero.v2 .punto { position: absolute; transform: translate(-50%, -50%); display: flex; align-items: center; gap: 8px; }
-.login-hero.v2 .punto i { width: 12px; height: 12px; border-radius: 50%; background: var(--c); border: 3px solid #fff; box-shadow: 0 0 0 2px var(--c), 0 0 0 0 color-mix(in srgb, var(--c) 45%, transparent); animation: pulso-punto 2.6s ease-out infinite; }
-.login-hero.v2 .punto span { font-size: 11px; color: #5a6186; background: rgba(255, 255, 255, 0.88); padding: 2px 8px; border-radius: 999px; box-shadow: var(--sh-1); white-space: nowrap; }
-@keyframes pulso-punto { 70% { box-shadow: 0 0 0 2px var(--c), 0 0 0 12px transparent; } 100% { box-shadow: 0 0 0 2px var(--c), 0 0 0 0 transparent; } }
-.login-hero.v2 .brand { position: relative; z-index: 1; }
-.login-hero.v2 .brand b { color: var(--ink); }
-.login-hero.v2 .brand span { color: var(--muted); }
-.login-hero.v2 .titular { position: relative; z-index: 1; margin: 44px 0 0; font-family: var(--font-ui); font-weight: 600; font-size: clamp(34px, 3.5vw, 50px); line-height: 1.06; letter-spacing: -0.03em; max-width: 12.5em; color: var(--ink); text-wrap: balance; }
-.login-hero.v2 .titular em { font-style: italic; font-weight: 700; color: #d7263d; }
-.login-hero.v2 .chips { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: flex-start; gap: 10px; margin-top: 22px; }
-.login-hero.v2 .chips span { display: inline-flex; align-items: center; padding: 10px 18px; border-radius: 999px; background: rgba(255, 255, 255, 0.8); border: 1px solid rgba(45, 65, 196, 0.1); color: var(--ink-2); font-size: 15px; font-weight: 500; box-shadow: 0 10px 26px -16px rgba(14, 19, 50, 0.45); backdrop-filter: blur(6px); }
-.login-hero.v2 .chips span + span { margin-left: 36px; }
-/* La foto ocupa la mitad inferior; nunca sube más allá del 56% para no tapar el titular ni los chips. */
-.login-hero.v2 .foto { position: absolute; left: 2%; bottom: 0; height: min(56%, 580px); width: auto; max-width: 72%; object-fit: contain; object-position: left bottom; z-index: 1; mix-blend-mode: multiply; pointer-events: none; user-select: none; filter: drop-shadow(0 24px 40px rgba(14, 19, 50, 0.18)); }
-@media (max-height: 760px) { .login-hero.v2 .foto { height: 48%; } .login-hero.v2 .titular { margin-top: 28px; } }
-@media (prefers-reduced-motion: reduce) { .login-hero.v2 .punto i { animation: none; } }
-/* Tema oscuro: la ilustración baja de intensidad y los textos se invierten */
-[data-theme="dark"] .login-hero.v2 { background: linear-gradient(165deg, #151b42 0%, #0f1434 60%, #0b1030 100%); color: #fff; }
-[data-theme="dark"] .login-hero.v2 .brand b, [data-theme="dark"] .login-hero.v2 .titular { color: #fff; }
-[data-theme="dark"] .login-hero.v2 .brand span { color: #a8b0dd; }
-[data-theme="dark"] .login-hero.v2 .mapa { opacity: 0.22; mix-blend-mode: screen; filter: saturate(0.5); }
-[data-theme="dark"] .login-hero.v2 .chips span { background: rgba(255, 255, 255, 0.08); border-color: rgba(255, 255, 255, 0.12); color: #e6e9ff; }
-[data-theme="dark"] .login-hero.v2 .punto span { background: rgba(20, 26, 63, 0.88); color: #c9cfee; }
-[data-theme="dark"] .login-hero.v2 .punto i { border-color: #151b42; }
-[data-theme="dark"] .login-hero.v2 .titular em { color: #ff6b7f; }
-[data-theme="dark"] .login-hero.v2 .foto { mix-blend-mode: normal; filter: drop-shadow(0 24px 40px rgba(0, 0, 0, 0.5)) brightness(0.92); }
-/* Lado del formulario: botón como en el diseño y nota de acceso debajo de los enlaces */
-.login-card .btn.login-cta { text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; }
-.login-nota { margin: 18px 0 0; font-size: 12.5px; color: var(--faint); }
+/* Inicio de sesión — diseño de Figma «LOGIN 5» (lienzo de 1440 × 1024).
+   Todas las medidas están en px de diseño y se multiplican por --u (cuántos px reales vale uno de diseño): la composición se
+   escala completa con la altura/anchura de la pantalla y se ve igual que el diseño. Fuentes: Be Vietnam Pro y Beiruti (OFL, en /public/fonts).
+   Textos, foto, mapa y puntos salen de public/marca/login.json. */
+
+@font-face { font-family: "Be Vietnam Pro"; font-weight: 300; font-style: normal; font-display: swap; src: url("/fonts/BeVietnamPro-300.woff2") format("woff2"); }
+@font-face { font-family: "Be Vietnam Pro"; font-weight: 400; font-style: normal; font-display: swap; src: url("/fonts/BeVietnamPro-400.woff2") format("woff2"); }
+@font-face { font-family: "Be Vietnam Pro"; font-weight: 400; font-style: italic; font-display: swap; src: url("/fonts/BeVietnamPro-400-italic.woff2") format("woff2"); }
+@font-face { font-family: "Be Vietnam Pro"; font-weight: 500; font-style: normal; font-display: swap; src: url("/fonts/BeVietnamPro-500.woff2") format("woff2"); }
+@font-face { font-family: "Be Vietnam Pro"; font-weight: 600; font-style: normal; font-display: swap; src: url("/fonts/BeVietnamPro-600.woff2") format("woff2"); }
+@font-face { font-family: "Be Vietnam Pro"; font-weight: 600; font-style: italic; font-display: swap; src: url("/fonts/BeVietnamPro-600-italic.woff2") format("woff2"); }
+@font-face { font-family: "Beiruti"; font-weight: 400; font-style: normal; font-display: swap; src: url("/fonts/Beiruti-400.woff2") format("woff2"); }
+@font-face { font-family: "Beiruti"; font-weight: 600; font-style: normal; font-display: swap; src: url("/fonts/Beiruti-600.woff2") format("woff2"); }
+
+.login-screen {
+  /* 1 px de diseño = --u. Nunca baja de 0,72 px (por debajo la página se desplaza en vez de encogerse más). */
+  --u: max(0.72px, min(calc(100vw / 1440), calc(100vh / 1024)));
+  min-height: 100vh; display: flex; background: #f9faff; color: #000; color-scheme: light;
+  font-family: "Be Vietnam Pro", ui-sans-serif, system-ui, "Segoe UI", Roboto, Arial, sans-serif;
+  /* El inicio de sesión es siempre claro, aunque el panel esté en tema oscuro */
+  --canvas: #f9faff; --surface: #ffffff; --surface-2: #f7f8fc; --sunken: #eaecf5; --ink: #0e1332; --ink-2: #3a4165; --muted: #666d92; --faint: #959cba;
+  --line: #e2e5ef; --line-2: #cfd3e5; --brand: #3549c6; --brand-hover: #2c3fb0; --brand-soft: #eaedfc; --brand-ink: #1a2679;
+  --ok: #0c8559; --ok-wash: #e1f4ea; --warn: #a8620a; --warn-wash: #fff0d1; --bad: #c0243e; --bad-wash: #fde7eb; --info: var(--brand); --info-wash: var(--brand-soft);
+}
+
+/* ─────────────── Lado izquierdo ─────────────── */
+.login-hero {
+  position: relative; flex: 0 0 calc(819 * var(--u)); height: max(100vh, calc(1024 * var(--u))); overflow: hidden;
+  background: linear-gradient(180deg, #d3dbff 0%, #e4edff 21%, #e7f1ff 36%, #e7f1ff 100%);
+}
+.login-hero img { display: block; max-width: none; user-select: none; -webkit-user-drag: none; pointer-events: none; }
+.login-hero .mapa { position: absolute; left: calc(304 * var(--u)); top: calc(-36 * var(--u)); width: calc(768 * var(--u)); height: auto; opacity: 0.62; }
+.login-hero .foto { position: absolute; left: 0; bottom: calc(-62 * var(--u)); width: calc(679 * var(--u)); height: auto; z-index: 1; }
+
+.login-hero .brand { position: absolute; left: calc(65 * var(--u)); top: calc(65 * var(--u)); display: flex; align-items: flex-start; gap: calc(9 * var(--u)); z-index: 3; }
+.login-hero .marca-cuadro { width: calc(45 * var(--u)); height: calc(45 * var(--u)); border-radius: calc(9 * var(--u)); background: linear-gradient(135deg, #3046c8 0%, #f90206 100%); flex-shrink: 0; }
+.login-hero .brand-texto { margin-top: calc(8.5 * var(--u)); line-height: 1.25; }
+.login-hero .brand-texto b { display: block; font-weight: 600; font-size: max(11px, calc(15 * var(--u))); color: #242424; white-space: nowrap; }
+.login-hero .brand-texto span { display: block; font-weight: 500; font-size: max(10px, calc(10 * var(--u))); color: #596a92; white-space: nowrap; }
+
+.login-hero .titular { position: absolute; left: calc(65 * var(--u)); top: calc(174 * var(--u)); margin: 0; z-index: 3; font-weight: 400; font-size: max(28px, calc(45 * var(--u))); line-height: calc(50 * var(--u)); color: #242424; white-space: nowrap; }
+.login-hero .titular .l1 { display: block; letter-spacing: 0.05em; }
+.login-hero .titular .l2 { display: block; }
+.login-hero .titular em { display: inline-block; padding-right: 0.08em; font-style: italic; font-weight: 600; letter-spacing: 0.01em; background: linear-gradient(90deg, #7b2c85 0%, #e20a1e 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.login-hero .titular .en { margin-left: calc(14 * var(--u)); }
+
+.login-hero .chips { position: absolute; left: calc(73 * var(--u)); top: calc(316 * var(--u)); display: flex; flex-direction: column; align-items: flex-start; gap: calc(16 * var(--u)); z-index: 3; }
+.login-hero .chips span { display: inline-block; padding: calc(4 * var(--u)) calc(14 * var(--u)); border-radius: 999px; background: #cadfff; color: #242424; font-weight: 400; font-size: max(13px, calc(20 * var(--u))); line-height: calc(40 * var(--u)); white-space: nowrap; }
+.login-hero .chips span + span { margin-left: calc(54 * var(--u)); }
+.login-hero .chips span:first-child { padding-inline: calc(17.25 * var(--u)); }
+
+/* Puntos de visita sobre el mapa: anillo + punto de color, y su etiqueta */
+.login-hero .pin { position: absolute; z-index: 2; width: calc(35 * var(--u)); height: calc(35 * var(--u)); border-radius: 50%; border: max(1px, calc(1 * var(--u))) solid var(--c); box-sizing: border-box; display: flex; align-items: center; justify-content: center; }
+.login-hero .pin::after { content: ""; width: calc(15 * var(--u)); height: calc(15 * var(--u)); border-radius: 50%; background: var(--c); }
+.login-hero .pin-etiqueta { position: absolute; z-index: 2; display: flex; align-items: center; justify-content: center; border-radius: 999px; background: #c6cbce; color: #fff; font-style: italic; font-weight: 400; font-size: max(8px, calc(10 * var(--u))); line-height: 1; white-space: nowrap; }
+
+/* ─────────────── Lado derecho ─────────────── */
+.login-panel { flex: 1 1 auto; min-width: 0; min-height: max(100vh, calc(1024 * var(--u))); background: #f9faff; display: flex; justify-content: center; align-items: flex-start; padding-top: calc(302 * var(--u)); }
+.login-card { width: calc(387 * var(--u)); max-width: none; }
+.login-mobile-brand { display: none; }
+
+.login-title { margin: 0; font-family: "Beiruti", "Be Vietnam Pro", sans-serif; font-weight: 600; font-size: max(24px, calc(40 * var(--u))); line-height: calc(48 * var(--u)); letter-spacing: 0.2em; color: #000; }
+.login-title.paso { font-size: max(20px, calc(28 * var(--u))); line-height: 1.2; letter-spacing: 0.1em; }
+.login-sub { margin: calc(-2 * var(--u)) 0 0; font-weight: 300; font-size: max(12px, calc(14 * var(--u))); line-height: calc(20 * var(--u)); color: #c0c0c0; }
+
+.login-card .field { margin: 0; display: block; gap: 0; }
+.login-sub + .field { margin-top: calc(51 * var(--u)); }
+.login-card .callout + .field { margin-top: calc(16 * var(--u)); }
+.login-card .field + .field { margin-top: calc(13 * var(--u)); }
+.login-card .field label { display: block; margin: 0 0 calc(3 * var(--u)); padding-left: calc(12 * var(--u)); font-weight: 400; font-size: max(12px, calc(14 * var(--u))); line-height: calc(20 * var(--u)); color: #000; }
+.login-card .field input {
+  display: block; width: 100%; height: calc(40 * var(--u)); min-height: 38px; box-sizing: border-box; padding: 0 calc(18 * var(--u)); border: 0; border-radius: 999px; background: #fff; color: #242424;
+  font-family: inherit; font-weight: 400; font-size: max(13px, calc(14 * var(--u)));
+  box-shadow: 0 2px 3px rgba(20, 24, 60, 0.13), 0 0 0 1px rgba(20, 24, 60, 0.035);
+  transition: box-shadow 0.15s;
+}
+.login-card .field input:focus-visible { outline: none; box-shadow: 0 2px 3px rgba(20, 24, 60, 0.13), 0 0 0 3px rgba(53, 73, 198, 0.3); }
+.login-card .field input:disabled { opacity: 0.7; }
+
+/* Espacio entre la contraseña y el botón (como en el diseño); aquí aparece el error si lo hay */
+.login-slot { min-height: calc(72 * var(--u)); display: flex; align-items: center; }
+.login-slot .error-box { width: 100%; margin: calc(8 * var(--u)) 0; }
+
+.login-cta {
+  display: block; width: 100%; height: calc(41 * var(--u)); min-height: 40px; border: 0; border-radius: 999px; cursor: pointer; padding: 0 0 0 0.2em;
+  background: linear-gradient(180deg, #3a4dc7 0%, #3246c5 100%); color: #f2f4fb;
+  font-family: "Beiruti", "Be Vietnam Pro", sans-serif; font-weight: 400; font-size: max(14px, calc(16 * var(--u))); letter-spacing: 0.2em; text-transform: uppercase;
+  box-shadow: 0 2px 4px rgba(53, 73, 198, 0.28); transition: filter 0.15s, transform 0.1s;
+}
+.login-cta:hover:not(:disabled) { filter: brightness(1.08); }
+.login-cta:active:not(:disabled) { transform: translateY(1px); }
+.login-cta:focus-visible { outline: 3px solid rgba(53, 73, 198, 0.35); outline-offset: 2px; }
+.login-cta:disabled { opacity: 0.65; cursor: default; }
+
+.login-sso { display: flex; align-items: center; justify-content: center; margin-top: calc(12 * var(--u)); height: calc(41 * var(--u)); min-height: 40px; border-radius: 999px; border: 1px solid #c9d0ee; background: transparent; color: #3549c6; font-size: max(12px, calc(14 * var(--u))); font-weight: 500; text-decoration: none; }
+.login-sso:hover { background: rgba(53, 73, 198, 0.06); }
+.login-sso:focus-visible { outline: 3px solid rgba(53, 73, 198, 0.35); outline-offset: 2px; }
+
+.login-foot { margin-top: calc(22 * var(--u)); flex-wrap: nowrap; display: flex; flex-direction: column; align-items: flex-start; gap: calc(16 * var(--u)); padding-left: calc(12 * var(--u)); font-size: max(10px, calc(9 * var(--u))); line-height: calc(14 * var(--u)); }
+.login-foot a { text-decoration: underline; text-underline-offset: 2px; }
+.login-foot a.privacidad { color: #3448c6; }
+.login-foot a.soporte { color: #c7c7c8; }
+.login-foot a:focus-visible { outline: 2px solid rgba(53, 73, 198, 0.5); outline-offset: 2px; border-radius: 3px; }
+
+/* Paso de verificación en dos pasos (no está en el diseño: usa la misma piel) */
+.login-card .callout { margin: calc(24 * var(--u)) 0 0; border-radius: calc(16 * var(--u)); background: #eef1ff; border: 0; }
+
+/* ─────────────── Pantallas angostas: sin el lado izquierdo, tamaños reales ─────────────── */
+@media (max-width: 960px) {
+  .login-screen { --u: 1px; }
+  .login-hero { display: none; }
+  .login-panel { min-height: 100vh; padding: 12vh 20px 32px; }
+  .login-card { width: min(387px, 100%); }
+  .login-mobile-brand { display: flex; align-items: center; gap: 9px; margin-bottom: 36px; }
+  .login-mobile-brand .marca-cuadro { width: 45px; height: 45px; border-radius: 9px; background: linear-gradient(135deg, #3046c8 0%, #f90206 100%); }
+  .login-mobile-brand b { display: block; font-weight: 600; font-size: 15px; color: #242424; }
+  .login-mobile-brand span { display: block; font-weight: 500; font-size: 10px; color: #596a92; }
+  .login-title { font-size: 32px; line-height: 40px; }
+}
+@media (prefers-reduced-motion: reduce) { .login-card .field input, .login-cta { transition: none; } }
+
+/* Pantalla del inicio con la cuenta Sulotec (/sso): solo el panel, centrado, con título más corto */
+.login-screen.solo-panel { --u: 1px; }
+.login-screen.solo-panel .login-panel { align-items: center; padding: 24px 20px; min-height: 100vh; }
+.login-screen.solo-panel .login-mobile-brand { display: flex; align-items: center; gap: 12px; margin-bottom: 30px; }
+.login-screen.solo-panel .login-title { font-size: 28px; line-height: 1.2; letter-spacing: 0.04em; }
+.login-screen.solo-panel .login-sub { margin-top: 10px; font-size: 14px; line-height: 1.5; color: #666d92; font-weight: 400; }
+.login-screen.solo-panel .login-sub a { color: #3549c6; text-decoration: underline; text-underline-offset: 2px; }

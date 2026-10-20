@@ -53,7 +53,7 @@ export default function SsoPage() {
   }, []);
 
   return (
-    <div className="login-screen">
+    <div className="login-screen solo-panel">
       <div className="login-panel">
         <div className="login-card" role="status" aria-live="polite">
           <div className="login-mobile-brand" style={{ display: "flex" }}><Marca size={38} /><div><b translate="no">Auditoría de Visitas</b><span>Sulotec</span></div></div>

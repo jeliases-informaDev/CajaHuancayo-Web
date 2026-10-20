@@ -3,25 +3,30 @@ import { useNavigate } from "react-router-dom";
 import QRCode from "qrcode";
 import { useAuth } from "../AuthContext";
 import { request } from "../api";
-import { Icon, Marca } from "../components/icons";
-import { useTheme } from "../lib/theme";
 import "../login.css";
 
-// Lo que se ve en el lado izquierdo (empresa, titular, chips, foto, mapa y puntos) se lee de public/marca/login.json: cambiar la
-// imagen o los textos de una instalación no requiere tocar código. Si el archivo falta, se usan estos valores.
-type Punto = { nombre: string; x: number; y: number; tono: string };
-type MarcaLogin = { empresa: string; producto: string; titular: [string, string, string]; chips: string[]; foto: string; mapa: string; puntos: Punto[] };
+// Diseño de Figma «LOGIN 5». Lo que se ve en el lado izquierdo (empresa, titular, chips, foto, mapa y puntos de visita) se lee de
+// public/marca/login.json, con las posiciones en px de diseño (lienzo de 1440 × 1024): cambiar la imagen o los textos de una
+// instalación no requiere tocar código. Si el archivo falta, se usan estos valores.
+type Etiqueta = { x: number; y: number; w: number; h: number };
+type Punto = { nombre: string; x: number; y: number; tono: string; etiqueta?: Etiqueta };
+type MarcaLogin = { empresa: string; producto: string; titular: [string, string, string]; chips: string[]; titulo: string; foto: string; mapa: string; puntos: Punto[] };
 const MARCA_DEFECTO: MarcaLogin = {
-  empresa: "Caja Huancayo", producto: "Auditoría de Visitas", titular: ["Cada visita,", "comprobada", "en campo"],
-  chips: ["Ubicación en tiempo real", "KPI e información al instante"], foto: "/marca/auditor.webp", mapa: "/marca/mapa-peru.webp",
-  puntos: [{ nombre: "La Libertad", x: 28, y: 36, tono: "amarillo" }, { nombre: "Lima", x: 38.5, y: 60, tono: "verde" }, { nombre: "Huancayo", x: 44.5, y: 58, tono: "rojo" }],
+  empresa: "Caja Huancayo", producto: "Auditoria de Visitas", titular: ["Cada visita,", "comprobada", "en campo"],
+  chips: ["Ubicación en tiempo real", "KPI e Información al instante"], titulo: "Inicia Sesion", foto: "/marca/equipo.webp", mapa: "/marca/mapa-peru.webp",
+  puntos: [
+    { nombre: "La Libertad", x: 492, y: 388, tono: "amarillo", etiqueta: { x: 512, y: 353, w: 80, h: 22 } },
+    { nombre: "Lima", x: 580, y: 612, tono: "verde", etiqueta: { x: 580, y: 570, w: 45, h: 21 } },
+    { nombre: "Huancayo", x: 687, y: 607, tono: "rojo", etiqueta: { x: 695, y: 621, w: 73, h: 22 } },
+  ],
 };
-const TONOS: Record<string, string> = { amarillo: "#e2c21a", verde: "#1fb866", rojo: "#d7263d", azul: "#2d41c4" };
+const TONOS: Record<string, string> = { amarillo: "#ebe838", verde: "#40e045", rojo: "#e04040", azul: "#3549c6" };
+// px de diseño → longitud real (el CSS define --u según el tamaño de la pantalla)
+const du = (n: number) => `calc(${n} * var(--u))`;
 
 export default function LoginPage() {
   const { login, verifyMfa } = useAuth();
   const navigate = useNavigate();
-  const [tema, fijarTema] = useTheme();
   const [marca, setMarca] = useState<MarcaLogin>(MARCA_DEFECTO);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -38,7 +43,7 @@ export default function LoginPage() {
   useEffect(() => {
     fetch("/marca/login.json", { cache: "no-cache" })
       .then((r) => (r.ok ? r.json() : null))
-      .then((m) => { if (m?.titular?.length === 3) setMarca({ ...MARCA_DEFECTO, ...m }); })
+      .then((m) => { if (m?.titular?.length === 3 && Array.isArray(m?.puntos)) setMarca({ ...MARCA_DEFECTO, ...m }); })
       .catch(() => {});
   }, []);
 
@@ -79,35 +84,34 @@ export default function LoginPage() {
     }
   };
 
-  const siguienteTema = () => fijarTema(tema === "dark" ? "light" : tema === "light" ? "auto" : "dark");
-
   return (
     <div className="login-screen">
-      <section className="login-hero v2" aria-hidden="true">
+      <section className="login-hero" aria-hidden="true">
+        <img className="mapa" src={marca.mapa} alt="" width={776} height={1024} decoding="async" />
+        <img className="foto" src={marca.foto} alt="" width={1360} height={1360} decoding="async" fetchPriority="high" />
+        {marca.puntos.map((p) => (
+          <React.Fragment key={p.nombre}>
+            <span className="pin" style={{ left: du(p.x - 17.5), top: du(p.y - 17.5), ["--c" as any]: TONOS[p.tono] || TONOS.azul }} />
+            {p.etiqueta ? <span className="pin-etiqueta" style={{ left: du(p.etiqueta.x), top: du(p.etiqueta.y), width: du(p.etiqueta.w), height: du(p.etiqueta.h) }}>{p.nombre}</span> : null}
+          </React.Fragment>
+        ))}
         <div className="brand">
-          <Marca size={40} />
-          <div><b translate="no">{marca.producto}</b><span translate="no">{marca.empresa}</span></div>
+          <span className="marca-cuadro" />
+          <div className="brand-texto"><b translate="no">{marca.producto}</b><span translate="no">{marca.empresa}</span></div>
         </div>
-        <h2 className="titular">{marca.titular[0]} <em>{marca.titular[1]}</em> {marca.titular[2]}</h2>
+        <h2 className="titular">
+          <span className="l1">{marca.titular[0]}</span>
+          <span className="l2"><em>{marca.titular[1]}</em><span className="en">{marca.titular[2]}</span></span>
+        </h2>
         <div className="chips">{marca.chips.map((c) => <span key={c}>{c}</span>)}</div>
-        <img className="mapa" src={marca.mapa} alt="" width={2000} height={1457} decoding="async" />
-        <div className="puntos">
-          {marca.puntos.map((p) => (
-            <div key={p.nombre} className="punto" style={{ left: `${p.x}%`, top: `${p.y}%`, ["--c" as any]: TONOS[p.tono] || TONOS.azul }}><i /><span>{p.nombre}</span></div>
-          ))}
-        </div>
-        <img className="foto" src={marca.foto} alt="" width={1356} height={1234} decoding="async" fetchPriority="high" />
       </section>
 
       <div className="login-panel">
-        <button type="button" className="iconbtn login-theme" onClick={siguienteTema} aria-label={`Tema: ${tema === "auto" ? "del sistema" : tema === "dark" ? "oscuro" : "claro"}. Cambiar`} title="Cambiar el tema">
-          <Icon name={tema === "dark" ? "luna" : tema === "light" ? "sol" : "auto"} size={17} />
-        </button>
         <form className="login-card" onSubmit={submit}>
-          <div className="login-mobile-brand"><Marca size={38} /><div><b translate="no">{marca.producto}</b><span translate="no">{marca.empresa}</span></div></div>
-          <h1 className="login-title">{challenge ? "Verificación en dos pasos" : "Inicia sesión"}</h1>
+          <div className="login-mobile-brand"><span className="marca-cuadro" /><div><b translate="no">{marca.producto}</b><span translate="no">{marca.empresa}</span></div></div>
+          <h1 className={`login-title${challenge ? " paso" : ""}`}>{challenge ? "Verificación en dos pasos" : marca.titulo}</h1>
           <p className="login-sub">
-            {challenge ? "Confirma tu identidad para continuar." : "Ingresa con tu usuario del panel de administración."}
+            {challenge ? "Confirma tu identidad para continuar." : "Ingresa con tu usuario del panel de administración"}
           </p>
           {!challenge ? (
             <>
@@ -147,11 +151,13 @@ export default function LoginPage() {
               </div>
             </>
           )}
-          {error ? <div role="alert" className="error-box">{error}</div> : null}
-          <button type="submit" className="btn login-cta" disabled={busy}>{busy ? "Validando…" : challenge ? "Verificar acceso" : "Ingresar"}</button>
-          {ssoActivo && !challenge ? <a className="btn ghost login-sso" href="/sso">Entrar con mi cuenta Sulotec</a> : null}
-          <div className="login-foot"><a href="/privacidad">Política de privacidad</a><span>Soporte: serviciosdigitales@informaperu.com</span></div>
-          <p className="login-nota">Acceso exclusivo para personal autorizado. Tu cuenta ya sabe a qué empresa perteneces.</p>
+          <div className="login-slot" aria-live="polite">{error ? <div role="alert" className="error-box">{error}</div> : null}</div>
+          <button type="submit" className="login-cta" disabled={busy}>{busy ? "Validando…" : challenge ? "Verificar" : "Ingresar"}</button>
+          {ssoActivo && !challenge ? <a className="login-sso" href="/sso">Entrar con mi cuenta Sulotec</a> : null}
+          <div className="login-foot">
+            <a className="privacidad" href="/privacidad">Política de privacidad</a>
+            <a className="soporte" href="mailto:serviciosdigitales@informaperu.com">Soporte: serviciosdigitales@informaperu.com</a>
+          </div>
         </form>
       </div>
     </div>

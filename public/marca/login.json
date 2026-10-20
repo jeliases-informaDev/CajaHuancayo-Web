@@ -1,13 +1,14 @@
 {
   "empresa": "Caja Huancayo",
-  "producto": "Auditoría de Visitas",
+  "producto": "Auditoria de Visitas",
   "titular": ["Cada visita,", "comprobada", "en campo"],
-  "chips": ["Ubicación en tiempo real", "KPI e información al instante"],
-  "foto": "/marca/auditor.webp",
+  "chips": ["Ubicación en tiempo real", "KPI e Información al instante"],
+  "titulo": "Inicia Sesion",
+  "foto": "/marca/equipo.webp",
   "mapa": "/marca/mapa-peru.webp",
   "puntos": [
-    { "nombre": "La Libertad", "x": 28, "y": 36, "tono": "amarillo" },
-    { "nombre": "Lima", "x": 38.5, "y": 60, "tono": "verde" },
-    { "nombre": "Huancayo", "x": 44.5, "y": 58, "tono": "rojo" }
+    { "nombre": "La Libertad", "x": 492, "y": 388, "tono": "amarillo", "etiqueta": { "x": 512, "y": 353, "w": 80, "h": 22 } },
+    { "nombre": "Lima", "x": 580, "y": 612, "tono": "verde", "etiqueta": { "x": 580, "y": 570, "w": 45, "h": 21 } },
+    { "nombre": "Huancayo", "x": 687, "y": 607, "tono": "rojo", "etiqueta": { "x": 695, "y": 621, "w": 73, "h": 22 } }
   ]
 }
