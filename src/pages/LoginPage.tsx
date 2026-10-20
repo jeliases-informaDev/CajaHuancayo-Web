@@ -5,9 +5,9 @@ import { useAuth } from "../AuthContext";
 import { request } from "../api";
 import "../login.css";
 
-// Diseño de Figma «LOGIN 5». Lo que se ve en el lado izquierdo (empresa, titular, chips, foto, mapa y puntos de visita) se lee de
-// public/marca/login.json, con las posiciones en px de diseño (lienzo de 1440 × 1024): cambiar la imagen o los textos de una
-// instalación no requiere tocar código. Si el archivo falta, se usan estos valores.
+// Diseño de Figma «LOGIN 5» (y su versión «estirada» para pantallas anchas, ver login.css). Lo que se ve en el lado izquierdo (empresa,
+// titular, chips, foto, mapa y puntos de visita) se lee de public/marca/login.json, con las posiciones de los puntos en px de diseño
+// del lienzo de 1440 × 1024: cambiar la imagen o los textos de una instalación no requiere tocar código. Si el archivo falta, se usan estos valores.
 type Etiqueta = { x: number; y: number; w: number; h: number };
 type Punto = { nombre: string; x: number; y: number; tono: string; etiqueta?: Etiqueta };
 type MarcaLogin = { empresa: string; producto: string; titular: [string, string, string]; chips: string[]; titulo: string; foto: string; mapa: string; puntos: Punto[] };
@@ -23,6 +23,9 @@ const MARCA_DEFECTO: MarcaLogin = {
 const TONOS: Record<string, string> = { amarillo: "#ebe838", verde: "#40e045", rojo: "#e04040", azul: "#3549c6" };
 // px de diseño → longitud real (el CSS define --u según el tamaño de la pantalla)
 const du = (n: number) => `calc(${n} * var(--u))`;
+// Los puntos viajan con el mapa (en la versión ancha el mapa está en otro lugar): sus coordenadas se miden desde la esquina del mapa en «LOGIN 5».
+// La imagen trae 42 px más por arriba (los que solo se ven en la versión ancha), por eso su esquina está en y = -42 en ese lienzo.
+const MAPA_X = 300, MAPA_Y = -42;
 
 export default function LoginPage() {
   const { login, verifyMfa } = useAuth();
@@ -87,14 +90,16 @@ export default function LoginPage() {
   return (
     <div className="login-screen">
       <section className="login-hero" aria-hidden="true">
-        <img className="mapa" src={marca.mapa} alt="" width={776} height={1024} decoding="async" />
+        <div className="mapa-capa">
+          <img className="mapa" src={marca.mapa} alt="" width={776} height={1066} decoding="async" />
+          {marca.puntos.map((p) => (
+            <React.Fragment key={p.nombre}>
+              <span className="pin" data-tono={p.tono} style={{ left: du(p.x - MAPA_X), top: du(p.y - MAPA_Y), ["--c" as any]: TONOS[p.tono] || TONOS.azul }} />
+              {p.etiqueta ? <span className="pin-etiqueta" style={{ left: du(p.etiqueta.x - MAPA_X), top: du(p.etiqueta.y - MAPA_Y), width: du(p.etiqueta.w), height: du(p.etiqueta.h) }}>{p.nombre}</span> : null}
+            </React.Fragment>
+          ))}
+        </div>
         <img className="foto" src={marca.foto} alt="" width={1360} height={1360} decoding="async" fetchPriority="high" />
-        {marca.puntos.map((p) => (
-          <React.Fragment key={p.nombre}>
-            <span className="pin" style={{ left: du(p.x - 17.5), top: du(p.y - 17.5), ["--c" as any]: TONOS[p.tono] || TONOS.azul }} />
-            {p.etiqueta ? <span className="pin-etiqueta" style={{ left: du(p.etiqueta.x), top: du(p.etiqueta.y), width: du(p.etiqueta.w), height: du(p.etiqueta.h) }}>{p.nombre}</span> : null}
-          </React.Fragment>
-        ))}
         <div className="brand">
           <span className="marca-cuadro" />
           <div className="brand-texto"><b translate="no">{marca.producto}</b><span translate="no">{marca.empresa}</span></div>

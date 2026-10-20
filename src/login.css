@@ -1,7 +1,10 @@
-/* Inicio de sesión — diseño de Figma «LOGIN 5» (lienzo de 1440 × 1024).
-   Todas las medidas están en px de diseño y se multiplican por --u (cuántos px reales vale uno de diseño): la composición se
-   escala completa con la altura/anchura de la pantalla y se ve igual que el diseño. Fuentes: Be Vietnam Pro y Beiruti (OFL, en /public/fonts).
-   Textos, foto, mapa y puntos salen de public/marca/login.json. */
+/* Inicio de sesión — dos composiciones de Figma, una por forma de pantalla:
+   · «LOGIN 5», lienzo de 1440 × 1024, para pantallas casi cuadradas (relación ancho/alto menor de 1,6);
+   · «LOGIN VERSION ESTIRADA», lienzo de 1920 × 1080, para pantallas anchas (relación de 1,6 o más): la imagen ocupa más y el formulario
+     conserva su tamaño de diseño (387 px) en vez de crecer.
+   Todas las medidas están en px de diseño y se multiplican por --u (cuántos px reales vale uno de diseño): la composición se escala
+   completa con la pantalla y se ve igual que el diseño. La posición de cada pieza son variables (--hero-w, --foto-x…) que la versión
+   ancha redefine. Fuentes: Be Vietnam Pro y Beiruti (OFL, en /public/fonts). Textos, foto, mapa y puntos salen de public/marca/login.json. */
 
 @font-face { font-family: "Be Vietnam Pro"; font-weight: 300; font-style: normal; font-display: swap; src: url("/fonts/BeVietnamPro-300.woff2") format("woff2"); }
 @font-face { font-family: "Be Vietnam Pro"; font-weight: 400; font-style: normal; font-display: swap; src: url("/fonts/BeVietnamPro-400.woff2") format("woff2"); }
@@ -14,7 +17,13 @@
 
 .login-screen {
   /* 1 px de diseño = --u. Nunca baja de 0,66 px (por debajo la página se desplaza en vez de encogerse más). */
-  --u: max(0.66px, min(calc(100vw / 1440), calc(100vh / 1024)));
+  --lienzo-w: 1440; --lienzo-h: 1024;
+  --u: max(0.66px, min(calc(100vw / var(--lienzo-w)), calc(100vh / var(--lienzo-h))));
+  /* Composición de «LOGIN 5» (px de diseño). La versión ancha, al final del archivo, cambia estos valores. */
+  --hero-w: 819; --mapa-x: 300; --mapa-y: -42; --foto-w: 679; --foto-x: 0; --foto-bottom: -62;
+  --brand-x: 65; --brand-y: 65; --titular-x: 65; --titular-y: 174; --chips-x: 73; --chips-y: 316; --chips-gap: 16; --chips-dx: 54;
+  --form-dy: 16; --titulo-dx: 0; --brand-gap: 9; --titular-ls: 0.05em; --pin-d: 35; --pin-d-rojo: 35; --pin-punto: 15;
+  --sub-dy: 0; --sub-gap: 51; --foot-mt: 22; --foot-fs: 9; --foot-min: 10px; --campo2-dy: 0; --slot-h: 72; --campo-sombra: 0 2px 3px rgba(20, 24, 60, 0.13), 0 0 0 1px rgba(20, 24, 60, 0.035);
   min-height: 100vh; display: flex; background: #f9faff; color: #000; color-scheme: light;
   font-family: "Be Vietnam Pro", ui-sans-serif, system-ui, "Segoe UI", Roboto, Arial, sans-serif;
   /* El inicio de sesión es siempre claro, aunque el panel esté en tema oscuro */
@@ -25,62 +34,65 @@
 
 /* ─────────────── Lado izquierdo ─────────────── */
 .login-hero {
-  position: relative; flex: 0 0 calc(819 * var(--u)); height: max(100vh, calc(1024 * var(--u))); overflow: hidden;
+  position: relative; flex: 0 0 calc(var(--hero-w) * var(--u)); height: max(100vh, calc(var(--lienzo-h) * var(--u))); overflow: hidden;
   background: linear-gradient(180deg, #d3dbff 0%, #e4edff 21%, #e7f1ff 36%, #e7f1ff 100%);
 }
 .login-hero img { display: block; max-width: none; user-select: none; -webkit-user-drag: none; pointer-events: none; }
-.login-hero .mapa { position: absolute; left: calc(300 * var(--u)); top: 0; width: calc(776 * var(--u)); height: auto; opacity: 0.8; }
-.login-hero .foto { position: absolute; left: 0; bottom: calc(-62 * var(--u)); width: calc(679 * var(--u)); height: auto; z-index: 1; }
+.login-hero .mapa-capa { position: absolute; left: calc(var(--mapa-x) * var(--u)); top: calc(var(--mapa-y) * var(--u)); width: calc(776 * var(--u)); height: calc(1066 * var(--u)); }
+.login-hero .mapa { width: 100%; height: auto; opacity: 0.8; }
+.login-hero .foto { position: absolute; left: calc(var(--foto-x) * var(--u)); bottom: calc(var(--foto-bottom) * var(--u)); width: calc(var(--foto-w) * var(--u)); height: auto; z-index: 1; }
 
-.login-hero .brand { position: absolute; left: calc(65 * var(--u)); top: calc(65 * var(--u)); display: flex; align-items: flex-start; gap: calc(9 * var(--u)); z-index: 3; }
+.login-hero .brand { position: absolute; left: calc(var(--brand-x) * var(--u)); top: calc(var(--brand-y) * var(--u)); display: flex; align-items: flex-start; gap: calc(var(--brand-gap) * var(--u)); z-index: 3; }
 .login-hero .marca-cuadro { width: calc(45 * var(--u)); height: calc(45 * var(--u)); border-radius: calc(9 * var(--u)); background: linear-gradient(135deg, #3046c8 0%, #f90206 100%); flex-shrink: 0; }
 .login-hero .brand-texto { margin-top: calc(8.5 * var(--u)); line-height: 1.25; }
 .login-hero .brand-texto b { display: block; font-weight: 600; font-size: max(11px, calc(15 * var(--u))); color: #242424; white-space: nowrap; }
 .login-hero .brand-texto span { display: block; font-weight: 500; font-size: max(10px, calc(10 * var(--u))); color: #596a92; white-space: nowrap; }
 
-.login-hero .titular { position: absolute; left: calc(65 * var(--u)); top: calc(174 * var(--u)); margin: 0; z-index: 3; font-weight: 400; font-size: max(28px, calc(45 * var(--u))); line-height: calc(50 * var(--u)); color: #242424; white-space: nowrap; }
-.login-hero .titular .l1 { display: block; letter-spacing: 0.05em; }
+.login-hero .titular { position: absolute; left: calc(var(--titular-x) * var(--u)); top: calc(var(--titular-y) * var(--u)); margin: 0; z-index: 3; font-weight: 400; font-size: max(28px, calc(45 * var(--u))); line-height: calc(50 * var(--u)); color: #242424; white-space: nowrap; }
+.login-hero .titular .l1 { display: block; letter-spacing: var(--titular-ls); }
 .login-hero .titular .l2 { display: block; }
 .login-hero .titular em { display: inline-block; padding-right: 0.08em; font-style: italic; font-weight: 600; letter-spacing: 0.01em; background: linear-gradient(90deg, #7b2c85 0%, #e20a1e 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .login-hero .titular .en { margin-left: calc(14 * var(--u)); }
 
-.login-hero .chips { position: absolute; left: calc(73 * var(--u)); top: calc(316 * var(--u)); display: flex; flex-direction: column; align-items: flex-start; gap: calc(16 * var(--u)); z-index: 3; }
+.login-hero .chips { position: absolute; margin: 0; left: calc(var(--chips-x) * var(--u)); top: calc(var(--chips-y) * var(--u)); display: flex; flex-direction: column; align-items: flex-start; gap: calc(var(--chips-gap) * var(--u)); z-index: 3; }
 .login-hero .chips span { display: inline-block; padding: calc(4 * var(--u)) calc(14 * var(--u)); border-radius: 999px; background: #cadfff; color: #242424; font-weight: 400; font-size: max(13px, calc(20 * var(--u))); line-height: calc(40 * var(--u)); white-space: nowrap; }
-.login-hero .chips span + span { margin-left: calc(54 * var(--u)); }
+.login-hero .chips span + span { margin-left: calc(var(--chips-dx) * var(--u)); }
 .login-hero .chips span:first-child { padding-inline: calc(17.25 * var(--u)); }
 
 /* Puntos de visita sobre el mapa: anillo + punto de color, y su etiqueta */
-.login-hero .pin { position: absolute; z-index: 2; width: calc(35 * var(--u)); height: calc(35 * var(--u)); border-radius: 50%; border: max(1px, calc(1 * var(--u))) solid var(--c); box-sizing: border-box; display: flex; align-items: center; justify-content: center; }
-.login-hero .pin::after { content: ""; width: calc(15 * var(--u)); height: calc(15 * var(--u)); border-radius: 50%; background: var(--c); }
+.login-hero .pin { position: absolute; z-index: 2; width: calc(var(--pin-d) * var(--u)); height: calc(var(--pin-d) * var(--u)); margin: calc(var(--pin-d) * var(--u) / -2) 0 0 calc(var(--pin-d) * var(--u) / -2); border-radius: 50%; border: max(1px, calc(1 * var(--u))) solid var(--c); box-sizing: border-box; display: flex; align-items: center; justify-content: center; }
+.login-hero .pin[data-tono="rojo"] { width: calc(var(--pin-d-rojo) * var(--u)); height: calc(var(--pin-d-rojo) * var(--u)); margin: calc(var(--pin-d-rojo) * var(--u) / -2) 0 0 calc(var(--pin-d-rojo) * var(--u) / -2); }
+.login-hero .pin::after { content: ""; width: calc(var(--pin-punto) * var(--u)); height: calc(var(--pin-punto) * var(--u)); border-radius: 50%; background: var(--c); }
 .login-hero .pin-etiqueta { position: absolute; z-index: 2; display: flex; align-items: center; justify-content: center; border-radius: 999px; background: #c6cbce; color: #fff; font-style: italic; font-weight: 400; font-size: max(8px, calc(10 * var(--u))); line-height: 1; white-space: nowrap; }
 
 /* ─────────────── Lado derecho ─────────────── */
-.login-panel { flex: 1 1 auto; min-width: 0; min-height: max(100vh, calc(1024 * var(--u))); background: #f9faff; display: flex; justify-content: center; align-items: center; container-type: inline-size; }
-/* El formulario ocupa 62 % del ancho de su panel en el tamaño del diseño (1440 de ancho) y crece hasta ~80 % en pantallas más anchas, para llenar el blanco en vez de quedar chico entre mucho espacio.
-   Mínimo 0,83 px de diseño (formulario de ~320 px) y tope para que el bloque nunca pase de ~78 % de la altura. Se centra en vertical con el leve desplazamiento del diseño. */
-.login-card { --relleno: clamp(62cqw, calc(62cqw + (100vw - 1440px) * 0.24), 80cqw); --uf: max(var(--u), 0.83px, min(calc(var(--relleno) / 387), calc(var(--u) * 1.9), calc(100vh / 560))); width: calc(387 * var(--uf)); max-width: none; margin-top: calc(16 * var(--uf)); }
+.login-panel { flex: 1 1 auto; min-width: 0; min-height: max(100vh, calc(var(--lienzo-h) * var(--u))); background: #f9faff; display: flex; justify-content: center; align-items: center; }
+/* El formulario mide 387 px de diseño y va centrado en su panel, igual que en las dos composiciones de Figma (no crece con la pantalla: lo que sobra es de la imagen).
+   Mínimo 0,83 px de diseño (formulario de ~320 px) para que siga legible en pantallas chicas. Se centra en vertical con el leve desplazamiento del diseño (--form-dy). */
+.login-card { --uf: max(var(--u), 0.83px); width: calc(387 * var(--uf)); max-width: none; margin-top: calc(var(--form-dy) * var(--uf)); }
 .login-mobile-brand { display: none; }
 
-.login-title { margin: 0; font-family: "Beiruti", "Be Vietnam Pro", sans-serif; font-weight: 600; font-size: max(24px, calc(40 * var(--uf))); line-height: calc(48 * var(--uf)); letter-spacing: 0.2em; color: #000; }
+.login-title { margin: 0; padding-left: calc(var(--titulo-dx) * var(--uf)); font-family: "Beiruti", "Be Vietnam Pro", sans-serif; font-weight: 600; font-size: max(24px, calc(40 * var(--uf))); line-height: calc(48 * var(--uf)); letter-spacing: 0.2em; color: #000; }
 .login-title.paso { font-size: max(20px, calc(28 * var(--uf))); line-height: 1.2; letter-spacing: 0.1em; }
-.login-sub { margin: calc(-2 * var(--uf)) 0 0; font-weight: 300; font-size: max(12px, calc(14 * var(--uf))); line-height: calc(20 * var(--uf)); color: #c0c0c0; }
+.login-sub { margin: calc((-2 + var(--sub-dy)) * var(--uf)) 0 0; padding-left: calc(var(--titulo-dx) * var(--uf)); font-weight: 300; font-size: max(12px, calc(14 * var(--uf))); line-height: calc(20 * var(--uf)); color: #c0c0c0; }
 
 .login-card .field { margin: 0; display: block; gap: 0; }
-.login-sub + .field { margin-top: calc(51 * var(--uf)); }
+.login-sub + .field { margin-top: calc(var(--sub-gap) * var(--uf)); }
 .login-card .callout + .field { margin-top: calc(16 * var(--uf)); }
 .login-card .field + .field { margin-top: calc(13 * var(--uf)); }
 .login-card .field label { display: block; margin: 0 0 calc(3 * var(--uf)); padding-left: calc(12 * var(--uf)); font-weight: 400; font-size: max(12px, calc(14 * var(--uf))); line-height: calc(20 * var(--uf)); color: #000; }
 .login-card .field input {
   display: block; width: 100%; height: calc(40 * var(--uf)); min-height: 38px; box-sizing: border-box; padding: 0 calc(18 * var(--uf)); border: 0; border-radius: 999px; background: #fff; color: #242424;
   font-family: inherit; font-weight: 400; font-size: max(13px, calc(14 * var(--uf)));
-  box-shadow: 0 2px 3px rgba(20, 24, 60, 0.13), 0 0 0 1px rgba(20, 24, 60, 0.035);
+  box-shadow: var(--campo-sombra);
   transition: box-shadow 0.15s;
 }
 .login-card .field input:focus-visible { outline: none; box-shadow: 0 2px 3px rgba(20, 24, 60, 0.13), 0 0 0 3px rgba(53, 73, 198, 0.3); }
 .login-card .field input:disabled { opacity: 0.7; }
 
 /* Espacio entre la contraseña y el botón (como en el diseño); aquí aparece el error si lo hay */
-.login-slot { min-height: calc(72 * var(--uf)); display: flex; align-items: center; }
+.login-card .field + .field input { margin-top: calc(var(--campo2-dy) * var(--uf)); }
+.login-slot { min-height: calc(var(--slot-h) * var(--uf)); display: flex; align-items: center; }
 .login-slot .error-box { width: 100%; margin: calc(8 * var(--uf)) 0; }
 
 .login-cta {
@@ -98,7 +110,7 @@
 .login-sso:hover { background: rgba(53, 73, 198, 0.06); }
 .login-sso:focus-visible { outline: 3px solid rgba(53, 73, 198, 0.35); outline-offset: 2px; }
 
-.login-foot { margin-top: calc(22 * var(--uf)); flex-wrap: nowrap; display: flex; flex-direction: column; align-items: flex-start; gap: calc(16 * var(--uf)); padding-left: calc(12 * var(--uf)); font-size: max(10px, calc(9 * var(--uf))); line-height: calc(14 * var(--uf)); }
+.login-foot { margin-top: calc(var(--foot-mt) * var(--uf)); flex-wrap: nowrap; display: flex; flex-direction: column; align-items: flex-start; gap: calc(16 * var(--uf)); padding-left: calc(12 * var(--uf)); font-size: max(var(--foot-min), calc(var(--foot-fs) * var(--uf))); line-height: calc(14 * var(--uf)); }
 .login-foot a { text-decoration: underline; text-underline-offset: 2px; }
 .login-foot a.privacidad { color: #3448c6; }
 .login-foot a.soporte { color: #c7c7c8; }
@@ -120,6 +132,22 @@
   .login-title { font-size: 32px; line-height: 40px; }
 }
 @media (prefers-reduced-motion: reduce) { .login-card .field input, .login-cta { transition: none; } }
+
+/* ─────────────── Pantallas anchas: «LOGIN VERSION ESTIRADA» (lienzo de 1920 × 1080) ───────────────
+   La imagen ocupa 1123 px de los 1920 (58 %), la foto y el mapa crecen y se mueven, los chips bajan junto al hombre de la foto y el formulario
+   conserva sus 387 px de diseño. Medidas tomadas del Figma por registro de imagen: mapa 776 × 1024 en (570, 42) —más 42 px que el diseño de 1440 recorta por arriba—, foto 816 px en (-12, abajo), fondo liso #e4efff. */
+@media (min-width: 961px) and (min-aspect-ratio: 8/5) {
+  .login-screen:not(.solo-panel) {
+    --lienzo-w: 1920; --lienzo-h: 1080;
+    --hero-w: 1123; --mapa-x: 570; --mapa-y: 0; --foto-w: 816; --foto-x: -12; --foto-bottom: -1;
+    --brand-x: 88; --brand-y: 66; --brand-gap: 7; --titular-x: 87; --titular-ls: 0.058em; --chips-x: 681; --chips-gap: 23; --chips-dx: 49;
+    --pin-d: 34; --pin-d-rojo: 26; --pin-punto: 13.5;
+    --form-dy: -6; --titulo-dx: 3; --campo2-dy: 5; --slot-h: 71; --sub-dy: 2; --sub-gap: 49; --foot-mt: 21; --foot-min: 9px;
+    --campo-sombra: 0 0 0 1px #e1e3e5, 0 2px 4px rgba(45, 35, 95, 0.11);
+  }
+  .login-screen:not(.solo-panel) .login-hero { background: #e4efff; }
+  .login-screen:not(.solo-panel) .login-hero .chips { top: auto; bottom: calc(106 * var(--u)); flex-direction: column-reverse; }
+}
 
 /* Pantalla del inicio con la cuenta Sulotec (/sso): solo el panel, centrado, con título más corto */
 .login-screen.solo-panel { --u: 1px; }
