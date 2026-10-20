@@ -29,6 +29,17 @@ export default function AsignacionesPage() {
       setAviso(activa ? "Los auditores ya pueden tomar casos disponibles de su zona." : "Los auditores ya no pueden tomar casos por su cuenta: solo trabajan los que asignes tú.");
     } catch (x: any) { setError(x.message); } finally { setCambiandoInterruptor(false); }
   };
+  // Pendientes que solo asigna un supervisor (cargas de Excel sin la casilla «disponibles»): el administrador puede liberarlos de una vez.
+  const [liberando, setLiberando] = useState(false);
+  const liberarReservados = async () => {
+    if (!window.confirm(`¿Dejar ${Number(resumen?.pendientes_reservados || 0).toLocaleString("es-PE")} casos pendientes disponibles para que los auditores de su zona los tomen?`)) return;
+    setLiberando(true);
+    try {
+      const r: any = await request("/api/asignaciones/liberar", { method: "POST" });
+      setResumen(r.data.resumen); setError("");
+      setAviso(`Se liberaron ${r.data.liberados.toLocaleString("es-PE")} casos: los auditores de su zona ya pueden tomarlos.`);
+    } catch (x: any) { setError(x.message); } finally { setLiberando(false); }
+  };
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [aviso, setAviso] = useState("");
@@ -135,6 +146,12 @@ export default function AsignacionesPage() {
           <div className="toma-texto" role="status">
             {resumen.total > 0 ? <b>Casos tomados por el propio auditor: {resumen.autoasignadas} de {resumen.total} ({resumen.porcentaje} %).</b> : <b>Aún no hay casos asignados.</b>}{" "}
             {resumen.autoasignacion_activa ? "Los auditores pueden tomar casos disponibles de su zona." : "La toma de casos por cuenta propia está desactivada: solo trabajan lo que asigna un supervisor."}
+            {resumen.pendientes_reservados > 0 ? (
+              <p style={{ margin: "8px 0 0" }}>
+                Hay {resumen.pendientes_reservados.toLocaleString("es-PE")} casos pendientes que solo asigna un supervisor (se cargaron sin marcar «disponibles»): los auditores no los ven en «Disponibles».{" "}
+                {esAdmin ? <button type="button" className="btn small" disabled={liberando} onClick={liberarReservados}>{liberando ? "Liberando…" : "Liberarlos a los auditores"}</button> : "Pide al administrador que los libere."}
+              </p>
+            ) : null}
             {resumen.auditores.some((x: any) => x.autoasignadas > 0) ? (
               <ul className="pausas" aria-label="Casos tomados por auditor">
                 {resumen.auditores.filter((x: any) => x.autoasignadas > 0).slice(0, 6).map((x: any) => <li key={x.id}>{x.nombre}: {x.autoasignadas} de {x.total} ({x.porcentaje} %)</li>)}

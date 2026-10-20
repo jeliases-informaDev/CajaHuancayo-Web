@@ -8,6 +8,8 @@ import { dash, fechaHora } from "../lib/format";
 import { useQueryParam } from "../lib/useQueryParam";
 
 const emptyForm = { username: "", password: "", rol: "AUDITOR", nombres: "", apellidos: "", email: "", departamento: "" };
+// Cómo se escribe la zona del auditor (el servidor la compara con el distrito, la provincia y el departamento del expediente).
+const AYUDA_ZONA = "Escribe el distrito y su ciudad, por ejemplo «Lince, Lima», o solo el departamento («Junín»). Para varias zonas sepáralas con punto y coma: «Lince, Lima; Huancayo». Sin zona, el auditor no verá casos en «Disponibles» y podrás asignarle de cualquier ciudad.";
 const nombreDe = (u: any) => `${u.nombres || ""} ${u.apellidos || ""}`.trim();
 
 export default function UsuariosPage() {
@@ -22,6 +24,8 @@ export default function UsuariosPage() {
   const [saving, setSaving] = useState(false);
   const [clave, setClave] = useState<any | null>(null); // usuario al que se le cambia la contraseña
   const [nuevaClave, setNuevaClave] = useState("");
+  const [zonaDe, setZonaDe] = useState<any | null>(null); // auditor al que se le cambia la zona
+  const [nuevaZona, setNuevaZona] = useState("");
   const [rol, setRol] = useQueryParam("rol");
   const [busqueda, setBusqueda] = useQueryParam("q");
 
@@ -53,6 +57,17 @@ export default function UsuariosPage() {
     try {
       await request(`/api/usuarios/${clave.id}`, { method: "PATCH", body: JSON.stringify({ password: nuevaClave }) });
       setOk(`Contraseña de @${clave.username} actualizada. Sus sesiones abiertas se cerraron.`); setClave(null); setNuevaClave("");
+      await cargar();
+    } catch (x: any) { setError(x.message); } finally { setSaving(false); }
+  };
+
+  const cambiarZona = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!zonaDe) return;
+    setError(""); setSaving(true);
+    try {
+      await request(`/api/usuarios/${zonaDe.id}`, { method: "PATCH", body: JSON.stringify({ departamento: nuevaZona.trim() }) });
+      setOk(nuevaZona.trim() ? `Zona de @${zonaDe.username}: ${nuevaZona.trim()}.` : `@${zonaDe.username} quedó sin zona: no verá casos en «Disponibles».`); setZonaDe(null); setNuevaZona("");
       await cargar();
     } catch (x: any) { setError(x.message); } finally { setSaving(false); }
   };
@@ -112,6 +127,7 @@ export default function UsuariosPage() {
                       header={{ title: nombreDe(u) || u.username, sub: `@${u.username}` }}
                       items={[
                         { label: "Liberar dispositivo", hidden: u.rol === "ADMINISTRADOR", onClick: () => { if (window.confirm(`¿Liberar el dispositivo de @${u.username}? Podrá iniciar sesión desde otro teléfono.`)) accion(() => request(`/api/usuarios/${u.id}/device/reset`, { method: "POST" }), "Dispositivo liberado: podrá iniciar sesión desde otro teléfono."); } },
+                        { label: "Cambiar zona", hidden: u.rol !== "AUDITOR", onClick: () => { setZonaDe(u); setNuevaZona(u.departamento || ""); setOk(""); } },
                         { label: "Cambiar contraseña", onClick: () => { setClave(u); setNuevaClave(""); setOk(""); } },
                         { label: "Restablecer verificación en dos pasos", onClick: () => { if (window.confirm(`¿Restablecer la verificación en dos pasos de @${u.username}? Tendrá que configurarla de nuevo.`)) accion(() => request(`/api/usuarios/${u.id}/mfa/reset`, { method: "POST" }), "Verificación en dos pasos restablecida."); } },
                         u.estado === "ACTIVO"
@@ -136,6 +152,16 @@ export default function UsuariosPage() {
         </Drawer>
       ) : null}
 
+      {zonaDe ? (
+        <Drawer title="Cambiar zona" subtitle={`@${zonaDe.username} · ${nombreDe(zonaDe) || "auditor de campo"}`} onClose={() => setZonaDe(null)}
+          footer={<><button className="btn ghost" onClick={() => setZonaDe(null)}>Cancelar</button><button className="btn" type="submit" form="form-zona" disabled={saving}>{saving ? "Guardando…" : "Guardar zona"}</button></>}>
+          <form id="form-zona" onSubmit={cambiarZona}>
+            <Field label="Zona donde trabaja"><input name="zona" type="text" autoComplete="off" spellCheck={false} maxLength={100} placeholder="Ej. Lince, Lima…" value={nuevaZona} onChange={(e) => setNuevaZona(e.target.value)} /></Field>
+            <p className="subtle" style={{ marginTop: -6 }}>{AYUDA_ZONA}</p>
+          </form>
+        </Drawer>
+      ) : null}
+
       {nuevo ? (
         <Drawer title="Nuevo usuario" subtitle="La contraseña debe tener al menos 12 caracteres." onClose={cerrarNuevo}
           footer={<><button className="btn ghost" onClick={cerrarNuevo}>Cancelar</button><button className="btn" type="submit" form="form-usuario" disabled={saving}>{saving ? "Creando…" : "Crear usuario"}</button></>}>
@@ -155,8 +181,8 @@ export default function UsuariosPage() {
             {campo("email", "Correo electrónico", "email")}
             {form.rol === "AUDITOR" ? (
               <>
-                {campo("departamento", "Departamento donde trabaja", "text", { placeholder: "Ej. Junín, Lima" })}
-                <p className="subtle" style={{ marginTop: -6 }}>Si lo dejas vacío, el sistema no podrá impedir que le asignen clientes de otra ciudad.</p>
+                {campo("departamento", "Zona donde trabaja", "text", { placeholder: "Ej. Lince, Lima…" })}
+                <p className="subtle" style={{ marginTop: -6 }}>{AYUDA_ZONA}</p>
               </>
             ) : null}
             <label className="check-inline" style={{ height: "auto", marginTop: 12, alignItems: "flex-start" }}>
