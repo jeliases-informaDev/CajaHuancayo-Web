@@ -13,8 +13,8 @@
 @font-face { font-family: "Beiruti"; font-weight: 600; font-style: normal; font-display: swap; src: url("/fonts/Beiruti-600.woff2") format("woff2"); }
 
 .login-screen {
-  /* 1 px de diseño = --u. Nunca baja de 0,72 px (por debajo la página se desplaza en vez de encogerse más). */
-  --u: max(0.72px, min(calc(100vw / 1440), calc(100vh / 1024)));
+  /* 1 px de diseño = --u. Nunca baja de 0,66 px (por debajo la página se desplaza en vez de encogerse más). */
+  --u: max(0.66px, min(calc(100vw / 1440), calc(100vh / 1024)));
   min-height: 100vh; display: flex; background: #f9faff; color: #000; color-scheme: light;
   font-family: "Be Vietnam Pro", ui-sans-serif, system-ui, "Segoe UI", Roboto, Arial, sans-serif;
   /* El inicio de sesión es siempre claro, aunque el panel esté en tema oscuro */
@@ -25,7 +25,7 @@
 
 /* ─────────────── Lado izquierdo ─────────────── */
 .login-hero {
-  position: relative; flex: 0 0 calc(819 * var(--u)); height: max(100vh, calc(1024 * var(--u))); overflow: hidden;
+  position: relative; flex: 0 0 clamp(calc(819 * var(--u)), 57vw, calc(1060 * var(--u))); height: max(100vh, calc(1024 * var(--u))); overflow: hidden;
   background: linear-gradient(180deg, #d3dbff 0%, #e4edff 21%, #e7f1ff 36%, #e7f1ff 100%);
 }
 .login-hero img { display: block; max-width: none; user-select: none; -webkit-user-drag: none; pointer-events: none; }
@@ -55,22 +55,24 @@
 .login-hero .pin-etiqueta { position: absolute; z-index: 2; display: flex; align-items: center; justify-content: center; border-radius: 999px; background: #c6cbce; color: #fff; font-style: italic; font-weight: 400; font-size: max(8px, calc(10 * var(--u))); line-height: 1; white-space: nowrap; }
 
 /* ─────────────── Lado derecho ─────────────── */
-.login-panel { flex: 1 1 auto; min-width: 0; min-height: max(100vh, calc(1024 * var(--u))); background: #f9faff; display: flex; justify-content: center; align-items: flex-start; padding-top: calc(302 * var(--u)); }
-.login-card { width: calc(387 * var(--u)); max-width: none; }
+.login-panel { flex: 1 1 auto; min-width: 0; min-height: max(100vh, calc(1024 * var(--u))); background: #f9faff; display: flex; justify-content: center; align-items: center; container-type: inline-size; }
+/* El formulario ocupa ~62 % del ancho de su panel (lo que ocupa en el diseño): en pantallas anchas crece con el panel en vez de quedar chico entre mucho blanco.
+   Mínimo 0,83 px de diseño (formulario de ~320 px) y tope para que el bloque nunca pase de ~78 % de la altura. Se centra en vertical con el leve desplazamiento del diseño. */
+.login-card { --uf: max(var(--u), 0.83px, min(calc(62cqw / 387), calc(var(--u) * 1.6), calc(100vh / 560))); width: calc(387 * var(--uf)); max-width: none; margin-top: calc(16 * var(--uf)); }
 .login-mobile-brand { display: none; }
 
-.login-title { margin: 0; font-family: "Beiruti", "Be Vietnam Pro", sans-serif; font-weight: 600; font-size: max(24px, calc(40 * var(--u))); line-height: calc(48 * var(--u)); letter-spacing: 0.2em; color: #000; }
-.login-title.paso { font-size: max(20px, calc(28 * var(--u))); line-height: 1.2; letter-spacing: 0.1em; }
-.login-sub { margin: calc(-2 * var(--u)) 0 0; font-weight: 300; font-size: max(12px, calc(14 * var(--u))); line-height: calc(20 * var(--u)); color: #c0c0c0; }
+.login-title { margin: 0; font-family: "Beiruti", "Be Vietnam Pro", sans-serif; font-weight: 600; font-size: max(24px, calc(40 * var(--uf))); line-height: calc(48 * var(--uf)); letter-spacing: 0.2em; color: #000; }
+.login-title.paso { font-size: max(20px, calc(28 * var(--uf))); line-height: 1.2; letter-spacing: 0.1em; }
+.login-sub { margin: calc(-2 * var(--uf)) 0 0; font-weight: 300; font-size: max(12px, calc(14 * var(--uf))); line-height: calc(20 * var(--uf)); color: #c0c0c0; }
 
 .login-card .field { margin: 0; display: block; gap: 0; }
-.login-sub + .field { margin-top: calc(51 * var(--u)); }
-.login-card .callout + .field { margin-top: calc(16 * var(--u)); }
-.login-card .field + .field { margin-top: calc(13 * var(--u)); }
-.login-card .field label { display: block; margin: 0 0 calc(3 * var(--u)); padding-left: calc(12 * var(--u)); font-weight: 400; font-size: max(12px, calc(14 * var(--u))); line-height: calc(20 * var(--u)); color: #000; }
+.login-sub + .field { margin-top: calc(51 * var(--uf)); }
+.login-card .callout + .field { margin-top: calc(16 * var(--uf)); }
+.login-card .field + .field { margin-top: calc(13 * var(--uf)); }
+.login-card .field label { display: block; margin: 0 0 calc(3 * var(--uf)); padding-left: calc(12 * var(--uf)); font-weight: 400; font-size: max(12px, calc(14 * var(--uf))); line-height: calc(20 * var(--uf)); color: #000; }
 .login-card .field input {
-  display: block; width: 100%; height: calc(40 * var(--u)); min-height: 38px; box-sizing: border-box; padding: 0 calc(18 * var(--u)); border: 0; border-radius: 999px; background: #fff; color: #242424;
-  font-family: inherit; font-weight: 400; font-size: max(13px, calc(14 * var(--u)));
+  display: block; width: 100%; height: calc(40 * var(--uf)); min-height: 38px; box-sizing: border-box; padding: 0 calc(18 * var(--uf)); border: 0; border-radius: 999px; background: #fff; color: #242424;
+  font-family: inherit; font-weight: 400; font-size: max(13px, calc(14 * var(--uf)));
   box-shadow: 0 2px 3px rgba(20, 24, 60, 0.13), 0 0 0 1px rgba(20, 24, 60, 0.035);
   transition: box-shadow 0.15s;
 }
@@ -78,13 +80,13 @@
 .login-card .field input:disabled { opacity: 0.7; }
 
 /* Espacio entre la contraseña y el botón (como en el diseño); aquí aparece el error si lo hay */
-.login-slot { min-height: calc(72 * var(--u)); display: flex; align-items: center; }
-.login-slot .error-box { width: 100%; margin: calc(8 * var(--u)) 0; }
+.login-slot { min-height: calc(72 * var(--uf)); display: flex; align-items: center; }
+.login-slot .error-box { width: 100%; margin: calc(8 * var(--uf)) 0; }
 
 .login-cta {
-  display: block; width: 100%; height: calc(41 * var(--u)); min-height: 40px; border: 0; border-radius: 999px; cursor: pointer; padding: 0 0 0 0.2em;
+  display: block; width: 100%; height: calc(41 * var(--uf)); min-height: 40px; border: 0; border-radius: 999px; cursor: pointer; padding: 0 0 0 0.2em;
   background: linear-gradient(180deg, #3a4dc7 0%, #3246c5 100%); color: #f2f4fb;
-  font-family: "Beiruti", "Be Vietnam Pro", sans-serif; font-weight: 400; font-size: max(14px, calc(16 * var(--u))); letter-spacing: 0.2em; text-transform: uppercase;
+  font-family: "Beiruti", "Be Vietnam Pro", sans-serif; font-weight: 400; font-size: max(14px, calc(16 * var(--uf))); letter-spacing: 0.2em; text-transform: uppercase;
   box-shadow: 0 2px 4px rgba(53, 73, 198, 0.28); transition: filter 0.15s, transform 0.1s;
 }
 .login-cta:hover:not(:disabled) { filter: brightness(1.08); }
@@ -92,25 +94,25 @@
 .login-cta:focus-visible { outline: 3px solid rgba(53, 73, 198, 0.35); outline-offset: 2px; }
 .login-cta:disabled { opacity: 0.65; cursor: default; }
 
-.login-sso { display: flex; align-items: center; justify-content: center; margin-top: calc(12 * var(--u)); height: calc(41 * var(--u)); min-height: 40px; border-radius: 999px; border: 1px solid #c9d0ee; background: transparent; color: #3549c6; font-size: max(12px, calc(14 * var(--u))); font-weight: 500; text-decoration: none; }
+.login-sso { display: flex; align-items: center; justify-content: center; margin-top: calc(12 * var(--uf)); height: calc(41 * var(--uf)); min-height: 40px; border-radius: 999px; border: 1px solid #c9d0ee; background: transparent; color: #3549c6; font-size: max(12px, calc(14 * var(--uf))); font-weight: 500; text-decoration: none; }
 .login-sso:hover { background: rgba(53, 73, 198, 0.06); }
 .login-sso:focus-visible { outline: 3px solid rgba(53, 73, 198, 0.35); outline-offset: 2px; }
 
-.login-foot { margin-top: calc(22 * var(--u)); flex-wrap: nowrap; display: flex; flex-direction: column; align-items: flex-start; gap: calc(16 * var(--u)); padding-left: calc(12 * var(--u)); font-size: max(10px, calc(9 * var(--u))); line-height: calc(14 * var(--u)); }
+.login-foot { margin-top: calc(22 * var(--uf)); flex-wrap: nowrap; display: flex; flex-direction: column; align-items: flex-start; gap: calc(16 * var(--uf)); padding-left: calc(12 * var(--uf)); font-size: max(10px, calc(9 * var(--uf))); line-height: calc(14 * var(--uf)); }
 .login-foot a { text-decoration: underline; text-underline-offset: 2px; }
 .login-foot a.privacidad { color: #3448c6; }
 .login-foot a.soporte { color: #c7c7c8; }
 .login-foot a:focus-visible { outline: 2px solid rgba(53, 73, 198, 0.5); outline-offset: 2px; border-radius: 3px; }
 
 /* Paso de verificación en dos pasos (no está en el diseño: usa la misma piel) */
-.login-card .callout { margin: calc(24 * var(--u)) 0 0; border-radius: calc(16 * var(--u)); background: #eef1ff; border: 0; }
+.login-card .callout { margin: calc(24 * var(--uf)) 0 0; border-radius: calc(16 * var(--uf)); background: #eef1ff; border: 0; }
 
 /* ─────────────── Pantallas angostas: sin el lado izquierdo, tamaños reales ─────────────── */
 @media (max-width: 960px) {
   .login-screen { --u: 1px; }
   .login-hero { display: none; }
-  .login-panel { min-height: 100vh; padding: 12vh 20px 32px; }
-  .login-card { width: min(387px, 100%); }
+  .login-panel { min-height: 100vh; padding: 12vh 20px 32px; align-items: flex-start; }
+  .login-card { --uf: 1px; width: min(387px, 100%); margin-top: 0; }
   .login-mobile-brand { display: flex; align-items: center; gap: 9px; margin-bottom: 36px; }
   .login-mobile-brand .marca-cuadro { width: 45px; height: 45px; border-radius: 9px; background: linear-gradient(135deg, #3046c8 0%, #f90206 100%); }
   .login-mobile-brand b { display: block; font-weight: 600; font-size: 15px; color: #242424; }
@@ -121,6 +123,7 @@
 
 /* Pantalla del inicio con la cuenta Sulotec (/sso): solo el panel, centrado, con título más corto */
 .login-screen.solo-panel { --u: 1px; }
+.login-screen.solo-panel .login-card { --uf: 1px; width: min(387px, 100%); margin-top: 0; }
 .login-screen.solo-panel .login-panel { align-items: center; padding: 24px 20px; min-height: 100vh; }
 .login-screen.solo-panel .login-mobile-brand { display: flex; align-items: center; gap: 12px; margin-bottom: 30px; }
 .login-screen.solo-panel .login-title { font-size: 28px; line-height: 1.2; letter-spacing: 0.04em; }
