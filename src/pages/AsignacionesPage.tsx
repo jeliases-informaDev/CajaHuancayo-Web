@@ -144,7 +144,7 @@ export default function AsignacionesPage() {
       {resumen ? (
         <div className="callout info toma-casos">
           <div className="toma-texto" role="status">
-            {resumen.total > 0 ? <b>Casos tomados por el propio auditor: {resumen.autoasignadas} de {resumen.total} ({resumen.porcentaje} %).</b> : <b>Aún no hay casos asignados.</b>}{" "}
+            {resumen.total > 0 ? <b>Casos tomados por el propio auditor: {resumen.autoasignadas.toLocaleString("es-PE")} de {resumen.total.toLocaleString("es-PE")} ({resumen.porcentaje} %).</b> : <b>Aún no hay casos asignados.</b>}{" "}
             {resumen.autoasignacion_activa ? "Los auditores pueden tomar casos disponibles de cualquier distrito, los más cercanos a ellos primero." : "La toma de casos por cuenta propia está desactivada: solo trabajan lo que asigna un supervisor."}
             {resumen.pendientes_reservados > 0 ? (
               <p style={{ margin: "8px 0 0" }}>
@@ -196,7 +196,7 @@ export default function AsignacionesPage() {
         </div>
 
         <div>
-          <div className="section-head"><h2>Expedientes sin asignar</h2><span className="meta">{pool.length} de {poolInfo ? poolInfo.total : pool.length}</span></div>
+          <div className="section-head"><h2>Expedientes sin asignar</h2><span className="meta">{pool.length.toLocaleString("es-PE")} de {(poolInfo ? poolInfo.total : pool.length).toLocaleString("es-PE")}</span></div>
           <div className="filters">
             <div className="fgroup grow"><label className="lbl" htmlFor="b-asig">Buscar</label><input id="b-asig" name="q" type="search" autoComplete="off" spellCheck={false} className="input" placeholder="Crédito, cliente, documento o distrito…" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} /></div>
             <div className="fgroup"><span className="lbl">Tipo de crédito</span><Seg label="Tipo de crédito" value={tipo} onChange={setTipo} options={[{ value: "", label: "Todos" }, { value: "OTROS", label: "MYPE" }, { value: "CONSUMO", label: "Consumo" }]} /></div>
@@ -233,7 +233,7 @@ export default function AsignacionesPage() {
           </div>
 
           <div className="section">
-            <div className="section-head"><h2>Asignaciones {auditor ? `de ${nombreDe(auditor)}` : "recientes"}</h2><span className="meta">{asigInfo ? asigInfo.total : activas.length}</span></div>
+            <div className="section-head"><h2>Asignaciones {auditor ? `de ${nombreDe(auditor)}` : "recientes"}</h2><span className="meta">{(asigInfo ? asigInfo.total : activas.length).toLocaleString("es-PE")}</span></div>
             {!activas.length ? <Empty tipo="asignar" title="Sin asignaciones" text="Cuando asignes expedientes aparecerán aquí." /> : (
               <div className="table-wrap">
                 <table>
