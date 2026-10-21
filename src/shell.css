@@ -1,0 +1,140 @@
+/* Armazón del panel (diseño de Figma): barra lateral compacta de 84 px o expandida de 236 px, barra superior con migas y nota de la
+   pantalla, y el contenido centrado. Medidas tomadas del diseño a 1440 de ancho. La barra compacta es la de siempre; se expande con
+   el botón de abajo y se acuerda la elección (ch_rail). En pantallas de hasta 1024 px la barra sale como cajón y siempre va expandida. */
+:root {
+  --font-ui: "Be Vietnam Pro", ui-sans-serif, system-ui, "Segoe UI", Roboto, Arial, sans-serif;
+  --font-display: var(--font-ui);
+  --font-mono: ui-monospace, "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  --brand: #3a47b5; --brand-hover: #2f3ba0; --brand-soft: #eaedfc; --brand-ink: #1f2a85;
+  --indigo: #4d61ab;                 /* acento del diseño: avance, casilla activa, insignia de la empresa */
+  --tinta: #242424; --gris-d: #797e9c; /* texto y apoyo de las piezas nuevas (tarjetas del Resumen) */
+  --side-line: #e1e3ea;
+  --font-etiqueta: "Beiruti", "Be Vietnam Pro", ui-sans-serif, system-ui, sans-serif; /* rótulos en mayúsculas del diseño */
+  --side-w: 236px;
+}
+:root[data-theme="dark"] { --side-line: #222a52; --tinta: #e9ecfb; --gris-d: #9aa2cc; --indigo: #7f93ff; }
+
+.app { min-height: 100vh; display: grid; grid-template-columns: var(--side-w) minmax(0, 1fr); }
+:root[data-rail="1"] .app { --side-w: 84px; }
+.main-col { min-width: 0; display: flex; flex-direction: column; min-height: 100vh; }
+
+/* ---------- Barra lateral ---------- */
+.sidebar {
+  position: sticky; top: 0; height: 100vh; z-index: 50; display: flex; flex-direction: column; background: var(--surface); color: #131313;
+  border-right: 1px solid var(--side-line); overflow: hidden;
+}
+:root[data-theme="dark"] .sidebar { color: var(--ink); background: var(--side); }
+.ws { display: flex; align-items: flex-start; gap: 12px; height: 97px; padding: 18px 12px 0 20px; color: inherit; text-decoration: none; border-bottom: 1px solid var(--side-line); min-width: 0; }
+.ws:hover { text-decoration: none; }
+.ws-badge { width: 36px; height: 36px; flex-shrink: 0; border-radius: 9px; background: var(--indigo); color: #fff; display: inline-flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 600; letter-spacing: 0.02em; }
+.ws-mark { display: none; width: 40px; height: 40px; border-radius: 6px; background: linear-gradient(135deg, #3a44b8 0%, #f90206 100%); }
+.ws-texto { min-width: 0; padding-top: 1px; }
+.ws-texto b { display: block; font-size: 15.5px; font-weight: 600; line-height: 1.25; color: inherit; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ws-texto span { display: block; font-size: 11px; line-height: 1.4; color: #6b7186; white-space: nowrap; }
+.empresa-actual { display: block; margin: 8px 12px 0; padding: 7px 12px; border-radius: 10px; background: var(--surface-2); color: var(--ink-2); font-size: 12.5px; font-weight: 500; text-decoration: none; text-align: center; }
+
+.side-nav { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow-y: auto; padding: 11px 12px 8px; }
+.navitem {
+  position: relative; display: flex; align-items: center; gap: 12px; height: 44px; padding: 0 12px; border-radius: 10px; color: #131313; font-size: 15px; font-weight: 400;
+  text-decoration: none; white-space: nowrap; transition: background-color 0.15s, color 0.15s;
+}
+:root[data-theme="dark"] .navitem { color: var(--ink-2); }
+.navitem svg { flex-shrink: 0; color: #616784; }
+.navitem:hover { background: var(--surface-2); text-decoration: none; }
+.navitem.active { background: var(--canvas); color: var(--brand); font-weight: 600; }
+:root[data-theme="dark"] .navitem.active { color: var(--brand-ink); background: var(--brand-soft); }
+.navitem .nav-count {
+  margin-left: auto; min-width: 20px; height: 18px; padding: 0 6px; border-radius: 6px; background: #f00; color: #fff; font-size: 10.5px; font-weight: 600;
+  display: inline-flex; align-items: center; justify-content: center; font-variant-numeric: tabular-nums;
+}
+
+.side-foot { display: flex; flex-direction: column; gap: 8px; padding: 0 12px 14px; position: relative; }
+.railbtn {
+  display: flex; align-items: center; gap: 12px; height: 36px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--side-line); background: var(--surface-2);
+  color: #131313; font-size: 14px; font-weight: 600; cursor: pointer; white-space: nowrap;
+}
+:root[data-theme="dark"] .railbtn { color: var(--ink); }
+.railbtn:hover { background: var(--sunken); }
+.userbtn {
+  display: flex; align-items: center; gap: 10px; width: 100%; height: 44px; padding: 7px 8px; border-radius: 10px; border: 1px solid var(--side-line);
+  background: var(--surface); color: inherit; text-align: left; cursor: pointer; min-width: 0; font: inherit;
+}
+.userbtn:hover { background: var(--surface-2); }
+.userbtn .avatar { width: 28px; height: 28px; border-radius: 7px; font-size: 11px; }
+.userbtn .who { min-width: 0; flex: 1; }
+.userbtn .who b { display: block; font-size: 14px; font-weight: 600; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.userbtn .who span { display: block; font-size: 11px; color: #6b7186; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.userbtn .chev { color: #616784; flex-shrink: 0; }
+.usermenu { position: absolute; left: 12px; right: 12px; bottom: calc(100% - 6px); z-index: 70; }
+.usermenu .menu { position: static; width: 100%; min-width: 0; color: var(--ink); background: var(--surface); }
+
+/* ---------- Barra compacta (solo íconos; el nombre sale al pasar el cursor o enfocar) ---------- */
+@media (min-width: 1025px) {
+  :root[data-rail="1"] .sidebar { overflow: visible; }
+  :root[data-rail="1"] .ws { height: auto; padding: 27px 0 0 22px; border-bottom: 0; }
+  :root[data-rail="1"] .ws-badge, :root[data-rail="1"] .ws-texto { display: none; }
+  :root[data-rail="1"] .ws-mark { display: block; }
+  :root[data-rail="1"] .empresa-actual { display: none; }
+  :root[data-rail="1"] .side-nav { padding: 41px 0 8px; align-items: stretch; overflow: visible; }
+  :root[data-rail="1"] .navitem { justify-content: center; height: 44px; margin-bottom: 9px; padding: 0; border-radius: 0; background: transparent; }
+  :root[data-rail="1"] .navitem .lbl-t { display: none; }
+  :root[data-rail="1"] .navitem svg { width: 32px; height: 32px; stroke-width: 1.3; }
+  :root[data-rail="1"] .navitem:hover { background: transparent; }
+  :root[data-rail="1"] .navitem:hover svg { color: var(--indigo); }
+  :root[data-rail="1"] .navitem.active { background: transparent; }
+  :root[data-rail="1"] .navitem.active::before { content: ""; position: absolute; left: 0; top: 4px; width: 12px; height: 36px; border-radius: 0 18px 18px 0; background: var(--indigo); }
+  :root[data-rail="1"] .navitem .nav-count { position: absolute; left: 53px; top: 7px; margin: 0; min-width: 12px; height: 11px; padding: 0 2px; border-radius: 3px; font-size: 8px; }
+  :root[data-rail="1"] .side-foot { align-items: center; padding: 0 0 14px; }
+  :root[data-rail="1"] .railbtn { width: 40px; height: 36px; padding: 0; justify-content: center; }
+  :root[data-rail="1"] .railbtn .lbl-t { display: none; }
+  :root[data-rail="1"] .userbtn { width: 40px; height: 40px; padding: 0; justify-content: center; border-color: transparent; background: transparent; }
+  :root[data-rail="1"] .userbtn .who, :root[data-rail="1"] .userbtn .chev { display: none; }
+  :root[data-rail="1"] .usermenu { left: 8px; right: auto; width: 240px; }
+  [data-tip] { position: relative; }
+  :root[data-rail="1"] [data-tip]:hover::after, :root[data-rail="1"] [data-tip]:focus-visible::after {
+    content: attr(data-tip); position: absolute; left: calc(100% + 10px); top: 50%; transform: translateY(-50%); z-index: 80; white-space: nowrap;
+    padding: 6px 10px; border-radius: 8px; background: var(--ink); color: var(--canvas); font-size: 12.5px; font-weight: 500; box-shadow: var(--sh-2); pointer-events: none;
+  }
+}
+
+/* ---------- Barra superior: migas a la izquierda y la nota de la pantalla a la derecha ---------- */
+.topbar {
+  position: sticky; top: 0; z-index: 40; height: 53px; display: flex; align-items: center; gap: 16px; padding: 0 41px 0 42px;
+  background: var(--canvas); border-bottom: 1px solid var(--side-line); padding-top: 5px;
+}
+.burger { display: none; width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--line-2); background: var(--surface); color: var(--ink); align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; }
+.crumbs { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #596a92; min-width: 0; white-space: nowrap; }
+.crumbs a { color: #596a92; font-weight: 400; }
+.crumbs a:hover { color: var(--ink); text-decoration: none; }
+.crumbs b { color: #596a92; font-weight: 400; overflow: hidden; text-overflow: ellipsis; }
+.crumbs .sep { color: #596a92; }
+.top-spacer { flex: 1; }
+.top-nota { max-width: 62ch; margin: 0; font-size: 12px; line-height: 1.35; color: var(--gris-d); text-align: right; }
+.scrim { display: none; }
+kbd {
+  display: inline-flex; align-items: center; gap: 2px; padding: 1px 6px; border-radius: 5px; font-size: 11px; font-weight: 500; line-height: 1.5;
+  border: 1px solid var(--line-2); background: var(--surface-2); color: var(--ink-2); font-family: var(--font-mono);
+}
+
+/* ---------- Contenido ---------- */
+/* A 1440 de ancho el diseño deja 100 px a la izquierda y 103 a la derecha del contenido (1153 px). */
+.page { --pad: clamp(20px, 6.944vw, 104px); --pad-d: clamp(20px, 7.153vw, 107px); width: 100%; max-width: 1560px; margin: 0 auto; padding: 35px var(--pad-d) 80px var(--pad); flex: 1; }
+
+/* Títulos de las pantallas que todavía no se rediseñan: mismo estilo que el saludo del Resumen (Be Vietnam Pro seminegrita, 25,6 px). */
+.page-head h1, .page-header h1 { font-family: var(--font-ui); font-weight: 600; font-size: 25.6px; line-height: 1.25; letter-spacing: -0.005em; color: #100a36; }
+:root[data-theme="dark"] .page-head h1, :root[data-theme="dark"] .page-header h1 { color: var(--ink); }
+.page-head h1 em, .page-header h1 em { font-style: normal; color: inherit; }
+
+/* ---------- Pantallas de hasta 1024 px: cajón lateral (siempre expandido) ---------- */
+@media (max-width: 1024px) {
+  .app { grid-template-columns: minmax(0, 1fr); }
+  .sidebar { position: fixed; left: 0; top: 0; bottom: 0; width: min(300px, 86vw); transform: translateX(-102%); transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1); box-shadow: var(--sh-3); }
+  .app[data-open="true"] .sidebar { transform: none; }
+  .app[data-open="true"] .scrim { display: block; position: fixed; inset: 0; z-index: 45; background: rgba(8, 12, 36, 0.5); backdrop-filter: blur(2px); animation: fadein 0.2s ease; }
+  .railbtn.collapse { display: none; }
+  .burger { display: inline-flex; }
+  .topbar { padding: 0 16px; }
+  .top-nota { display: none; }
+  .page { --pad: 16px; --pad-d: 16px; padding-top: 22px; }
+}
+@media print { body::after, .sidebar, .topbar { display: none; } .app { display: block; } }

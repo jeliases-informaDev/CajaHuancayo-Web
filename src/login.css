@@ -6,15 +6,6 @@
    completa con la pantalla y se ve igual que el diseño. La posición de cada pieza son variables (--hero-w, --foto-x…) que la versión
    ancha redefine. Fuentes: Be Vietnam Pro y Beiruti (OFL, en /public/fonts). Textos, foto, mapa y puntos salen de public/marca/login.json. */
 
-@font-face { font-family: "Be Vietnam Pro"; font-weight: 300; font-style: normal; font-display: swap; src: url("/fonts/BeVietnamPro-300.woff2") format("woff2"); }
-@font-face { font-family: "Be Vietnam Pro"; font-weight: 400; font-style: normal; font-display: swap; src: url("/fonts/BeVietnamPro-400.woff2") format("woff2"); }
-@font-face { font-family: "Be Vietnam Pro"; font-weight: 400; font-style: italic; font-display: swap; src: url("/fonts/BeVietnamPro-400-italic.woff2") format("woff2"); }
-@font-face { font-family: "Be Vietnam Pro"; font-weight: 500; font-style: normal; font-display: swap; src: url("/fonts/BeVietnamPro-500.woff2") format("woff2"); }
-@font-face { font-family: "Be Vietnam Pro"; font-weight: 600; font-style: normal; font-display: swap; src: url("/fonts/BeVietnamPro-600.woff2") format("woff2"); }
-@font-face { font-family: "Be Vietnam Pro"; font-weight: 600; font-style: italic; font-display: swap; src: url("/fonts/BeVietnamPro-600-italic.woff2") format("woff2"); }
-@font-face { font-family: "Beiruti"; font-weight: 400; font-style: normal; font-display: swap; src: url("/fonts/Beiruti-400.woff2") format("woff2"); }
-@font-face { font-family: "Beiruti"; font-weight: 600; font-style: normal; font-display: swap; src: url("/fonts/Beiruti-600.woff2") format("woff2"); }
-
 .login-screen {
   /* 1 px de diseño = --u. Nunca baja de 0,66 px (por debajo la página se desplaza en vez de encogerse más). */
   --lienzo-w: 1440; --lienzo-h: 1024;

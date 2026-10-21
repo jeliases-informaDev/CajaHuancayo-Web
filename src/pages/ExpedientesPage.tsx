@@ -89,6 +89,8 @@ export default function ExpedientesPage() {
   const [importando, setImportando] = useState(false);
   const [plantillas, setPlantillas] = useState(false);
   const [nuevo, setNuevo] = useState(false);
+  const [nuevoParam, fijarNuevoParam] = useQueryParam("nuevo");
+  useEffect(() => { if (nuevoParam === "1") { setNuevo(true); fijarNuevoParam(""); } }, [nuevoParam, fijarNuevoParam]);
   const [form, setForm] = useState(emptyForm);
   // La ubicación no se escribe a mano: se pega un enlace, se marca en el mapa o se usa la del navegador (ver UbicacionPicker).
   const [ubicacion, setUbicacion] = useState<Coordenadas | null>(null);
