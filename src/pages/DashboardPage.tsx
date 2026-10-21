@@ -56,7 +56,7 @@ export default function DashboardPage() {
       {!r ? <Cargando /> : (
         <div className="bento rise">
           <section className="tile dark t-5" aria-label="Avance de la muestra">
-            <div className="tile-head"><h2 className="tile-title"><Icon name="objetivo" size={17} />Avance de la muestra</h2><span className="meta">{r.asignaciones_activas} casos activos</span></div>
+            <div className="tile-head"><h2 className="tile-title"><Icon name="objetivo" size={17} />Avance de la muestra</h2><span className="meta">{Number(r.asignaciones_activas).toLocaleString("es-PE")} casos activos</span></div>
             <div className="ringbox">
               <Ring value={visitados} total={r.expedientes.total} caption="visitado" />
               <div style={{ flex: 1, minWidth: 180 }}>

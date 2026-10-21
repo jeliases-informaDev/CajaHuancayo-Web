@@ -8,8 +8,8 @@ import { dash, fechaHora } from "../lib/format";
 import { useQueryParam } from "../lib/useQueryParam";
 
 const emptyForm = { username: "", password: "", rol: "AUDITOR", nombres: "", apellidos: "", email: "", departamento: "" };
-// Cómo se escribe la zona del auditor (el servidor la compara con el distrito, la provincia y el departamento del expediente).
-const AYUDA_ZONA = "Escribe el distrito y su ciudad, por ejemplo «Lince, Lima», o solo el departamento («Junín»). Para varias zonas sepáralas con punto y coma: «Lince, Lima; Huancayo». Sin zona, el auditor no verá casos en «Disponibles» y podrás asignarle de cualquier ciudad.";
+// La zona del auditor es solo una referencia: no limita qué expedientes puede recibir ni tomar (el celular le ordena los disponibles por cercanía).
+const AYUDA_ZONA = "Opcional. Solo sirve de referencia en listas y reportes, por ejemplo «Lince, Lima». No limita qué expedientes puede recibir o tomar: puede elegir de cualquier distrito, y en el celular le salen primero los más cercanos a su ubicación.";
 const nombreDe = (u: any) => `${u.nombres || ""} ${u.apellidos || ""}`.trim();
 
 export default function UsuariosPage() {
@@ -67,7 +67,7 @@ export default function UsuariosPage() {
     setError(""); setSaving(true);
     try {
       await request(`/api/usuarios/${zonaDe.id}`, { method: "PATCH", body: JSON.stringify({ departamento: nuevaZona.trim() }) });
-      setOk(nuevaZona.trim() ? `Zona de @${zonaDe.username}: ${nuevaZona.trim()}.` : `@${zonaDe.username} quedó sin zona: no verá casos en «Disponibles».`); setZonaDe(null); setNuevaZona("");
+      setOk(nuevaZona.trim() ? `Zona de @${zonaDe.username}: ${nuevaZona.trim()}.` : `@${zonaDe.username} quedó sin zona habitual.`); setZonaDe(null); setNuevaZona("");
       await cargar();
     } catch (x: any) { setError(x.message); } finally { setSaving(false); }
   };
@@ -153,10 +153,10 @@ export default function UsuariosPage() {
       ) : null}
 
       {zonaDe ? (
-        <Drawer title="Cambiar zona" subtitle={`@${zonaDe.username} · ${nombreDe(zonaDe) || "auditor de campo"}`} onClose={() => setZonaDe(null)}
+        <Drawer title="Zona habitual" subtitle={`@${zonaDe.username} · ${nombreDe(zonaDe) || "auditor de campo"}`} onClose={() => setZonaDe(null)}
           footer={<><button className="btn ghost" onClick={() => setZonaDe(null)}>Cancelar</button><button className="btn" type="submit" form="form-zona" disabled={saving}>{saving ? "Guardando…" : "Guardar zona"}</button></>}>
           <form id="form-zona" onSubmit={cambiarZona}>
-            <Field label="Zona donde trabaja"><input name="zona" type="text" autoComplete="off" spellCheck={false} maxLength={100} placeholder="Ej. Lince, Lima…" value={nuevaZona} onChange={(e) => setNuevaZona(e.target.value)} /></Field>
+            <Field label="Zona habitual (opcional)"><input name="zona" type="text" autoComplete="off" spellCheck={false} maxLength={100} placeholder="Ej. Lince, Lima…" value={nuevaZona} onChange={(e) => setNuevaZona(e.target.value)} /></Field>
             <p className="subtle" style={{ marginTop: -6 }}>{AYUDA_ZONA}</p>
           </form>
         </Drawer>
@@ -181,7 +181,7 @@ export default function UsuariosPage() {
             {campo("email", "Correo electrónico", "email")}
             {form.rol === "AUDITOR" ? (
               <>
-                {campo("departamento", "Zona donde trabaja", "text", { placeholder: "Ej. Lince, Lima…" })}
+                {campo("departamento", "Zona habitual (opcional)", "text", { placeholder: "Ej. Lince, Lima…" })}
                 <p className="subtle" style={{ marginTop: -6 }}>{AYUDA_ZONA}</p>
               </>
             ) : null}
