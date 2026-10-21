@@ -1,0 +1,127 @@
+/* Resumen (Dashboard) — diseño de Figma. Medidas tomadas del diseño a 1440 de ancho: contenido de 1153 px, tarjetas de 16 px de radio con una
+   sombra corta abajo, cuatro indicadores a la izquierda del gráfico de asignaciones, y debajo el avance, los distritos y las dos listas. */
+.rs-tarjeta {
+  position: relative; background: var(--surface); border-radius: 16px; border: 0; min-width: 0;
+  box-shadow: 0 1px 2px rgba(60, 70, 130, 0.36);
+}
+:root[data-theme="dark"] .rs-tarjeta { box-shadow: 0 0 0 1px var(--line); }
+.rs-titulo-tarjeta { margin: 0; font-size: 16.5px; font-weight: 600; line-height: 1.3; color: var(--tinta); letter-spacing: 0; }
+.rs-apoyo { font-size: 12px; font-weight: 600; letter-spacing: 0; color: var(--gris-d); line-height: 1.3; margin-top: 4px; }
+
+/* ---------- Encabezado ---------- */
+.rs-cabecera { display: flex; align-items: center; justify-content: space-between; gap: 16px 24px; flex-wrap: wrap; margin: 0 0 27px; min-height: 34px; }
+.rs-saludo { margin: 2px 0 0 13px; font-size: 25.6px; font-weight: 600; line-height: 1.25; letter-spacing: -0.005em; color: #100a36; }
+:root[data-theme="dark"] .rs-saludo { color: var(--ink); }
+.rs-controles { display: flex; align-items: center; gap: 13px; flex-wrap: wrap; }
+.rs-periodo { display: inline-flex; align-items: stretch; height: 34px; border-radius: 7px; background: var(--surface); overflow: hidden; box-shadow: 0 1px 2px rgba(60, 70, 130, 0.3), 0 0 0 1px rgba(60, 70, 130, 0.06); }
+.rs-periodo select, .rs-periodo label { display: inline-flex; align-items: center; height: 100%; font: inherit; font-size: 15px; color: #131313; background: transparent; border: 0; }
+:root[data-theme="dark"] .rs-periodo select, :root[data-theme="dark"] .rs-periodo label { color: var(--ink); }
+.rs-periodo select { width: 126px; padding: 0 28px 0 14px; appearance: none; cursor: pointer;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23616784' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9.5l6 6 6-6'/%3E%3C/svg%3E") no-repeat right 12px center; }
+.rs-periodo label { gap: 11px; padding: 0 22px 0 14px; min-width: 150px; border-left: 1px solid #e6e6ea; cursor: pointer; position: relative; }
+.rs-periodo label svg { color: #4f5470; flex-shrink: 0; }
+.rs-periodo input[type="date"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+.rs-nuevo { display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 12px 0 11px; border-radius: 6px; background: var(--indigo); color: #fff; font-size: 15px; font-weight: 500; text-decoration: none; white-space: nowrap; }
+.rs-nuevo:hover { filter: brightness(1.08); text-decoration: none; }
+:root[data-theme="dark"] .rs-nuevo { color: #0a0e28; }
+
+/* ---------- Fila 1: indicadores + gráfico de asignaciones ---------- */
+.rs-fila1 { display: grid; grid-template-columns: minmax(250px, 297px) minmax(0, 1fr); gap: 16px; }
+.rs-kpis { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(2, minmax(150px, 1fr)); gap: 25px 19px; }
+.rs-kpi {
+  position: relative; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding: 52px 8px 0; text-align: center; border-radius: 16px; overflow: hidden;
+  background: #f8f8f8; color: var(--tinta); text-decoration: none; min-width: 0; box-shadow: 0 1px 2px rgba(60, 70, 130, 0.36);
+  transition: transform 0.12s ease, box-shadow 0.15s ease;
+}
+:root[data-theme="dark"] .rs-kpi { background: var(--surface-2); box-shadow: 0 0 0 1px var(--line); }
+.rs-kpi::before { content: ""; position: absolute; top: 0; left: 13px; right: 13px; height: 12px; border-radius: 0 0 10px 10px; background: var(--cap, var(--indigo)); }
+.rs-kpi:hover { text-decoration: none; transform: translateY(-1px); box-shadow: 0 4px 8px rgba(60, 70, 130, 0.3); }
+.rs-kpi.activo { box-shadow: inset 0 0 0 2px var(--cap), 0 1px 2px rgba(60, 70, 130, 0.36); }
+.rs-kpi:nth-child(n+3) { padding-top: 55px; }
+.rs-kpi b { display: block; font-size: 40px; font-weight: 600; line-height: 1.05; letter-spacing: 0; font-variant-numeric: lining-nums; }
+.rs-kpi span { display: block; margin-top: 9px; max-width: 84px; font-size: 10px; font-weight: 400; line-height: 1.5; letter-spacing: 0.03em; text-transform: uppercase; }
+
+.rs-grafico { padding: 19px 41px 0 0; display: flex; flex-direction: column; min-height: 371px; }
+.rs-grafico::before { content: ""; position: absolute; left: 0; top: 27px; bottom: 27px; width: 15px; border-radius: 0 9px 9px 0; background: #4dab56; }
+.rs-grafico-cab { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; padding-left: 62px; min-height: 66px; }
+.rs-grafico-cab h2 { margin: 17px 0 0; font-size: 17px; font-weight: 600; line-height: 1.25; color: var(--tinta); }
+.rs-grafico-cab p { margin: 5px 0 0; font-size: 9.6px; font-weight: 600; color: var(--gris-d); letter-spacing: 0.01em; }
+.rs-total { min-width: 163px; padding: 13px 19px 12px; border-radius: 12px; background: #e5e7f0; }
+:root[data-theme="dark"] .rs-total { background: var(--sunken); }
+.rs-total b { display: block; font-family: var(--font-etiqueta); font-size: 24px; font-weight: 600; line-height: 1.15; color: var(--tinta); }
+.rs-total span { display: block; font-size: 12px; font-weight: 600; color: var(--gris-d); line-height: 1.3; }
+.rs-plot { position: relative; height: 233px; margin: 30px 0 0 58px; padding-right: 82px; flex-shrink: 0; }
+.rs-plot-area { position: absolute; left: 0; right: 82px; top: 0; bottom: 60px; }
+.rs-plot svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.rs-linea { position: absolute; left: 0; right: -8px; height: 1px; background: #ecebe9; }
+:root[data-theme="dark"] .rs-linea { background: var(--line); }
+.rs-eje-y { position: absolute; right: 4px; width: 40px; transform: translateY(-50%); text-align: center; font-size: 12.5px; letter-spacing: 0.12em; color: #6b6b6b; font-variant-numeric: tabular-nums; margin-top: 8px; }
+.rs-eje-x { position: absolute; left: 0; right: 82px; bottom: 0; height: 56px; }
+.rs-eje-x span { position: absolute; top: 3px; font-family: var(--font-etiqueta); font-size: 13px; line-height: 1.15; letter-spacing: 0.1em; color: #6b6b6b; white-space: nowrap; transform: translateX(-3px); text-align: left; }
+.rs-eje-x span:last-child { transform: translateX(-100%); text-align: right; }
+.rs-eje-x span em { display: block; font-style: normal; font-size: 12px; }
+.rs-punto { position: absolute; width: 8px; height: 8px; margin: -4px 0 0 -4px; border-radius: 50%; background: #000; pointer-events: none; }
+.rs-hover { position: absolute; top: 0; bottom: 0; background: transparent; border: 0; padding: 0; cursor: crosshair; }
+.rs-tip {
+  position: absolute; z-index: 3; transform: translate(-50%, calc(-100% - 12px)); padding: 7px 12px 8px; border-radius: 10px; background: rgba(120, 120, 130, 0.62); color: #fff;
+  font-size: 14px; line-height: 1.25; white-space: nowrap; pointer-events: none; backdrop-filter: blur(2px);
+}
+.rs-tip i { display: block; font-size: 13px; opacity: 0.9; }
+.rs-vacio { padding: 40px 20px; text-align: center; color: var(--gris-d); font-size: 13px; }
+
+/* ---------- Fila 2: avance y distritos ---------- */
+.rs-fila2 { display: grid; grid-template-columns: minmax(0, 581fr) minmax(0, 552fr); gap: 22px; margin-top: 26px; }
+.rs-avance { padding: 28px 38px 30px 30px; min-height: 268px; }
+.rs-distritos { padding: 28px 33px 30px 49px; min-height: 268px; }
+.rs-distritos .rs-cab { padding-left: 9px; }
+.rs-cab { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding-left: 31px; padding-right: 1px; }
+.rs-avance-cuerpo { display: flex; align-items: center; gap: 43px; margin-top: 35px; padding-left: 8px; flex-wrap: wrap; }
+.rs-donut { position: relative; width: 160px; height: 160px; flex-shrink: 0; }
+.rs-donut svg { width: 100%; height: 100%; transform: rotate(-90deg); display: block; }
+.rs-donut .pista { stroke: #cbccde; } .rs-donut .arco { stroke: var(--indigo); transition: stroke-dashoffset 0.9s cubic-bezier(0.22, 1, 0.36, 1); }
+:root[data-theme="dark"] .rs-donut .pista { stroke: var(--line-2); }
+.rs-donut .centro { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.rs-donut .centro b { font-size: 40px; font-weight: 600; line-height: 1; color: var(--tinta); }
+.rs-donut .centro span { margin-top: 5px; font-size: 10px; letter-spacing: 0; text-transform: uppercase; color: var(--tinta); }
+.rs-avance-datos { flex: 1; min-width: 200px; }
+.rs-cifra { display: flex; align-items: baseline; gap: 12px; }
+.rs-cifra b { font-size: 40px; font-weight: 600; line-height: 1; color: var(--tinta); }
+.rs-cifra span { font-size: 14px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--gris-d); }
+.rs-barra { display: flex; gap: 3px; height: 13px; margin-top: 18px; }
+.rs-barra i { display: block; height: 100%; border-radius: 7px; min-width: 6px; }
+.rs-leyenda { display: flex; flex-wrap: wrap; gap: 10px 55px; margin-top: 19px; }
+.rs-leyenda span { display: inline-flex; align-items: center; gap: 7px; font-size: 10px; text-transform: uppercase; letter-spacing: 0; color: var(--gris-d); }
+.rs-leyenda span::before { content: ""; width: 10px; height: 10px; background: var(--c); border-radius: 1px; }
+.rs-leyenda b { font-size: 14px; font-weight: 600; color: var(--tinta); letter-spacing: 0; }
+.rs-tabla { width: 100%; margin-top: 25px; border-collapse: separate; border-spacing: 0 0; }
+.rs-tabla th { background: transparent; border: 0; padding: 0 0 10px; font-size: 11px; font-weight: 400; letter-spacing: 0.1em; text-transform: uppercase; color: #898989; }
+.rs-tabla th:last-child, .rs-tabla td:last-child { text-align: right; width: 76px; }
+.rs-tabla td { padding: 0; height: 32px; font-size: 16px; color: #131313; border-bottom: 1px solid #ecebe9; vertical-align: middle; }
+:root[data-theme="dark"] .rs-tabla td { color: var(--ink); border-color: var(--line); }
+.rs-tabla td:last-child { border-bottom: 1px solid #ecebe9; padding: 0 11px 0 12px; box-sizing: border-box; }
+.rs-tabla th:last-child { padding-right: 4px; }
+.rs-tabla tr + tr td:first-child { padding-top: 1px; }
+.rs-tabla tbody tr:last-child td { border-bottom: 1px solid #ecebe9; }
+
+/* ---------- Fila 3: listas ---------- */
+.rs-fila3 { display: grid; grid-template-columns: minmax(0, 668fr) minmax(0, 473fr); gap: 15px; margin-top: 29px; }
+/* Las listas del diseño están a ~91 % del tamaño que traían (filas de 64 px en vez de 70): se reducen con zoom, que también achica sus márgenes. */
+.rs-fila3 > .tile { grid-column: auto; padding: 20px 21px 22px 20px; }
+.rs-fila3 > .tile > * { zoom: 0.91; }
+
+/* ---------- Pantallas más angostas ---------- */
+@media (max-width: 1180px) {
+  .rs-fila1 { grid-template-columns: 1fr; }
+  .rs-kpis { grid-template-columns: repeat(4, minmax(0, 1fr)); grid-template-rows: none; }
+  .rs-kpi { min-height: 172px; }
+  .rs-fila2, .rs-fila3 { grid-template-columns: 1fr; }
+}
+@media (max-width: 760px) {
+  .rs-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .rs-grafico { padding-right: 16px; }
+  .rs-grafico-cab { padding-left: 36px; flex-wrap: wrap; }
+  .rs-plot { margin-left: 28px; }
+  .rs-cab { padding-left: 0; }
+  .rs-avance, .rs-distritos { padding: 22px 18px; }
+  .rs-saludo { margin-left: 0; font-size: 22px; }
+}

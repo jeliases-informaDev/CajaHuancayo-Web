@@ -2,35 +2,46 @@ import React, { useEffect, useRef, useState } from "react";
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../AuthContext";
 import { useMenuKeys } from "./kit";
-import { Icon, Marca } from "./icons";
+import { Icon } from "./icons";
 import { Avatar } from "./ui";
 import Palette from "./Palette";
 import { useRail, useTheme, type Tema } from "../lib/theme";
 import { olvidarResumen, useResumen } from "../lib/resumen";
 
 type Enlace = { universalOnly?: boolean; to: string; label: string; icon: string; end?: boolean; adminOnly?: boolean };
-const GRUPOS: { titulo: string; enlaces: Enlace[] }[] = [
-  { titulo: "Operación", enlaces: [
-    { to: "/", label: "Resumen", icon: "resumen", end: true },
-    { to: "/seguimiento", label: "Seguimiento", icon: "seguimiento" },
-    { to: "/visitas", label: "Visitas", icon: "visitas" },
-  ] },
-  { titulo: "Cartera", enlaces: [
-    { to: "/expedientes", label: "Expedientes", icon: "expedientes" },
-    { to: "/asignaciones", label: "Asignaciones", icon: "asignaciones" },
-  ] },
-  { titulo: "Administración", enlaces: [
-    { to: "/usuarios", label: "Usuarios", icon: "usuarios", adminOnly: true },
-    { to: "/empresas", label: "Empresas", icon: "usuarios", universalOnly: true },
-    { to: "/seguridad", label: "Seguridad", icon: "seguridad" },
-  ] },
+// Las secciones van en una sola lista, sin títulos de grupo (diseño de Figma). El orden es el de los íconos de la barra compacta.
+const ENLACES: Enlace[] = [
+  { to: "/", label: "Dashboard", icon: "resumen", end: true },
+  { to: "/seguimiento", label: "Seguimiento en vivo", icon: "seguimiento" },
+  { to: "/visitas", label: "Visitas", icon: "visitas" },
+  { to: "/expedientes", label: "Expedientes", icon: "expedientes" },
+  { to: "/asignaciones", label: "Asignaciones", icon: "asignaciones" },
+  { to: "/usuarios", label: "Usuarios", icon: "usuarios", adminOnly: true },
+  { to: "/empresas", label: "Empresas", icon: "usuarios", universalOnly: true },
+  { to: "/seguridad", label: "Seguridad", icon: "seguridad" },
 ];
 
-const NOMBRES: Record<string, string> = {
-  "": "Resumen", seguimiento: "Seguimiento", visitas: "Visitas", expedientes: "Expedientes", asignaciones: "Asignaciones", usuarios: "Usuarios", seguridad: "Seguridad", privacidad: "Privacidad",
+// Migas de la barra superior: «sección > pantalla» como en el diseño. La nota de la derecha explica la pantalla; solo las pantallas ya
+// rediseñadas la tienen (las demás todavía traen su propio encabezado).
+const RUTAS: Record<string, { seccion: string; pantalla: string; nota?: string }> = {
+  "": { seccion: "Dashboard", pantalla: "Overview" },
+  seguimiento: { seccion: "Seguimiento en Vivo", pantalla: "Mapa" },
+  visitas: { seccion: "Operación", pantalla: "Visita" },
+  expedientes: { seccion: "Cartera", pantalla: "Expediente" },
+  asignaciones: { seccion: "Operación", pantalla: "Asignaciones" },
+  usuarios: { seccion: "Administración", pantalla: "Usuarios" },
+  empresas: { seccion: "Administración", pantalla: "Empresas" },
+  seguridad: { seccion: "Administración", pantalla: "Seguridad" },
+  privacidad: { seccion: "Cuenta", pantalla: "Privacidad" },
 };
 const ROL: Record<string, string> = { ADMINISTRADOR: "Administrador", SUPERVISOR: "Supervisor", UNIVERSAL: "Administrador universal" };
 const TEMAS: { id: Tema; label: string; icon: string }[] = [{ id: "light", label: "Claro", icon: "sol" }, { id: "dark", label: "Oscuro", icon: "luna" }, { id: "auto", label: "Sistema", icon: "auto" }];
+
+// «Caja Huancayo» o «CajaHuancayo» → «CH»; un nombre de una sola palabra → sus dos primeras letras.
+const siglas = (nombre: string) => {
+  const mayusculas = nombre.match(/[A-ZÁÉÍÓÚÑ]/g);
+  return (mayusculas && mayusculas.length >= 2 ? mayusculas.slice(0, 2).join("") : nombre.replace(/\s+/g, "").slice(0, 2)).toUpperCase();
+};
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const { user, empresa, empresaElegida, logout } = useAuth();
@@ -74,12 +85,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const marcaProducto = empresa?.marca?.producto || "Auditoría de Visitas";
   const nombre = [user?.nombres, user?.apellidos].filter(Boolean).join(" ") || user?.username || "";
   const porRevisar = resumen?.cola_revision.length || 0;
+  const visibles = ENLACES.filter((e) => (e.universalOnly ? esUniversal : (esUniversal && !empresaElegida ? false : !e.adminOnly || esAdmin)));
 
   const partes = location.pathname.split("/").filter(Boolean);
-  const raiz = NOMBRES[partes[0] || ""] || "Panel";
+  const ruta = RUTAS[partes[0] || ""] || { seccion: "Panel", pantalla: "Panel" };
   const migas = (
     <nav className="crumbs" aria-label="Ruta de navegación">
-      {partes.length > 1 ? <><Link to={`/${partes[0]}`}>{raiz}</Link><span className="sep" aria-hidden="true">/</span><b>Detalle</b></> : <b>{raiz}</b>}
+      <span>{ruta.seccion}</span><span className="sep" aria-hidden="true">&gt;</span>
+      {partes.length > 1 ? <><Link to={`/${partes[0]}`}>{ruta.pantalla}</Link><span className="sep" aria-hidden="true">&gt;</span><b>Detalle</b></> : <b>{ruta.pantalla}</b>}
     </nav>
   );
 
@@ -88,35 +101,23 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       <a className="skip-link" href="#contenido">Saltar al contenido</a>
       <aside className="sidebar" aria-label="Navegación principal">
         <Link to={esUniversal && !empresaElegida ? "/empresas" : "/"} className="ws" aria-label={`${marcaProducto}, ${marcaNombre || "Sulotec"}. Ir al inicio`} translate="no">
-          <Marca size={38} className="ws-mark" />
-          <div><b>{marcaProducto}</b><span>{marcaNombre || "Sulotec"}</span></div>
+          <span className="ws-badge" aria-hidden="true">{siglas(marcaNombre || "Sulotec")}</span>
+          <span className="ws-mark" aria-hidden="true" />
+          <div className="ws-texto"><b>{marcaNombre || "Sulotec"}</b><span>Panel de operaciones</span></div>
         </Link>
         {esUniversal ? <Link to="/empresas" className="empresa-actual" aria-label="Cambiar de empresa">{empresaElegida && empresa ? `Dentro de ${empresa.nombre}` : "Elige una empresa"}</Link> : null}
-        <button className="side-search" onClick={() => setPaleta(true)} data-tip="Buscar o ir a…" aria-label="Buscar o ir a… (Ctrl K)">
-          <Icon name="buscar" size={18} /><span>Buscar o ir a…</span><kbd>Ctrl K</kbd>
-        </button>
         <nav className="side-nav" aria-label="Secciones">
-          {GRUPOS.map((g) => {
-            // Sin empresa elegida, el universal solo tiene el catálogo de empresas; dentro de una, todo lo de un administrador.
-            const visibles = g.enlaces.filter((e) => (e.universalOnly ? esUniversal : (esUniversal && !empresaElegida ? false : !e.adminOnly || esAdmin)));
-            if (!visibles.length) return null;
-            return (
-              <React.Fragment key={g.titulo}>
-                <div className="side-group" aria-hidden="true">{g.titulo}</div>
-                {visibles.map((e) => (
-                  <NavLink key={e.to} to={e.to} end={e.end} data-tip={e.label} className={({ isActive }) => `navitem${isActive ? " active" : ""}`}>
-                    <Icon name={e.icon} size={20} />
-                    <span className="lbl-t">{e.label}</span>
-                    {e.to === "/visitas" && porRevisar > 0 ? <span className="nav-count" aria-label={`${porRevisar} por revisar`}>{porRevisar}</span> : null}
-                  </NavLink>
-                ))}
-              </React.Fragment>
-            );
-          })}
+          {visibles.map((e) => (
+            <NavLink key={e.to} to={e.to} end={e.end} data-tip={e.label} className={({ isActive }) => `navitem${isActive ? " active" : ""}`}>
+              <Icon name={e.icon} size={20} />
+              <span className="lbl-t">{e.label}</span>
+              {e.to === "/visitas" && porRevisar > 0 ? <span className="nav-count" aria-label={`${porRevisar} por revisar`}>{porRevisar}</span> : null}
+            </NavLink>
+          ))}
         </nav>
         <div className="side-foot" ref={userRef}>
           <button className="railbtn collapse" onClick={alternarRail} aria-pressed={rail} data-tip={rail ? "Expandir la barra" : "Contraer la barra"}>
-            <Icon name="panel" size={18} /><span className="lbl-t">{rail ? "Expandir barra" : "Contraer barra"}</span>
+            <Icon name={rail ? "derecha" : "izquierda"} size={18} /><span className="lbl-t">{rail ? "Expandir barra" : "Contraer barra"}</span>
           </button>
           {menuUsuario ? (
             <div className="usermenu">
@@ -134,9 +135,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               </div>
             </div>
           ) : null}
-          <button ref={userBtn} className="userbtn" onClick={() => setMenuUsuario((v) => !v)} aria-haspopup="menu" aria-expanded={menuUsuario} data-tip={nombre}>
+          <button ref={userBtn} className="userbtn" onClick={() => setMenuUsuario((v) => !v)} aria-haspopup="menu" aria-expanded={menuUsuario} data-tip={nombre} title={nombre}>
             <Avatar nombre={nombre} />
-            <span className="who"><b>{nombre}</b><span>{ROL[user?.rol || ""] || user?.rol}</span></span>
+            <span className="who"><b>{ROL[user?.rol || ""] || user?.rol}</b><span>{marcaNombre || nombre}</span></span>
             <Icon name="arriba" size={16} className="chev" />
           </button>
         </div>
@@ -147,9 +148,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           <button className="burger" onClick={() => setAbierto((v) => !v)} aria-label="Abrir el menú" aria-expanded={abierto}><Icon name="menu" size={19} /></button>
           {migas}
           <div className="top-spacer" />
-          <button className="pill-search" onClick={() => setPaleta(true)} aria-label="Buscar o ir a… (Ctrl K)">
-            <Icon name="buscar" size={16} /><span>Buscar cliente o crédito…</span><kbd>Ctrl K</kbd>
-          </button>
+          {ruta.nota ? <p className="top-nota">{ruta.nota}</p> : null}
         </header>
         <main className="page" id="contenido" tabIndex={-1}>{children}</main>
       </div>

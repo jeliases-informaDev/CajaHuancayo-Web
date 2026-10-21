@@ -466,9 +466,12 @@ export default function SeguimientoPage() {
     const aplicarPendientes = window.setInterval(() => {
       if (!pendientes.size) return;
       const lote = new Map(pendientes); pendientes.clear();
+      // La función es pura (React puede ejecutarla dos veces): no toca `lote`, solo lo lee.
       setUbicaciones((prev) => {
-        const next = prev.map((u) => { const nuevo = lote.get(u.id); if (!nuevo) return u; lote.delete(u.id); return { ...u, ...nuevo }; }); // conserva el estado de jornada que ya se conocía
-        return lote.size ? [...next, ...lote.values()] : next;
+        const vistos = new Set<string>();
+        const next = prev.map((u) => { const nuevo = lote.get(u.id); if (!nuevo) return u; vistos.add(u.id); return { ...u, ...nuevo }; }); // conserva el estado de jornada que ya se conocía
+        const nuevos = [...lote.values()].filter((n) => !vistos.has(n.id));
+        return nuevos.length ? [...next, ...nuevos] : next;
       });
     }, 1000);
     // Llegada o salida de un cliente: entra al principio de la lista al instante.

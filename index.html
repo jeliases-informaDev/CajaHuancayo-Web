@@ -17,13 +17,15 @@
           var dark = pref === "dark" || (pref === "auto" && window.matchMedia("(prefers-color-scheme: dark)").matches);
           document.documentElement.dataset.theme = dark ? "dark" : "light";
           document.documentElement.dataset.themePref = pref;
-          if (localStorage.getItem("ch_rail") === "1") document.documentElement.dataset.rail = "1";
-        } catch (e) { document.documentElement.dataset.theme = "light"; }
+          // La barra lateral compacta es la del diseño: sale así salvo que la persona ya haya elegido expandirla (ch_rail = 0).
+          var rail = localStorage.getItem("ch_rail");
+          if (rail === null || rail === "1") document.documentElement.dataset.rail = "1";
+        } catch (e) { document.documentElement.dataset.theme = "light"; document.documentElement.dataset.rail = "1"; }
       })();
     </script>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet" />
+    <link rel="preload" href="/fonts/BeVietnamPro-400.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/BeVietnamPro-500.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/BeVietnamPro-600.woff2" as="font" type="font/woff2" crossorigin />
   </head>
   <body>
     <div id="root"></div>

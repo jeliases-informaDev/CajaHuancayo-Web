@@ -1,0 +1,10 @@
+/* Tipografías del panel y del inicio de sesión (diseño de Figma): Be Vietnam Pro para todo el texto y Beiruti para el título y el botón del login.
+   Alojadas aquí (licencia OFL, ver public/fonts): el panel ya no pide nada a Google Fonts. */
+@font-face { font-family: "Be Vietnam Pro"; font-weight: 300; font-style: normal; font-display: swap; src: url("/fonts/BeVietnamPro-300.woff2") format("woff2"); }
+@font-face { font-family: "Be Vietnam Pro"; font-weight: 400; font-style: normal; font-display: swap; src: url("/fonts/BeVietnamPro-400.woff2") format("woff2"); }
+@font-face { font-family: "Be Vietnam Pro"; font-weight: 400; font-style: italic; font-display: swap; src: url("/fonts/BeVietnamPro-400-italic.woff2") format("woff2"); }
+@font-face { font-family: "Be Vietnam Pro"; font-weight: 500; font-style: normal; font-display: swap; src: url("/fonts/BeVietnamPro-500.woff2") format("woff2"); }
+@font-face { font-family: "Be Vietnam Pro"; font-weight: 600; font-style: normal; font-display: swap; src: url("/fonts/BeVietnamPro-600.woff2") format("woff2"); }
+@font-face { font-family: "Be Vietnam Pro"; font-weight: 600; font-style: italic; font-display: swap; src: url("/fonts/BeVietnamPro-600-italic.woff2") format("woff2"); }
+@font-face { font-family: "Beiruti"; font-weight: 400; font-style: normal; font-display: swap; src: url("/fonts/Beiruti-400.woff2") format("woff2"); }
+@font-face { font-family: "Beiruti"; font-weight: 600; font-style: normal; font-display: swap; src: url("/fonts/Beiruti-600.woff2") format("woff2"); }
