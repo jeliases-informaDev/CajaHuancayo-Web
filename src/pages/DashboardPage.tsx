@@ -4,12 +4,21 @@ import { useAuth } from "../AuthContext";
 import { Avatar, Badge, Skeleton } from "../components/ui";
 import { Icon } from "../components/icons";
 import { Anillo, GraficoArea, rotuloPeriodo, totalPeriodo } from "../components/graficos";
-import { useActividadAsignaciones, useResumen, type Periodo } from "../lib/resumen";
+import { precargarActividad, useActividad, useResumen, type Metrica, type Periodo } from "../lib/resumen";
 import { fechaCorta } from "../lib/format";
 
 const MESES = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
 const hoyLocal = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
 const fechaCorta2 = (iso: string) => { const [y, m, d] = iso.split("-").map(Number); return `${d} ${MESES[m - 1]} ${y}`; };
+
+// Cada tarjeta de arriba elige qué dibuja el gráfico grande (no lleva a otra pantalla). El color de la tarjeta (diseño de Figma) pinta la franja,
+// el área y el borde de la tarjeta elegida; la línea del amarillo va más oscura para que se distinga sobre el blanco.
+const SERIES: { id: Metrica; rotulo: string; titulo: string; singular: string; plural: string; color: string; linea?: string }[] = [
+  { id: "expedientes", rotulo: "Expedientes totales", titulo: "Expedientes", singular: "expediente", plural: "expedientes", color: "#4d61ab" },
+  { id: "asignaciones", rotulo: "Asignaciones", titulo: "Asignaciones", singular: "asignación", plural: "asignaciones", color: "#4dab56" },
+  { id: "visitas", rotulo: "Visitas recientes", titulo: "Visitas", singular: "visita", plural: "visitas", color: "#d4d945", linea: "#8e9217" },
+  { id: "observados", rotulo: "Observados", titulo: "Observados", singular: "observado", plural: "observados", color: "#ab4d4d" },
+];
 
 function Cargando() {
   return (
@@ -29,7 +38,9 @@ export default function DashboardPage() {
   const { resumen: r, error } = useResumen();
   const [periodo, setPeriodo] = useState<Periodo>("diario");
   const [hasta, setHasta] = useState(hoyLocal);
-  const { datos: actividad } = useActividadAsignaciones(periodo, hasta);
+  const [serieId, setSerieId] = useState<Metrica>("asignaciones");
+  const serie = SERIES.find((s) => s.id === serieId) || SERIES[1];
+  const { datos: actividad } = useActividad(serieId, periodo, hasta);
   const nombre = user?.nombres || user?.username || "";
 
   if (error && !r) return <div role="alert" className="error-box">{error}</div>;
@@ -41,6 +52,7 @@ export default function DashboardPage() {
   const observados = r?.visitas.por_resultado.OBSERVADO || 0;
   const maxCarga = Math.max(1, ...(r?.auditores.map((a) => a.asignadas_activas) || [1]));
   const num = (n: number) => n.toLocaleString("es-PE");
+  const valores: Record<Metrica, number> = { expedientes: r?.expedientes.total || 0, asignaciones: r?.asignaciones_activas || 0, visitas: recientes, observados };
   const segmentos = [
     { label: "Visitados", value: visitados, color: "#4d61ab" },
     { label: "Asignados", value: e?.ASIGNADO || 0, color: "#6e4dab" },
@@ -53,7 +65,7 @@ export default function DashboardPage() {
         <h1 className="rs-saludo">Bienvenido, {nombre}</h1>
         <div className="rs-controles">
           <div className="rs-periodo">
-            <select aria-label="Período del gráfico de asignaciones" value={periodo} onChange={(ev) => setPeriodo(ev.target.value as Periodo)}>
+            <select aria-label="Período del gráfico" value={periodo} onChange={(ev) => setPeriodo(ev.target.value as Periodo)}>
               <option value="diario">Diario</option><option value="semanal">Semanal</option><option value="mensual">Mensual</option>
             </select>
             <label><Icon name="calendario" size={18} /><span>{fechaCorta2(hasta)}</span>
@@ -67,18 +79,20 @@ export default function DashboardPage() {
       {!r ? <Cargando /> : (
         <>
           <div className="rs-fila1">
-            <div className="rs-kpis">
-              <Link to="/expedientes" className="rs-kpi" style={{ ["--cap" as any]: "#4d61ab" }}><b>{num(r.expedientes.total)}</b><span>Expedientes totales</span></Link>
-              <Link to="/asignaciones" className="rs-kpi activo" style={{ ["--cap" as any]: "#4dab56" }}><b>{num(r.asignaciones_activas)}</b><span>Asignaciones</span></Link>
-              <Link to="/visitas" className="rs-kpi" style={{ ["--cap" as any]: "#d4d945" }}><b>{num(recientes)}</b><span>Visitas recientes</span></Link>
-              <Link to="/visitas?resultado=OBSERVADO" className="rs-kpi" style={{ ["--cap" as any]: "#ab4d4d" }}><b>{num(observados)}</b><span>Observados</span></Link>
+            <div className="rs-kpis" role="group" aria-label="Indicador que dibuja el gráfico">
+              {SERIES.map((s) => (
+                <button key={s.id} type="button" className={`rs-kpi${s.id === serieId ? " activo" : ""}`} style={{ ["--cap" as any]: s.color }} aria-pressed={s.id === serieId} aria-controls="rs-grafico"
+                  onClick={() => setSerieId(s.id)} onPointerEnter={() => precargarActividad(s.id, periodo, hasta)} onFocus={() => precargarActividad(s.id, periodo, hasta)}>
+                  <b>{num(valores[s.id])}</b><span>{s.rotulo}</span>
+                </button>
+              ))}
             </div>
-            <section className="rs-tarjeta rs-grafico" aria-label="Asignaciones">
+            <section id="rs-grafico" className="rs-tarjeta rs-grafico" aria-label={serie.titulo} style={{ ["--serie" as any]: serie.color, ["--serie-linea" as any]: serie.linea || serie.color }}>
               <div className="rs-grafico-cab">
-                <div><h2>Asignaciones</h2><p>{actividad ? rotuloPeriodo(actividad) : "Cargando…"}</p></div>
+                <div><h2>{serie.titulo}</h2><p>{actividad ? rotuloPeriodo(actividad) : "Cargando…"}</p></div>
                 <div className="rs-total"><b>{actividad ? num(actividad.total) : "–"}</b><span>{totalPeriodo[periodo]}</span></div>
               </div>
-              {actividad ? <GraficoArea datos={actividad} /> : <div className="rs-vacio" role="status">Cargando el gráfico…</div>}
+              {actividad ? <GraficoArea key={`${serieId}|${periodo}|${hasta}`} datos={actividad} nombre={serie} /> : <div className="rs-plot-cargando" role="status">Cargando el gráfico…</div>}
             </section>
           </div>
 
