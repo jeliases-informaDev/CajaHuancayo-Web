@@ -32,17 +32,19 @@
   position: relative; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding: 52px 8px 0; text-align: center; border-radius: 16px; overflow: hidden;
   background: #f8f8f8; color: var(--tinta); text-decoration: none; min-width: 0; box-shadow: 0 1px 2px rgba(60, 70, 130, 0.36);
   transition: transform 0.12s ease, box-shadow 0.15s ease;
+  border: 0; font: inherit; cursor: pointer; -webkit-tap-highlight-color: transparent; touch-action: manipulation; /* es un botón: elige la serie del gráfico */
 }
 :root[data-theme="dark"] .rs-kpi { background: var(--surface-2); box-shadow: 0 0 0 1px var(--line); }
 .rs-kpi::before { content: ""; position: absolute; top: 0; left: 13px; right: 13px; height: 12px; border-radius: 0 0 10px 10px; background: var(--cap, var(--indigo)); }
 .rs-kpi:hover { text-decoration: none; transform: translateY(-1px); box-shadow: 0 4px 8px rgba(60, 70, 130, 0.3); }
-.rs-kpi.activo { box-shadow: inset 0 0 0 2px var(--cap), 0 1px 2px rgba(60, 70, 130, 0.36); }
+.rs-kpi.activo, .rs-kpi.activo:hover { box-shadow: inset 0 0 0 2px var(--cap), 0 1px 2px rgba(60, 70, 130, 0.36); }
+.rs-kpi:focus-visible { outline: 2px solid var(--brand); outline-offset: 3px; }
 .rs-kpi:nth-child(n+3) { padding-top: 55px; }
 .rs-kpi b { display: block; font-size: 40px; font-weight: 600; line-height: 1.05; letter-spacing: 0; font-variant-numeric: lining-nums; }
 .rs-kpi span { display: block; margin-top: 9px; max-width: 84px; font-size: 10px; font-weight: 400; line-height: 1.5; letter-spacing: 0.03em; text-transform: uppercase; }
 
 .rs-grafico { padding: 19px 41px 0 0; display: flex; flex-direction: column; min-height: 371px; }
-.rs-grafico::before { content: ""; position: absolute; left: 0; top: 27px; bottom: 27px; width: 15px; border-radius: 0 9px 9px 0; background: #4dab56; }
+.rs-grafico::before { content: ""; position: absolute; left: 0; top: 27px; bottom: 27px; width: 15px; border-radius: 0 9px 9px 0; background: var(--serie, #4dab56); transition: background-color 0.25s ease; }
 .rs-grafico-cab { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; padding-left: 62px; min-height: 66px; }
 .rs-grafico-cab h2 { margin: 17px 0 0; font-size: 17px; font-weight: 600; line-height: 1.25; color: var(--tinta); }
 .rs-grafico-cab p { margin: 5px 0 0; font-size: 9.6px; font-weight: 600; color: var(--gris-d); letter-spacing: 0.01em; }
@@ -50,7 +52,10 @@
 :root[data-theme="dark"] .rs-total { background: var(--sunken); }
 .rs-total b { display: block; font-family: var(--font-etiqueta); font-size: 24px; font-weight: 600; line-height: 1.15; color: var(--tinta); }
 .rs-total span { display: block; font-size: 12px; font-weight: 600; color: var(--gris-d); line-height: 1.3; }
-.rs-plot { position: relative; height: 233px; margin: 30px 0 0 58px; padding-right: 82px; flex-shrink: 0; }
+.rs-plot { position: relative; height: 233px; margin: 30px 0 0 58px; padding-right: 82px; flex-shrink: 0; animation: rs-entra 0.3s ease; }
+.rs-plot-cargando { height: 233px; margin: 30px 0 0 58px; display: flex; align-items: center; justify-content: center; color: var(--gris-d); font-size: 13px; }
+@keyframes rs-entra { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .rs-plot { animation: none; } .rs-grafico::before { transition: none; } }
 .rs-plot-area { position: absolute; left: 0; right: 82px; top: 0; bottom: 60px; }
 .rs-plot svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
 .rs-linea { position: absolute; left: 0; right: -8px; height: 1px; background: #ecebe9; }

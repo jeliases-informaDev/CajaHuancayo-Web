@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { request } from "../api";
+import { getEmpresaElegida, request } from "../api";
 
 // El resumen de la muestra lo usan el tablero, el menú lateral (cuántas visitas esperan revisión) y los
 // filtros de varias pantallas. Se pide una sola vez y se comparte; se refresca cada minuto mientras haya alguien mirando.
@@ -29,29 +29,53 @@ function cargar(forzar = false) {
   return enVuelo;
 }
 
-// Asignaciones por día, semana o mes para el gráfico del Resumen (el servidor las cuenta con los días del usuario: se le manda su desfase horario).
+// Gráfico del Resumen: cada tarjeta dibuja su serie (expedientes cargados, asignaciones hechas, visitas y visitas observadas) por día, semana o mes.
+// El servidor cuenta con los días del usuario: se le manda su desfase horario.
 export type Periodo = "diario" | "semanal" | "mensual";
-export type ActividadAsignaciones = { periodo: Periodo; desde: string; hasta: string; total: number; puntos: { inicio: string; fin: string; total: number }[] };
+export type Metrica = "expedientes" | "asignaciones" | "visitas" | "observados";
+export type Actividad = { metrica: Metrica; periodo: Periodo; desde: string; hasta: string; total: number; puntos: { inicio: string; fin: string; total: number }[] };
 
-export function useActividadAsignaciones(periodo: Periodo, hasta: string): { datos: ActividadAsignaciones | null; cargando: boolean } {
-  const [datos, setDatos] = useState<ActividadAsignaciones | null>(null);
-  const [cargando, setCargando] = useState(true);
+// Lo ya pedido (por empresa elegida, serie, período y último día): al pasar de una tarjeta a otra, o al volver a una, el gráfico cambia al instante
+// y se refresca por detrás. Tiene tope para que no crezca si alguien recorre muchas fechas.
+const actividades = new Map<string, { en: number; datos: Actividad }>();
+const enVueloAct = new Map<string, Promise<void>>();
+const oyentesAct = new Set<() => void>();
+const MAX_ACTIVIDADES = 48;
+const claveActividad = (m: Metrica, p: Periodo, h: string) => `${getEmpresaElegida() || ""}|${m}|${p}|${h}`;
+
+function pedirActividad(m: Metrica, p: Periodo, h: string) {
+  const clave = claveActividad(m, p, h);
+  const previa = enVueloAct.get(clave);
+  if (previa) return previa;
+  const pedido = request<{ data: Actividad }>(`/api/reportes/actividad?metrica=${m}&periodo=${p}&hasta=${h}&desfase=${new Date().getTimezoneOffset()}`)
+    .then((r) => { if (actividades.size >= MAX_ACTIVIDADES) actividades.clear(); actividades.set(clave, { en: Date.now(), datos: r.data }); oyentesAct.forEach((f) => f()); })
+    .finally(() => { enVueloAct.delete(clave); });
+  enVueloAct.set(clave, pedido);
+  return pedido;
+}
+
+// Al pasar el cursor por una tarjeta se pide su serie con anticipación (si no está fresca) para que al hacer clic ya esté.
+export function precargarActividad(m: Metrica, p: Periodo, h: string) {
+  const hit = actividades.get(claveActividad(m, p, h));
+  if (!hit || Date.now() - hit.en > 30000) void pedirActividad(m, p, h).catch(() => { /* se reintenta al elegir la tarjeta */ });
+}
+
+export function useActividad(metrica: Metrica, periodo: Periodo, hasta: string): { datos: Actividad | null } {
+  const [, forzar] = useState(0);
   useEffect(() => {
-    let vigente = true;
-    const pedir = () => request<{ data: ActividadAsignaciones }>(`/api/reportes/asignaciones-actividad?periodo=${periodo}&hasta=${hasta}&desfase=${new Date().getTimezoneOffset()}`)
-      .then((r) => { if (vigente) setDatos(r.data); })
-      .catch(() => { /* el gráfico queda como estaba; el resto del resumen ya avisa si el servidor falla */ })
-      .finally(() => { if (vigente) setCargando(false); });
-    setCargando(true);
-    pedir();
+    const f = () => forzar((n) => n + 1);
+    oyentesAct.add(f);
+    const pedir = () => { void pedirActividad(metrica, periodo, hasta).catch(() => { /* el gráfico queda como estaba; el resto del resumen ya avisa si el servidor falla */ }); };
+    const hit = actividades.get(claveActividad(metrica, periodo, hasta));
+    if (!hit || Date.now() - hit.en > 15000) pedir();
     const t = window.setInterval(() => { if (!document.hidden) pedir(); }, 60000);
-    return () => { vigente = false; window.clearInterval(t); };
-  }, [periodo, hasta]);
-  return { datos, cargando };
+    return () => { oyentesAct.delete(f); window.clearInterval(t); };
+  }, [metrica, periodo, hasta]);
+  return { datos: actividades.get(claveActividad(metrica, periodo, hasta))?.datos ?? null };
 }
 
 export const refrescarResumen = () => cargar(true);
-export const olvidarResumen = () => { cache = null; error = ""; ultima = 0; avisar(); };
+export const olvidarResumen = () => { cache = null; error = ""; ultima = 0; actividades.clear(); avisar(); };
 
 export function useResumen(): { resumen: Resumen | null; error: string; refrescar: () => void } {
   const [, forzar] = useState(0);
