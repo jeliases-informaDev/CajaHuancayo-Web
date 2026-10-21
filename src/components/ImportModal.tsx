@@ -126,7 +126,7 @@ export default function ImportModal({ onClose, onDone }: { onClose: () => void; 
           <PlantillasDescarga compacto onError={setError} />
           <label className="check-inline" style={{ height: "auto", marginTop: 12, alignItems: "flex-start" }}>
             <input type="checkbox" checked={autoasignable} onChange={(e) => setAutoasignable(e.target.checked)} style={{ marginTop: 3 }} />
-            <span>Dejar los expedientes nuevos disponibles para que los auditores de su zona los tomen por su cuenta. Si no lo marcas, solo un supervisor los asigna.</span>
+            <span>Dejar los expedientes nuevos disponibles para que los auditores los tomen por su cuenta (de cualquier distrito, los más cercanos a ellos primero). Si no lo marcas, solo un supervisor los asigna.</span>
           </label>
         </>
       ) : null}

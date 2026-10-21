@@ -26,18 +26,18 @@ export default function AsignacionesPage() {
     try {
       const r: any = await request("/api/asignaciones/autoasignacion", { method: "PUT", body: JSON.stringify({ activa }) });
       setResumen(r.data); setConfirmarInterruptor(false);
-      setAviso(activa ? "Los auditores ya pueden tomar casos disponibles de su zona." : "Los auditores ya no pueden tomar casos por su cuenta: solo trabajan los que asignes tú.");
+      setAviso(activa ? "Los auditores ya pueden tomar casos disponibles." : "Los auditores ya no pueden tomar casos por su cuenta: solo trabajan los que asignes tú.");
     } catch (x: any) { setError(x.message); } finally { setCambiandoInterruptor(false); }
   };
   // Pendientes que solo asigna un supervisor (cargas de Excel sin la casilla «disponibles»): el administrador puede liberarlos de una vez.
   const [liberando, setLiberando] = useState(false);
   const liberarReservados = async () => {
-    if (!window.confirm(`¿Dejar ${Number(resumen?.pendientes_reservados || 0).toLocaleString("es-PE")} casos pendientes disponibles para que los auditores de su zona los tomen?`)) return;
+    if (!window.confirm(`¿Dejar ${Number(resumen?.pendientes_reservados || 0).toLocaleString("es-PE")} casos pendientes disponibles para que los auditores los tomen?`)) return;
     setLiberando(true);
     try {
       const r: any = await request("/api/asignaciones/liberar", { method: "POST" });
       setResumen(r.data.resumen); setError("");
-      setAviso(`Se liberaron ${r.data.liberados.toLocaleString("es-PE")} casos: los auditores de su zona ya pueden tomarlos.`);
+      setAviso(`Se liberaron ${r.data.liberados.toLocaleString("es-PE")} casos: los auditores ya pueden tomarlos.`);
     } catch (x: any) { setError(x.message); } finally { setLiberando(false); }
   };
   const [loading, setLoading] = useState(true);
@@ -145,7 +145,7 @@ export default function AsignacionesPage() {
         <div className="callout info toma-casos">
           <div className="toma-texto" role="status">
             {resumen.total > 0 ? <b>Casos tomados por el propio auditor: {resumen.autoasignadas} de {resumen.total} ({resumen.porcentaje} %).</b> : <b>Aún no hay casos asignados.</b>}{" "}
-            {resumen.autoasignacion_activa ? "Los auditores pueden tomar casos disponibles de su zona." : "La toma de casos por cuenta propia está desactivada: solo trabajan lo que asigna un supervisor."}
+            {resumen.autoasignacion_activa ? "Los auditores pueden tomar casos disponibles de cualquier distrito, los más cercanos a ellos primero." : "La toma de casos por cuenta propia está desactivada: solo trabajan lo que asigna un supervisor."}
             {resumen.pendientes_reservados > 0 ? (
               <p style={{ margin: "8px 0 0" }}>
                 Hay {resumen.pendientes_reservados.toLocaleString("es-PE")} casos pendientes que solo asigna un supervisor (se cargaron sin marcar «disponibles»): los auditores no los ven en «Disponibles».{" "}
@@ -185,7 +185,7 @@ export default function AsignacionesPage() {
                 <li key={a.id}>
                   <button className={auditorId === a.id ? "on" : ""} onClick={() => setAuditorId(auditorId === a.id ? "" : a.id)} aria-pressed={auditorId === a.id}>
                     <Avatar nombre={nombreDe(a)} />
-                    <span><b>{nombreDe(a)}</b><small>{a.departamento || "Sin zona definida"}</small></span>
+                    <span><b>{nombreDe(a)}</b><small>{a.departamento || "Sin zona habitual"}</small></span>
                     <span className="load">{carga.get(a.id) || 0}<small>activos</small></span>
                   </button>
                 </li>
