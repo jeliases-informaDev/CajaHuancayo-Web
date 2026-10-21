@@ -100,10 +100,23 @@ const iniciales = (n: string) => n.split(/\s+/).filter(Boolean).slice(0, 2).map(
 
 // Auditor en el mapa: círculo con sus iniciales. El color dice el estado (verde en vivo, gris sin señal, rojo si hay una alerta o GPS simulado),
 // el anillo late mientras está en vivo y crece cuando es el auditor elegido.
-function markerIcon(nombre: string, rol: string, estado: Frescura, simulada: boolean, alerta: boolean, elegido: boolean) {
+// Los iconos se reutilizan: si cada actualización creara uno nuevo por auditor, Leaflet rehacía el dibujo de TODOS los marcadores en cada
+// vuelta (con mil auditores en vivo, la pantalla se congelaba). Mientras el aspecto no cambie, se devuelve el mismo objeto.
+const cacheIconos = new Map<string, L.DivIcon>();
+function conCache(clave: string, crear: () => L.DivIcon): L.DivIcon {
+  let icono = cacheIconos.get(clave);
+  if (!icono) { if (cacheIconos.size > 4000) cacheIconos.clear(); icono = crear(); cacheIconos.set(clave, icono); }
+  return icono;
+}
+// `pulsar`: el anillo que late en cada auditor en vivo es una animación por marcador; con cientos de ellos a la vez la pantalla se arrastra
+// (5 cuadros por segundo con mil auditores en vivo), así que solo late en todos cuando son pocos; el auditor elegido siempre late.
+function markerIcon(nombre: string, rol: string, estado: Frescura, simulada: boolean, alerta: boolean, elegido: boolean, pulsar = true) {
+  return conCache(["a", nombre, rol, estado, simulada, alerta, elegido, pulsar].join("|"), () => crearMarkerIcon(nombre, rol, estado, simulada, alerta, elegido, pulsar));
+}
+function crearMarkerIcon(nombre: string, rol: string, estado: Frescura, simulada: boolean, alerta: boolean, elegido: boolean, pulsar: boolean) {
   const color = simulada || alerta ? "#d92d20" : estado === "SIN_SENAL" ? "#94a3b8" : colorForRol(rol);
   const tam = elegido ? 44 : 34;
-  const clases = "avatar-pin" + (estado === "VIVO" && !simulada ? " gps-vivo" : "") + (elegido ? " elegido" : "");
+  const clases = "avatar-pin" + (estado === "VIVO" && !simulada && (pulsar || elegido) ? " gps-vivo" : "") + (elegido ? " elegido" : "");
   return L.divIcon({
     className: "",
     html: '<div class="' + clases + '" style="--c:' + color + ";width:" + tam + "px;height:" + tam + 'px"><span>' + escHtml(iniciales(nombre)) + "</span></div>",
@@ -124,6 +137,9 @@ const inicioIcon = L.divIcon({
 // Paradas "en ruta": burbuja verde numerada, ordenadas por cercanía (vecino más próximo)
 // desde la posición del auditor — mismo lenguaje visual que Mi Radar 360.
 function routeStopIcon(n: number) {
+  return conCache("r|" + n, () => crearRouteStopIcon(n));
+}
+function crearRouteStopIcon(n: number) {
   return L.divIcon({
     className: "",
     html: `<div style="width:24px;height:24px;border-radius:50%;background:${RUTA_COLOR};border:2px solid #fff;box-shadow:0 2px 6px rgba(14,173,122,.45);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:11px;font-family:inherit">${n}</div>`,
@@ -136,6 +152,9 @@ function routeStopIcon(n: number) {
 // punto coloreado por prioridad, para poder ver de un vistazo todos los clientes del
 // bloque geográfico (de cualquier auditor) sin necesidad de elegir a alguien primero.
 function clienteIcon(prioridad: string) {
+  return conCache("c|" + prioridad, () => crearClienteIcon(prioridad));
+}
+function crearClienteIcon(prioridad: string) {
   const color = PRIORIDAD_COLORS[prioridad] || DISPONIBLE_COLOR;
   return L.divIcon({
     className: "",
@@ -431,23 +450,27 @@ export default function SeguimientoPage() {
         return prev.some((u) => u.id === nuevo.id) ? prev.map((u) => (u.id === nuevo.id ? nuevo : u)) : [...prev, nuevo];
       });
     });
+    // Con cientos de auditores llegan decenas de posiciones por segundo: pintar el mapa en cada una congelaba la pantalla. Se juntan
+    // (la última de cada auditor) y se aplican todas de una vez cada segundo.
+    const pendientes = new Map<string, Ubicacion>();
     socket.on("ubicacion_actualizada", (data: any) => {
-      setUbicaciones((prev) => {
-        const actualizado: Ubicacion = {
-          id: data.id_usuario, username: data.username,
-          nombres: data.nombres || "", apellidos: data.apellidos || "",
-          rol: data.rol || "", latitud: Number(data.latitud), longitud: Number(data.longitud),
-          actualizado_en: data.actualizado_en || data.fecha || new Date(Date.now() + offsetRef.current).toISOString(),
-          precision: data.precision ?? null, simulada: Boolean(data.simulada),
-          bateria: data.bateria ?? null, cargando: Boolean(data.cargando),
-        };
-        const idx = prev.findIndex((u) => u.id === actualizado.id);
-        if (idx === -1) return [...prev, actualizado];
-        const next = [...prev];
-        next[idx] = { ...next[idx], ...actualizado }; // conserva el estado de jornada que ya se conocía
-        return next;
+      pendientes.set(data.id_usuario, {
+        id: data.id_usuario, username: data.username,
+        nombres: data.nombres || "", apellidos: data.apellidos || "",
+        rol: data.rol || "", latitud: Number(data.latitud), longitud: Number(data.longitud),
+        actualizado_en: data.actualizado_en || data.fecha || new Date(Date.now() + offsetRef.current).toISOString(),
+        precision: data.precision ?? null, simulada: Boolean(data.simulada),
+        bateria: data.bateria ?? null, cargando: Boolean(data.cargando),
       });
     });
+    const aplicarPendientes = window.setInterval(() => {
+      if (!pendientes.size) return;
+      const lote = new Map(pendientes); pendientes.clear();
+      setUbicaciones((prev) => {
+        const next = prev.map((u) => { const nuevo = lote.get(u.id); if (!nuevo) return u; lote.delete(u.id); return { ...u, ...nuevo }; }); // conserva el estado de jornada que ya se conocía
+        return lote.size ? [...next, ...lote.values()] : next;
+      });
+    }, 1000);
     // Llegada o salida de un cliente: entra al principio de la lista al instante.
     socket.on("evento_campo", (e: EventoCampo) => setEventos((prev) => (prev.some((x) => x.id === e.id) ? prev : [e, ...prev].slice(0, 300))));
     // El socket trae cada posición al instante; este refresco solo cubre cortes de conexión. El segundero actualiza «hace X s».
@@ -459,7 +482,7 @@ export default function SeguimientoPage() {
     socket.on("muestra_actualizada", recargarMapa);
     socket.on("visita_registrada", recargarMapa);
     const reloj = setInterval(() => setAhoraMs(Date.now() + offsetRef.current), 5000);
-    return () => { socket.disconnect(); clearInterval(timer); clearInterval(timerMapa); window.clearTimeout(espera); clearInterval(reloj); };
+    return () => { socket.disconnect(); clearInterval(timer); clearInterval(timerMapa); window.clearTimeout(espera); clearInterval(reloj); window.clearInterval(aplicarPendientes); };
   }, []);
   // Al cambiar de zona se piden al servidor solo los clientes de esa zona.
   useEffect(() => { cargarMapaRef.current(); }, [departamentoFiltro, provinciaFiltro, distritoFiltro]);
@@ -941,7 +964,7 @@ export default function SeguimientoPage() {
             {capas.auditores ? marcadores.filter((u) => u.id !== seleccionado).map((u) => {
               const f = frescura(u);
               return (
-                <AuditorMarker key={u.id} posicion={[u.latitud as number, u.longitud as number]} icon={markerIcon(nombreAud(u), u.rol, f.estado, u.simulada, esAlerta(u), false)} onClick={() => elegirAuditor(u.id)}>
+                <AuditorMarker key={u.id} posicion={[u.latitud as number, u.longitud as number]} icon={markerIcon(nombreAud(u), u.rol, f.estado, u.simulada, esAlerta(u), false, enVivo <= 60)} onClick={() => elegirAuditor(u.id)}>
                   <Popup>
                     <div className="pop">
                       <strong>{nombreAud(u)}</strong><span className="pop-rol">{u.rol}</span>
