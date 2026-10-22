@@ -7,6 +7,7 @@ import { ActionMenu, Drawer, Seg } from "../components/kit";
 import { dash, fechaHora } from "../lib/format";
 import { Link } from "react-router-dom";
 import { BorrarEmpleadosModal, BorrarUsuarioModal } from "../components/limpieza";
+import { QuitarCasosModal } from "../components/quitarcasos";
 import { useModoPruebas } from "../lib/limpieza";
 import { useQueryParam } from "../lib/useQueryParam";
 
@@ -34,6 +35,7 @@ export default function UsuariosPage() {
   const { activo: modoPruebas } = useModoPruebas(true); // esta pantalla es solo del administrador
   const [borrarA, setBorrarA] = useState<any | null>(null); // usuario que se va a borrar por completo
   const [borrarTodos, setBorrarTodos] = useState(false);
+  const [quitarCasosA, setQuitarCasosA] = useState<any | null>(null); // asesor al que se le quitan los casos abiertos
 
   const cargar = async () => {
     try { const r: any = await request("/api/usuarios"); setData(r.data); setError(""); }
@@ -136,6 +138,7 @@ export default function UsuariosPage() {
                       header={{ title: nombreDe(u) || u.username, sub: `@${u.username}` }}
                       items={[
                         { label: "Liberar dispositivo", hidden: u.rol === "ADMINISTRADOR", onClick: () => { if (window.confirm(`¿Liberar el dispositivo de @${u.username}? Podrá iniciar sesión desde otro teléfono.`)) accion(() => request(`/api/usuarios/${u.id}/device/reset`, { method: "POST" }), "Dispositivo liberado: podrá iniciar sesión desde otro teléfono."); } },
+                        { label: "Quitar casos…", hidden: u.rol !== "AUDITOR", onClick: () => { setQuitarCasosA(u); setOk(""); } },
                         { label: "Cambiar zona", hidden: u.rol !== "AUDITOR", onClick: () => { setZonaDe(u); setNuevaZona(u.departamento || ""); setOk(""); } },
                         { label: "Cambiar contraseña", onClick: () => { setClave(u); setNuevaClave(""); setOk(""); } },
                         { label: "Restablecer verificación en dos pasos", onClick: () => { if (window.confirm(`¿Restablecer la verificación en dos pasos de @${u.username}? Tendrá que configurarla de nuevo.`)) accion(() => request(`/api/usuarios/${u.id}/mfa/reset`, { method: "POST" }), "Verificación en dos pasos restablecida."); } },
@@ -153,6 +156,10 @@ export default function UsuariosPage() {
         </div>
       )}
 
+      {quitarCasosA ? (
+        <QuitarCasosModal auditor={{ id: quitarCasosA.id, nombre: nombreDe(quitarCasosA) || quitarCasosA.username }} onClose={() => setQuitarCasosA(null)}
+          onHecho={(r) => { const u = quitarCasosA; setQuitarCasosA(null); setOk(`Se ${r.quitadas === 1 ? "quitó 1 caso" : `quitaron ${r.quitadas.toLocaleString("es-PE")} casos`} a @${u.username}.`); }} />
+      ) : null}
       {borrarA ? <BorrarUsuarioModal usuario={borrarA} onClose={() => setBorrarA(null)} onHecho={() => { const u = borrarA; setBorrarA(null); setOk(`@${u.username} se borró por completo.`); cargar(); }} /> : null}
       {borrarTodos ? <BorrarEmpleadosModal onClose={() => setBorrarTodos(false)} onHecho={() => { setBorrarTodos(false); setOk("Listo: se borraron los asesores y supervisores."); cargar(); }} /> : null}
 

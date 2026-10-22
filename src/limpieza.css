@@ -50,3 +50,11 @@
   .mp-giro { animation: none; }
   .mp-pista, .mp-bolita { transition: none; }
 }
+
+/* Tope de casos abiertos por asesor y quitar casos (Asignaciones y Usuarios). */
+.tope-fila { display: grid; gap: 6px; max-width: 360px; }
+.tope-campo { display: flex; align-items: center; gap: 8px; }
+.tope-campo input[type="number"] { width: 110px; }
+.tope-ayuda { margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--muted); }
+.section-acciones { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.mp-lineas.ok li { background: var(--ok-wash); color: var(--ok); }

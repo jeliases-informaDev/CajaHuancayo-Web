@@ -7,6 +7,8 @@ import { Avatar, Badge, Empty, Skeleton } from "../components/ui";
 import { Icon } from "../components/icons";
 import { ActionMenu, Seg } from "../components/kit";
 import { dash, fecha } from "../lib/format";
+import { QuitarCasosModal } from "../components/quitarcasos";
+import { motivoTexto } from "../lib/casos";
 
 const nombreDe = (a: any) => `${a?.nombres || ""} ${a?.apellidos || ""}`.trim() || a?.username || "";
 
@@ -29,6 +31,22 @@ export default function AsignacionesPage() {
       setAviso(activa ? "Los auditores ya pueden tomar casos disponibles." : "Los auditores ya no pueden tomar casos por su cuenta: solo trabajan los que asignes tú.");
     } catch (x: any) { setError(x.message); } finally { setCambiandoInterruptor(false); }
   };
+  // Tope de casos abiertos por asesor cuando los toma por su cuenta (0 = sin tope). Solo el administrador lo cambia.
+  const [topeEditado, setTopeEditado] = useState<string | null>(null); // lo que el administrador va escribiendo; null = mostrar el valor guardado
+  const topeTexto = topeEditado ?? (typeof resumen?.tope_casos === "number" ? String(resumen.tope_casos) : "");
+  const [guardandoTope, setGuardandoTope] = useState(false);
+  const topeNuevo = topeTexto.trim() === "" ? NaN : Number(topeTexto);
+  const topeValido = Number.isInteger(topeNuevo) && topeNuevo >= 0 && topeNuevo <= 1000;
+  const guardarTope = async () => {
+    if (!topeValido) return;
+    setGuardandoTope(true);
+    try {
+      const r: any = await request("/api/asignaciones/tope-casos", { method: "PUT", body: JSON.stringify({ maximo: topeNuevo }) });
+      setResumen(r.data); setTopeEditado(null); setError("");
+      setAviso(topeNuevo === 0 ? "Sin máximo: los asesores pueden tomar todos los casos que quieran." : `Cada asesor puede tener hasta ${topeNuevo.toLocaleString("es-PE")} casos abiertos al tomarlos por su cuenta.`);
+    } catch (x: any) { setError(x.message); } finally { setGuardandoTope(false); }
+  };
+  const [quitarAbierto, setQuitarAbierto] = useState(false);
   // Pendientes que solo asigna un supervisor (cargas de Excel sin la casilla «disponibles»): el administrador puede liberarlos de una vez.
   const [liberando, setLiberando] = useState(false);
   const liberarReservados = async () => {
@@ -145,7 +163,9 @@ export default function AsignacionesPage() {
         <div className="callout info toma-casos">
           <div className="toma-texto" role="status">
             {resumen.total > 0 ? <b>Casos tomados por el propio auditor: {resumen.autoasignadas.toLocaleString("es-PE")} de {resumen.total.toLocaleString("es-PE")} ({resumen.porcentaje} %).</b> : <b>Aún no hay casos asignados.</b>}{" "}
-            {resumen.autoasignacion_activa ? "Los auditores pueden tomar casos disponibles de cualquier distrito, los más cercanos a ellos primero." : "La toma de casos por cuenta propia está desactivada: solo trabajan lo que asigna un supervisor."}
+            {resumen.autoasignacion_activa
+              ? `Los asesores pueden tomar cualquier caso disponible, de cualquier distrito.${resumen.tope_casos > 0 ? ` Cada uno puede tener hasta ${resumen.tope_casos.toLocaleString("es-PE")} casos abiertos al tomarlos por su cuenta.` : " No hay máximo de casos abiertos."}`
+              : "La toma de casos por cuenta propia está desactivada: solo trabajan lo que asigna un supervisor."}
             {resumen.pendientes_reservados > 0 ? (
               <p style={{ margin: "8px 0 0" }}>
                 Hay {resumen.pendientes_reservados.toLocaleString("es-PE")} casos pendientes que solo asigna un supervisor (se cargaron sin marcar «disponibles»): los auditores no los ven en «Disponibles».{" "}
@@ -171,6 +191,14 @@ export default function AsignacionesPage() {
                   <button type="button" className="btn small quiet" onClick={() => setConfirmarInterruptor(false)}>Cancelar</button>
                 </div>
               ) : null}
+              <form className="tope-fila" onSubmit={(e) => { e.preventDefault(); guardarTope(); }}>
+                <label className="lbl" htmlFor="tope-casos">Máximo de casos abiertos por asesor</label>
+                <div className="tope-campo">
+                  <input id="tope-casos" name="tope" type="number" inputMode="numeric" min={0} max={1000} step={1} autoComplete="off" className="input" value={topeTexto} onChange={(e) => setTopeEditado(e.target.value)} aria-describedby="tope-ayuda" />
+                  <button type="submit" className="btn small" disabled={guardandoTope || !topeValido || topeNuevo === resumen.tope_casos}>{guardandoTope ? "Guardando…" : "Guardar"}</button>
+                </div>
+                <p id="tope-ayuda" className="tope-ayuda">0 = sin máximo. Vale cuando el asesor toma casos por su cuenta; un supervisor puede asignarle más.</p>
+              </form>
             </div>
           ) : null}
         </div>
@@ -233,7 +261,13 @@ export default function AsignacionesPage() {
           </div>
 
           <div className="section">
-            <div className="section-head"><h2>Asignaciones {auditor ? `de ${nombreDe(auditor)}` : "recientes"}</h2><span className="meta">{(asigInfo ? asigInfo.total : activas.length).toLocaleString("es-PE")}</span></div>
+            <div className="section-head">
+              <h2>Asignaciones {auditor ? `de ${nombreDe(auditor)}` : "recientes"}</h2>
+              <div className="section-acciones">
+                {auditor && (carga.get(auditor.id) || 0) > 0 ? <button type="button" className="btn small ghost" onClick={() => setQuitarAbierto(true)}>Quitar sus casos…</button> : null}
+                <span className="meta">{(asigInfo ? asigInfo.total : activas.length).toLocaleString("es-PE")}</span>
+              </div>
+            </div>
             {!activas.length ? <Empty tipo="asignar" title="Sin asignaciones" text="Cuando asignes expedientes aparecerán aquí." /> : (
               <div className="table-wrap">
                 <table>
@@ -245,7 +279,7 @@ export default function AsignacionesPage() {
                         <td>{nombreDe(a.auditor)}</td>
                         <td>{fecha(a.fecha_asignacion)}<span className="sub">{a.origen === "AUTOASIGNADA" ? "La tomó el auditor" : "Asignada por supervisor"}</span></td>
                         <td><Badge label={a.prioridad} /></td>
-                        <td><Badge label={a.estado} /></td>
+                        <td><Badge label={a.estado} />{a.estado === "CANCELADA" && a.motivo_fin ? <span className="sub">{motivoTexto(a.motivo_fin)}</span> : null}</td>
                         <td style={{ textAlign: "right" }}>{a.estado === "ACTIVA" ? <ActionMenu items={[{ label: "Cancelar asignación", tone: "bad", onClick: () => { if (window.confirm("¿Cancelar esta asignación? El expediente vuelve a quedar sin asignar.")) cancelar(a.id_asignacion); } }]} /> : null}</td>
                       </tr>
                     ))}
@@ -259,6 +293,11 @@ export default function AsignacionesPage() {
           </div>
         </div>
       </div>
+      {quitarAbierto && auditor ? (
+        <QuitarCasosModal auditor={{ id: auditor.id, nombre: nombreDe(auditor) }} autoasignacionActiva={resumen?.autoasignacion_activa} topeCasos={resumen?.tope_casos}
+          onClose={() => setQuitarAbierto(false)}
+          onHecho={(r) => { setQuitarAbierto(false); setAviso(`Se ${r.quitadas === 1 ? "quitó 1 caso" : `quitaron ${r.quitadas.toLocaleString("es-PE")} casos`} a ${nombreDe(auditor)}.`); cargar(); }} />
+      ) : null}
     </>
   );
 }
