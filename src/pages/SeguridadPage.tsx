@@ -2,6 +2,7 @@ import { Fragment, useEffect, useState } from "react";
 import { request } from "../api";
 import { Empty, Skeleton } from "../components/ui";
 import { fechaHora } from "../lib/format";
+import { ModoPruebasTarjeta } from "../components/limpieza";
 
 function Metrica({ valor, etiqueta, alerta }: { valor?: number; etiqueta: string; alerta?: boolean }) {
   return (
@@ -49,6 +50,8 @@ export default function SeguridadPage() {
           <Metrica valor={metricas?.cuentas_bloqueadas} etiqueta="Cuentas bloqueadas ahora" alerta />
         </div>
       )}
+
+      <ModoPruebasTarjeta />
 
       <div className="section">
         <div className="section-head"><h2>Registro de auditoría</h2><span className="meta">{visibles.length} de {logs.length} más recientes</span></div>

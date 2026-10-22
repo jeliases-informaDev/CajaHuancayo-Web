@@ -1,0 +1,52 @@
+/* Modo pruebas: borrar empleados y limpiar datos de prueba (tarjeta de Seguridad, ventanas de borrado y aviso de la barra superior). */
+.mp-tarjeta { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 18px 20px; display: grid; gap: 12px; max-width: 760px; }
+.mp-tarjeta p { margin: 0; color: var(--ink-2); font-size: 14px; line-height: 1.6; }
+.mp-acciones { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.mp-acciones .subtle { flex-basis: 100%; margin: 0; }
+
+.mp-interruptor { display: inline-flex; align-items: center; gap: 10px; width: fit-content; cursor: pointer; font-size: 14px; font-weight: 500; touch-action: manipulation; }
+.mp-interruptor input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.mp-pista { position: relative; width: 38px; height: 22px; border-radius: 999px; background: var(--line-2); transition: background-color 0.15s ease; }
+.mp-bolita { position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: transform 0.15s ease; }
+.mp-interruptor input:checked + .mp-pista { background: var(--warn); }
+.mp-interruptor input:checked + .mp-pista .mp-bolita { transform: translateX(16px); }
+.mp-interruptor input:focus-visible + .mp-pista { box-shadow: var(--ring); }
+.mp-interruptor input:disabled + .mp-pista { opacity: 0.55; }
+
+.mp-cuerpo { display: grid; gap: 12px; }
+.mp-resumen { margin: 0; font-size: 15px; font-weight: 500; color: var(--ink); }
+.mp-lineas { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px 10px; }
+.mp-lineas li { padding: 6px 12px; border-radius: 999px; background: var(--bad-wash); color: var(--bad); font-size: 13px; }
+.mp-lineas b { font-weight: 600; font-variant-numeric: tabular-nums; }
+.mp-sub { margin: 4px 0 0; font-size: 12px; font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+.mp-lista { list-style: none; margin: 0; padding: 0; max-height: 220px; overflow-y: auto; border: 1px solid var(--line); border-radius: 12px; }
+.mp-lista li { display: flex; justify-content: space-between; gap: 12px; padding: 8px 14px; border-bottom: 1px solid var(--line); font-size: 13.5px; }
+.mp-lista li:last-child { border-bottom: 0; }
+.mp-lista b { font-weight: 500; min-width: 0; overflow-wrap: anywhere; }
+.mp-lista span { color: var(--muted); text-align: right; }
+.mp-lista .mp-mas { color: var(--muted); font-style: italic; }
+.mp-quedan { margin: 0; font-size: 13.5px; color: var(--ink-2); }
+.mp-progreso p { display: flex; align-items: center; gap: 10px; margin: 0 0 10px; font-weight: 500; }
+.mp-giro { flex: none; width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--line-2); border-top-color: var(--brand); animation: mp-gira 0.8s linear infinite; }
+@keyframes mp-gira { to { transform: rotate(360deg); } }
+.mp-opciones { border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px 12px; margin: 0; display: grid; gap: 10px; min-width: 0; }
+.mp-opciones legend { padding: 0 6px; font-size: 12px; color: var(--muted); }
+.mp-opciones label { display: flex; gap: 10px; cursor: pointer; font-size: 13.5px; }
+.mp-opciones label b { display: block; font-weight: 500; color: var(--ink); }
+.mp-opciones label span { color: var(--ink-2); }
+.mp-opciones:disabled { opacity: 0.6; }
+
+.btn.ghost.mp-borrar { color: var(--bad); border-color: color-mix(in srgb, var(--bad) 40%, var(--line-2)); }
+.mp-pastilla { display: inline-flex; align-items: center; height: 26px; padding: 0 12px; margin-left: 14px; border-radius: 999px; border: 1px solid color-mix(in srgb, var(--warn) 30%, transparent); background: var(--warn-wash); color: var(--warn); font-size: 12px; font-weight: 500; text-decoration: none; white-space: nowrap; }
+.mp-pastilla:hover { text-decoration: none; filter: brightness(0.97); }
+.mp-pastilla:focus-visible { outline: none; box-shadow: var(--ring); }
+
+@media (max-width: 600px) {
+  .mp-lista li { flex-direction: column; gap: 2px; }
+  .mp-lista span { text-align: left; }
+  .mp-pastilla { margin-left: 8px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mp-giro { animation: none; }
+  .mp-pista, .mp-bolita { transition: none; }
+}
