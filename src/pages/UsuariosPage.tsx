@@ -5,6 +5,9 @@ import { Avatar, Badge, Empty, Field, Skeleton } from "../components/ui";
 import { Icon } from "../components/icons";
 import { ActionMenu, Drawer, Seg } from "../components/kit";
 import { dash, fechaHora } from "../lib/format";
+import { Link } from "react-router-dom";
+import { BorrarEmpleadosModal, BorrarUsuarioModal } from "../components/limpieza";
+import { useModoPruebas } from "../lib/limpieza";
 import { useQueryParam } from "../lib/useQueryParam";
 
 const emptyForm = { username: "", password: "", rol: "AUDITOR", nombres: "", apellidos: "", email: "", departamento: "" };
@@ -28,6 +31,9 @@ export default function UsuariosPage() {
   const [nuevaZona, setNuevaZona] = useState("");
   const [rol, setRol] = useQueryParam("rol");
   const [busqueda, setBusqueda] = useQueryParam("q");
+  const { activo: modoPruebas } = useModoPruebas(true); // esta pantalla es solo del administrador
+  const [borrarA, setBorrarA] = useState<any | null>(null); // usuario que se va a borrar por completo
+  const [borrarTodos, setBorrarTodos] = useState(false);
 
   const cargar = async () => {
     try { const r: any = await request("/api/usuarios"); setData(r.data); setError(""); }
@@ -91,9 +97,12 @@ export default function UsuariosPage() {
       <div className="page-head">
         <div>
           <h1>Usuarios</h1>
-          <p>Administradores, supervisores y auditores con acceso al sistema.</p>
+          <p>Administradores, supervisores y auditores con acceso al sistema.{!modoPruebas ? <> Para borrar usuarios de prueba, enciende el <Link to="/seguridad">modo pruebas</Link> en Seguridad.</> : null}</p>
         </div>
-        <div className="actions"><button className="btn" onClick={() => { setNuevo(true); setOk(""); }}><Icon name="mas" size={17} />Nuevo usuario</button></div>
+        <div className="actions">
+          {modoPruebas ? <button className="btn ghost mp-borrar" onClick={() => setBorrarTodos(true)}>Borrar a todos los asesores y supervisores…</button> : null}
+          <button className="btn" onClick={() => { setNuevo(true); setOk(""); }}><Icon name="mas" size={17} />Nuevo usuario</button>
+        </div>
       </div>
       {error ? <div role="alert" className="error-box">{error}</div> : null}
       {ok ? <div role="status" className="callout ok">{ok}</div> : null}
@@ -133,6 +142,7 @@ export default function UsuariosPage() {
                         u.estado === "ACTIVO"
                           ? { label: "Desactivar usuario", tone: "bad", separatorBefore: true, onClick: () => { if (window.confirm(`¿Desactivar a @${u.username}? No podrá iniciar sesión y sus casos activos se liberan.`)) accion(() => request(`/api/usuarios/${u.id}`, { method: "PATCH", body: JSON.stringify({ estado: "INACTIVO" }) }), "Usuario desactivado."); } }
                           : { label: "Activar usuario", separatorBefore: true, onClick: () => accion(() => request(`/api/usuarios/${u.id}`, { method: "PATCH", body: JSON.stringify({ estado: "ACTIVO" }) }), "Usuario activado.") },
+                        { label: "Eliminar definitivamente", tone: "bad", hidden: !modoPruebas || u.id === user?.id, onClick: () => setBorrarA(u) },
                       ]}
                     />
                   </td>
@@ -142,6 +152,9 @@ export default function UsuariosPage() {
           </table>
         </div>
       )}
+
+      {borrarA ? <BorrarUsuarioModal usuario={borrarA} onClose={() => setBorrarA(null)} onHecho={() => { const u = borrarA; setBorrarA(null); setOk(`@${u.username} se borró por completo.`); cargar(); }} /> : null}
+      {borrarTodos ? <BorrarEmpleadosModal onClose={() => setBorrarTodos(false)} onHecho={() => { setBorrarTodos(false); setOk("Listo: se borraron los asesores y supervisores."); cargar(); }} /> : null}
 
       {clave ? (
         <Drawer title="Cambiar contraseña" subtitle={`@${clave.username} · mínimo 12 caracteres. Se cerrarán sus sesiones abiertas.`} onClose={() => setClave(null)}

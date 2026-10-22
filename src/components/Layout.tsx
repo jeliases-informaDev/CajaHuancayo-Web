@@ -7,6 +7,7 @@ import { Avatar } from "./ui";
 import Palette from "./Palette";
 import { useRail, useTheme, type Tema } from "../lib/theme";
 import { olvidarResumen, useResumen } from "../lib/resumen";
+import { olvidarModoPruebas, useModoPruebas } from "../lib/limpieza";
 
 type Enlace = { universalOnly?: boolean; to: string; label: string; icon: string; end?: boolean; adminOnly?: boolean };
 // Las secciones van en una sola lista, sin títulos de grupo (diseño de Figma). El orden es el de los íconos de la barra compacta.
@@ -78,8 +79,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     return () => document.removeEventListener("keydown", onKey);
   }, []);
 
-  const salir = async () => { await logout(); olvidarResumen(); navigate("/login"); };
+  const salir = async () => { await logout(); olvidarResumen(); olvidarModoPruebas(); navigate("/login"); };
   const esAdmin = user?.rol === "ADMINISTRADOR" || (esUniversal && Boolean(empresaElegida));
+  const { activo: modoPruebas } = useModoPruebas(esAdmin);
   // Marca que ve el usuario: la de su empresa (o la elegida por el universal); sin empresa, la de la plantilla.
   const marcaNombre = empresa?.marca?.nombre || empresa?.nombre_corto || (esUniversal ? "Sulotec" : "");
   const marcaProducto = empresa?.marca?.producto || "Auditoría de Visitas";
@@ -147,6 +149,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         <header className="topbar">
           <button className="burger" onClick={() => setAbierto((v) => !v)} aria-label="Abrir el menú" aria-expanded={abierto}><Icon name="menu" size={19} /></button>
           {migas}
+          {modoPruebas ? <Link to="/seguridad" className="mp-pastilla" title="Se pueden borrar empleados y datos. Apágalo en Seguridad cuando termine la prueba.">Modo pruebas encendido</Link> : null}
           <div className="top-spacer" />
           {ruta.nota ? <p className="top-nota">{ruta.nota}</p> : null}
         </header>
