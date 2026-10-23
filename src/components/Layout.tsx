@@ -19,7 +19,7 @@ const ENLACES: Enlace[] = [
   { to: "/asignaciones", label: "Asignaciones", icon: "asignaciones" },
   { to: "/usuarios", label: "Usuarios", icon: "usuarios", adminOnly: true },
   { to: "/empresas", label: "Empresas", icon: "usuarios", universalOnly: true },
-  { to: "/seguridad", label: "Seguridad", icon: "seguridad" },
+  { to: "/seguridad", label: "Seguridad", icon: "seguridad", adminOnly: true },
 ];
 
 // Migas de la barra superior: «sección > pantalla» como en el diseño. La nota de la derecha explica la pantalla; solo las pantallas ya

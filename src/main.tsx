@@ -6,6 +6,7 @@ import './index.css'
 import './shell.css'
 import './resumen.css'
 import './limpieza.css'
+import './seguridad.css'
 import App from './App.tsx'
 import { AuthProvider } from './AuthContext.tsx'
 
