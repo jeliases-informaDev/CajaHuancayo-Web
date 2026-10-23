@@ -52,11 +52,19 @@
 /* ---------- Tarjeta con la tabla ---------- */
 .vi-tarjeta { background: var(--vi-card); border-radius: 12px; box-shadow: var(--vi-sombra); overflow: hidden; scroll-margin-top: 70px; }
 .vi-esqueleto { display: grid; gap: 36px; padding: 40px 30px; }
-.vi-scroll { overflow-x: auto; transition: opacity 0.15s; }
+/* Cuando la tabla no cabe (tablet y celular) se desplaza hacia los lados; una sombra suave en el borde avisa que hay más columnas de ese lado. */
+.vi-scroll {
+  overflow-x: auto; transition: opacity 0.15s;
+  background:
+    linear-gradient(to right, var(--vi-card) 30%, transparent) 0 0 / 40px 100% no-repeat local,
+    linear-gradient(to left, var(--vi-card) 30%, transparent) 100% 0 / 40px 100% no-repeat local,
+    radial-gradient(farthest-side at 0 50%, rgba(40, 50, 110, 0.2), transparent) 0 0 / 14px 100% no-repeat scroll,
+    radial-gradient(farthest-side at 100% 50%, rgba(40, 50, 110, 0.2), transparent) 100% 0 / 14px 100% no-repeat scroll;
+}
 .vi-tarjeta[aria-busy="true"] .vi-scroll { opacity: 0.55; }
 .vi-tabla { width: 100%; min-width: 840px; border-collapse: collapse; table-layout: fixed; font-size: 14.5px; }
 .vi-tabla th {
-  height: 59px; padding: 0 16px; border-bottom: 1px solid var(--vi-linea); background: var(--vi-card); color: var(--vi-gris); text-align: left; white-space: nowrap;
+  height: 59px; padding: 0 16px; border-bottom: 1px solid var(--vi-linea); color: var(--vi-gris); text-align: left; white-space: nowrap;
   font: 400 12.5px/1 var(--font-etiqueta); letter-spacing: 0.22em; text-transform: uppercase;
 }
 .vi-tabla td { height: 76px; padding: 0 16px; border-bottom: 1px solid var(--vi-linea); vertical-align: middle; color: var(--vi-tinta); }
