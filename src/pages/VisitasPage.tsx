@@ -7,7 +7,7 @@ import { Pips } from "../components/kit";
 import { Icon } from "../components/icons";
 import FiltrosVisitas from "../components/FiltrosVisitas";
 import { senalesDeLista } from "../lib/senales";
-import { fechaCorta, horaCorta } from "../lib/format";
+import { fechaCorta, horaCorta, nombrePropio } from "../lib/format";
 import { FICHAS, RESULTADOS, SIN_FILTROS, TAMANOS, consultaApi, etiquetaRango, hoyLocal, paginasVisibles, useFiltrosVisitas } from "../lib/filtrosVisitas";
 import "../visitas.css";
 
@@ -181,7 +181,7 @@ export default function VisitasPage() {
                       <td>
                         <div className="vi-cliente">
                           <Avatar nombre={cliente} />
-                          <div><Link to={`/visitas/${v.id_visita}`} onClick={(e) => e.stopPropagation()} title={cliente}>{cliente}</Link><small translate="no">{v.expediente?.codigo_expediente}</small></div>
+                          <div><Link to={`/visitas/${v.id_visita}`} onClick={(e) => e.stopPropagation()} title={cliente}>{nombrePropio(cliente)}</Link><small translate="no">{v.expediente?.codigo_expediente}</small></div>
                         </div>
                       </td>
                       <td><span className={`vi-ficha ${mype ? "mype" : "consumo"}`}>{mype ? "MYPE" : "Consumo"}</span></td>

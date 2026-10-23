@@ -8,7 +8,7 @@ import { resumenSenales, type Senal } from "../lib/senales";
 const FOCUSABLES = 'a[href],button:not([disabled]),input:not([disabled]):not([type="hidden"]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
 
 // Al abrir un diálogo: el foco entra en él, Tab no se escapa y, al cerrarlo, el foco vuelve a donde estaba.
-function useDialogFocus(ref: React.RefObject<HTMLElement | null>, primero?: string) {
+export function useDialogFocus(ref: React.RefObject<HTMLElement | null>, primero?: string) {
   useEffect(() => {
     const previo = document.activeElement as HTMLElement | null;
     const el = ref.current;

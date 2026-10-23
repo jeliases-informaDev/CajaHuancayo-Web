@@ -40,6 +40,10 @@ const PATHS: Record<string, React.ReactNode> = {
   huella: <><path d="M6.5 11a5.5 5.5 0 0 1 11 0c0 3-.5 5.5-1.5 8" /><path d="M9.5 19c.9-1.9 1.2-4 1.2-6.2a1.3 1.3 0 0 1 2.6 0c0 2.2-.3 4.3-1.1 6.2" /><path d="M3.8 9.2A8.7 8.7 0 0 1 12 3a8.7 8.7 0 0 1 8.2 6.2" /></>,
   firma: <><path d="M4 18c2.2 0 3.1-5.5 4.6-8.5.8-1.5 2-.6 1.6 1-.5 2.4-.9 5.2.8 4.9 2.3-.4 3.1-4 4.7-4 .9 0 .6 1.7.4 2.6-.2.9.3 1.5 1.2 1.5H20" /><path d="M3.5 20.5h17" /></>,
   ficha: <><rect x="4.5" y="3.5" width="15" height="17" rx="2.6" /><path d="M8.5 8.5h7M8.5 12h7M8.5 15.5h4" /></>,
+  info: <><circle cx="12" cy="12" r="8.5" /><path d="M12 11v5M12 8v.1" /></>,
+  alertaCirculo: <><circle cx="12" cy="12" r="8.5" /><path d="M12 7.5v5.5M12 16.2v.1" /></>,
+  cambiar: <><path d="M4.5 9.5A8 8 0 0 1 18.2 6.8L19.5 8.2" /><path d="M19.5 4v4.2h-4.2" /><path d="M19.5 14.5A8 8 0 0 1 5.8 17.2L4.5 15.8" /><path d="M4.5 20v-4.2h4.2" /></>,
+  planilla: <><path d="M7 3.5h6.5l5 5v10a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-13a2 2 0 0 1 2-2z" /><path d="M13.5 3.5v5h5" /><path d="M8.5 13h2M13 13h2.5M8.5 16.5h2M13 16.5h2.5" /></>,
 };
 
 export function Icon({ name, size = 20, className, strokeWidth = 1.7 }: { name: keyof typeof PATHS | string; size?: number; className?: string; strokeWidth?: number }) {
