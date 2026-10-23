@@ -42,6 +42,14 @@ export function useModoPruebas(habilitado: boolean) {
   return { activo: vigente && activo, cargado: vigente };
 }
 
+// Visitas de ejemplo (solo con el modo pruebas encendido): cuántas hay, cargarlas y quitarlas. Lo que se carga lleva una marca y quitar no toca nada real.
+export type EstadoDemo = { visitas: number; expedientes: number; auditores: number; previstas: number };
+export type CargaDemo = { creadas: number; omitidas: number; fotos: number; previstas: number; asesores: number };
+export type QuitaDemo = { visitas: number; fotos: number; asignaciones: number; expedientes: number; archivos_sin_borrar: number };
+export const leerEstadoDemo = () => request<{ data: EstadoDemo }>("/api/limpieza/demo").then((r) => r.data);
+export const cargarVisitasDemo = () => request<{ data: CargaDemo }>("/api/limpieza/demo/visitas", { method: "POST" }).then((r) => r.data);
+export const quitarVisitasDemo = () => request<{ data: QuitaDemo }>("/api/limpieza/demo/visitas", { method: "DELETE" }).then((r) => r.data);
+
 export type Totales = Record<string, number>;
 type RespuestaBorrado = { terminado: boolean; borrado: Totales; archivos_sin_borrar: number };
 

@@ -1,0 +1,192 @@
+/* Visitas — diseño de Figma. Arriba van el buscador y los botones EXPORTAR y FILTROS; debajo, la tabla en una tarjeta con su pie de paginación. Los filtros salen
+   en un panel flotante que se abre y se cierra con el botón (como las burbujas de Seguimiento): cerrado no tapa nada y los filtros puestos se ven como etiquetas
+   encima de la tabla. Medidas tomadas del diseño a 1440 de ancho (tarjeta de 1151 px, filas de 76 px, panel de 418 px). Todo va con el prefijo vi-. */
+.vi-pagina {
+  --vi-card: var(--surface); --vi-tinta: #1d1d22; --vi-sec: #4a4f66; --vi-gris: #797e9c; --vi-linea: #e4e6ef; --vi-borde: #d3d6e4; --vi-hover: #f4f6fc; --vi-hundido: #eceef6;
+  --vi-indigo: #3a47b5; --vi-indigo-tinta: #2c3796; --vi-enlace: #424a8f; --vi-sel: #eceffd;
+  --vi-amarillo: #fdf0c6; --vi-amarillo-borde: #d6a400; --vi-amarillo-tinta: #7a5400; --vi-casilla: #a9aec6; --vi-etiqueta: #6b7086;
+  --vi-punto-ok: #1b7a52; --vi-punto-warn: #d38b0a; --vi-punto-nu: #a3184f; --vi-punto-rech: #d6285a;
+  --vi-sombra: 0 1px 3px rgba(40, 50, 110, 0.2), 0 0 0 1px rgba(40, 50, 110, 0.05);
+  --vi-sombra-pop: 0 16px 44px -8px rgba(30, 40, 100, 0.34), 0 0 0 1px rgba(40, 50, 110, 0.08);
+  position: relative; min-width: 0;
+}
+:root[data-theme="dark"] .vi-pagina {
+  --vi-tinta: var(--ink); --vi-sec: var(--ink-2); --vi-gris: var(--muted); --vi-linea: var(--line); --vi-borde: var(--line-2); --vi-hover: var(--surface-2); --vi-hundido: var(--sunken);
+  --vi-indigo: #7f93ff; --vi-indigo-tinta: #c3ccff; --vi-enlace: #9fb0ff; --vi-sel: rgba(127, 147, 255, 0.16);
+  --vi-amarillo: rgba(245, 185, 66, 0.16); --vi-amarillo-borde: #f5b942; --vi-amarillo-tinta: #f8d68a; --vi-casilla: #5f6891; --vi-etiqueta: var(--muted);
+  --vi-punto-ok: #3ddc9e; --vi-punto-warn: #f5b942; --vi-punto-nu: #ff6f9a; --vi-punto-rech: #ff7a8f;
+  --vi-sombra: 0 0 0 1px var(--line); --vi-sombra-pop: 0 18px 44px -8px rgba(0, 0, 0, 0.7), 0 0 0 1px var(--line-2);
+}
+
+/* ---------- Barra de arriba: buscador a la izquierda, botones a la derecha ---------- */
+.vi-barra { display: flex; align-items: center; flex-wrap: wrap; gap: 12px 16px; margin: 0 0 13px; }
+.vi-busca { position: relative; flex: 0 1 348px; min-width: 220px; display: flex; align-items: center; gap: 10px; height: 32px; padding: 0 8px 0 12px; border-radius: 8px; border: 1px solid var(--vi-borde); background: var(--vi-card); color: var(--vi-gris); }
+.vi-busca:focus-within { border-color: var(--vi-indigo); box-shadow: 0 0 0 3px color-mix(in srgb, var(--vi-indigo) 24%, transparent); }
+.vi-busca svg { flex-shrink: 0; }
+.vi-busca input { flex: 1; min-width: 0; height: 100%; padding: 0; border: 0; outline: none; background: transparent; color: var(--vi-tinta); font: 400 13.5px var(--font-ui); }
+.vi-busca input::placeholder { color: var(--vi-gris); opacity: 1; }
+.vi-busca input::-webkit-search-cancel-button { cursor: pointer; }
+.vi-busca kbd { flex-shrink: 0; padding: 0 6px; border-radius: 5px; border: 1px solid var(--vi-borde); background: var(--vi-hover); color: var(--vi-sec); font: 500 11px/17px var(--font-mono); }
+.vi-busca input:not(:placeholder-shown) ~ kbd { display: none; }
+
+.vi-acciones { margin-left: auto; display: flex; align-items: center; gap: 16px; }
+.vi-boton {
+  display: inline-flex; align-items: center; justify-content: center; gap: 9px; height: 32px; padding: 0 16px; border: 0; border-radius: 8px; background: var(--vi-card); box-shadow: var(--vi-sombra);
+  color: var(--vi-sec); font: 500 13px/1 var(--font-etiqueta); letter-spacing: 0.2em; text-transform: uppercase; white-space: nowrap; cursor: pointer;
+}
+.vi-boton:hover:not(:disabled) { background: var(--vi-hover); }
+.vi-boton.on { background: var(--vi-sel); color: var(--vi-indigo); box-shadow: 0 0 0 1px var(--vi-indigo); }
+.vi-boton:disabled { opacity: 0.55; cursor: default; }
+.vi-boton:focus-visible, .vi-limpiar:focus-visible, .vi-aplicar:focus-visible, .vi-rapido:focus-visible, .vi-etiqueta button:focus-visible, .vi-limpiar-todo:focus-visible, .vi-paginas button:focus-visible, .vi-pop-x:focus-visible, .vi-campo .abrir:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.vi-cuenta { min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--vi-indigo); color: #fff; font: 600 11px/18px var(--font-ui); letter-spacing: 0; text-align: center; }
+:root[data-theme="dark"] .vi-cuenta { color: #0a0e28; }
+
+/* ---------- Etiquetas de los filtros puestos ---------- */
+.vi-etiquetas { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 13px; }
+.vi-etiqueta { display: inline-flex; align-items: center; gap: 2px; height: 28px; padding: 0 5px 0 12px; border-radius: 14px; background: var(--vi-sel); color: var(--vi-indigo-tinta); font: 500 13px var(--font-ui); white-space: nowrap; }
+.vi-etiqueta button { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: inherit; cursor: pointer; }
+.vi-etiqueta button:hover { background: color-mix(in srgb, var(--vi-indigo) 18%, transparent); }
+.vi-limpiar-todo { padding: 4px 6px; border: 0; background: none; color: var(--vi-enlace); font: 500 13px var(--font-ui); cursor: pointer; }
+.vi-limpiar-todo:hover { text-decoration: underline; text-underline-offset: 3px; }
+
+/* ---------- Tarjeta con la tabla ---------- */
+.vi-tarjeta { background: var(--vi-card); border-radius: 12px; box-shadow: var(--vi-sombra); overflow: hidden; scroll-margin-top: 70px; }
+.vi-esqueleto { display: grid; gap: 36px; padding: 40px 30px; }
+.vi-scroll { overflow-x: auto; transition: opacity 0.15s; }
+.vi-tarjeta[aria-busy="true"] .vi-scroll { opacity: 0.55; }
+.vi-tabla { width: 100%; min-width: 840px; border-collapse: collapse; table-layout: fixed; font-size: 14.5px; }
+.vi-tabla th {
+  height: 59px; padding: 0 16px; border-bottom: 1px solid var(--vi-linea); background: var(--vi-card); color: var(--vi-gris); text-align: left; white-space: nowrap;
+  font: 400 12.5px/1 var(--font-etiqueta); letter-spacing: 0.22em; text-transform: uppercase;
+}
+.vi-tabla td { height: 76px; padding: 0 16px; border-bottom: 1px solid var(--vi-linea); vertical-align: middle; color: var(--vi-tinta); }
+.vi-tabla th:first-child, .vi-tabla td:first-child { padding-left: 30px; }
+.vi-tabla th:last-child, .vi-tabla td:last-child { padding-right: 30px; text-align: right; }
+.vi-tabla tbody tr { cursor: pointer; transition: background-color 0.12s; }
+.vi-tabla tbody tr:hover { background: var(--vi-hover); }
+.vi-tabla tbody tr:last-child td { border-bottom: 0; }
+
+.vi-cliente { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.vi-cliente .avatar { width: 40px; height: 40px; border-radius: 10px; font-size: 12.5px; }
+.vi-cliente > div { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+/* Un nombre largo pasa a una segunda línea (hasta dos) en vez de cortarse enseguida; la fila mide lo mismo. */
+.vi-cliente a { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; color: var(--vi-enlace); font-size: 15px; font-weight: 500; line-height: 1.25; }
+.vi-cliente small { font: 400 12px/1.3 var(--font-mono); letter-spacing: 0.04em; color: var(--vi-gris); }
+.vi-ficha { display: inline-flex; align-items: center; height: 22px; padding: 0 10px; border-radius: 11px; font: 500 12.5px var(--font-ui); white-space: nowrap; }
+.vi-ficha.consumo { background: #e3e7f8; color: #3b4684; }
+.vi-ficha.mype { background: #fdecb4; color: #7a5400; }
+:root[data-theme="dark"] .vi-ficha.consumo { background: rgba(127, 147, 255, 0.16); color: #c3ccff; }
+:root[data-theme="dark"] .vi-ficha.mype { background: rgba(245, 185, 66, 0.16); color: #f8d68a; }
+.vi-auditor { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.vi-auditor .avatar { width: 24px; height: 24px; border-radius: 6px; font-size: 11px; }
+.vi-auditor span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vi-tabla .state { height: 22px; padding: 0 10px 0 8px; font-size: 12.5px; }
+.vi-tabla .state.ok { background: #d9f1e3; color: #1a6b45; }
+.vi-tabla .state.warn { background: #fdecb4; color: #7a5000; }
+.vi-tabla .state.bad { background: #fde1e8; color: #b4234a; }
+:root[data-theme="dark"] .vi-tabla .state.ok { background: var(--ok-wash); color: var(--ok); }
+:root[data-theme="dark"] .vi-tabla .state.warn { background: var(--warn-wash); color: var(--warn); }
+:root[data-theme="dark"] .vi-tabla .state.bad { background: var(--bad-wash); color: var(--bad); }
+.vi-num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.vi-fecha { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.vi-fecha b { display: block; font-weight: 500; line-height: 1.35; }
+.vi-fecha small { display: block; font-size: 12.5px; line-height: 1.35; color: var(--vi-gris); }
+
+/* ---------- Pie: filas por página, rango y páginas ---------- */
+.vi-pie { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 16px; min-height: 42px; padding: 0 30px; border-top: 1px solid var(--vi-linea); font-size: 13px; color: var(--vi-gris); }
+.vi-filas { display: inline-flex; align-items: center; gap: 12px; }
+.vi-filas select {
+  height: 24px; padding: 0 22px 0 9px; border: 1px solid var(--vi-borde); border-radius: 5px; background-color: var(--vi-card); color: var(--vi-tinta); font: 500 12.5px var(--font-ui); cursor: pointer; appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 12 12'><path d='M2.5 4.5l3.5 3.5 3.5-3.5' fill='none' stroke='%23797e9c' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/></svg>"); background-repeat: no-repeat; background-position: right 7px center;
+}
+.vi-filas select:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.vi-rango { font-variant-numeric: tabular-nums; }
+.vi-paginas { margin-left: auto; display: flex; align-items: stretch; height: 42px; }
+.vi-paginas button { min-width: 28px; padding: 0 12px; border: 0; background: none; color: var(--vi-gris); font: 400 13px var(--font-ui); font-variant-numeric: tabular-nums; cursor: pointer; }
+.vi-paginas button:hover { color: var(--vi-tinta); }
+.vi-paginas button[aria-current="page"] { border-left: 1px solid var(--vi-linea); border-right: 1px solid var(--vi-linea); color: var(--vi-tinta); font-weight: 600; cursor: default; }
+.vi-paginas .mas { color: var(--vi-tinta); font-weight: 600; }
+.vi-paginas .elipsis { display: inline-flex; align-items: center; padding: 0 6px; color: var(--vi-gris); }
+
+/* ---------- Panel de filtros ---------- */
+.vi-filtros { position: relative; }
+.vi-velo, .vi-pop-x { display: none; }
+.vi-pop {
+  position: absolute; z-index: 35; top: calc(100% + 4px); right: 0; width: min(418px, calc(100vw - 32px)); max-height: calc(100vh - 150px); display: flex; flex-direction: column;
+  border-radius: 14px; background: var(--vi-card); color: var(--vi-tinta); box-shadow: var(--vi-sombra-pop); outline: none;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .vi-pop { animation: vi-entra 0.14s ease-out; transform-origin: top right; }
+  @keyframes vi-entra { from { opacity: 0; transform: translateY(-4px) scale(0.985); } to { opacity: 1; transform: none; } }
+}
+.vi-pop-cab { flex: none; display: flex; align-items: center; justify-content: space-between; height: 63px; padding: 0 24px; border-bottom: 1px solid var(--vi-linea); }
+.vi-pop-cab h2 { margin: 0; font: 600 18px/1.2 var(--font-ui); letter-spacing: -0.005em; color: var(--vi-tinta); }
+.vi-pop-x { align-items: center; justify-content: center; width: 32px; height: 32px; margin-right: -6px; border: 0; border-radius: 8px; background: none; color: var(--vi-sec); cursor: pointer; }
+.vi-pop-x:hover { background: var(--vi-hover); }
+.vi-pop-cuerpo { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.vi-seccion { padding: 21px 24px 22px; border-bottom: 1px solid var(--vi-linea); }
+.vi-seccion:last-child { border-bottom: 0; }
+.vi-seccion h3 { margin: 0 0 14px; font: 500 11.5px/14px var(--font-ui); letter-spacing: 0.1em; text-transform: uppercase; color: var(--vi-etiqueta); }
+.vi-opcion { display: flex; align-items: center; gap: 10px; min-height: 29px; font-size: 14.5px; cursor: pointer; }
+.vi-opcion.solo { margin-top: 14px; }
+.vi-opcion .punto { width: 8px; height: 8px; flex-shrink: 0; border-radius: 50%; background: var(--c, var(--vi-gris)); }
+.vi-opcion .n { margin-left: auto; min-width: 28px; height: 18px; padding: 0 8px; border-radius: 9px; background: var(--vi-hundido); color: var(--vi-gris); font: 500 11.5px/18px var(--font-ui); text-align: center; font-variant-numeric: tabular-nums; }
+.vi-ayuda { margin: 12px 0 0; font-size: 13px; color: var(--vi-gris); }
+
+/* Casillas propias (18 px, como el diseño). Los selectores llevan el mismo prefijo que la regla de base para que «marcada» le gane en especificidad. */
+.vi-pagina input[type="checkbox"].vi-chk {
+  appearance: none; -webkit-appearance: none; flex: none; display: inline-grid; place-content: center; width: 18px; height: 18px; margin: 0; border: 1.5px solid var(--vi-casilla); border-radius: 4.5px;
+  background: var(--vi-card); cursor: pointer; transition: background-color 0.12s, border-color 0.12s;
+}
+.vi-pagina input[type="checkbox"].vi-chk:checked { background: var(--vi-indigo); border-color: var(--vi-indigo); }
+.vi-pagina input[type="checkbox"].vi-chk:checked::after { content: ""; width: 9px; height: 4.5px; margin-top: -2px; border-left: 2px solid #fff; border-bottom: 2px solid #fff; transform: rotate(-45deg); }
+:root[data-theme="dark"] .vi-pagina input[type="checkbox"].vi-chk:checked::after { border-color: #0a0e28; }
+.vi-pagina input[type="checkbox"].vi-chk:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+
+.vi-fichas { display: flex; flex-wrap: wrap; gap: 11px; }
+.vi-ficha-op { display: inline-flex; align-items: center; gap: 10px; height: 40px; padding: 0 15px 0 12px; border: 1.5px solid var(--vi-borde); border-radius: 10px; background: var(--vi-card); font: 500 15px var(--font-ui); color: var(--vi-tinta); cursor: pointer; }
+.vi-ficha-op.consumo.on { background: var(--vi-sel); border-color: var(--vi-indigo); color: var(--vi-indigo-tinta); }
+.vi-ficha-op.mype.on { background: var(--vi-amarillo); border-color: var(--vi-amarillo-borde); color: var(--vi-amarillo-tinta); }
+
+.vi-rapidos { display: flex; flex-wrap: wrap; gap: 8px; }
+.vi-rapido { height: 33px; padding: 0 14px; border: 1px solid var(--vi-borde); border-radius: 17px; background: var(--vi-card); color: var(--vi-tinta); font: 500 13.5px var(--font-ui); cursor: pointer; }
+.vi-rapido:hover { background: var(--vi-hover); }
+.vi-rapido.on { background: var(--vi-sel); border-color: var(--vi-indigo); color: var(--vi-indigo-tinta); }
+.vi-fechas { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
+.vi-fecha-campo { min-width: 0; }
+.vi-fecha-campo label { display: block; margin-bottom: 6px; font-size: 13px; color: var(--vi-gris); }
+.vi-campo { display: flex; align-items: center; gap: 2px; height: 38px; padding-left: 4px; border: 1px solid var(--vi-borde); border-radius: 8px; background: var(--vi-card); color: var(--vi-gris); }
+.vi-campo:focus-within { border-color: var(--vi-indigo); box-shadow: 0 0 0 3px color-mix(in srgb, var(--vi-indigo) 24%, transparent); }
+.vi-campo .abrir { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 30px; height: 30px; padding: 0; border: 0; border-radius: 6px; background: none; color: inherit; cursor: pointer; }
+.vi-campo .abrir:hover { color: var(--vi-indigo); }
+.vi-campo input[type="date"] { flex: 1; min-width: 0; width: 100%; height: 100%; padding: 0 8px 0 2px; border: 0; outline: none; background: transparent; color: var(--vi-tinta); font: 400 14px var(--font-ui); }
+.vi-campo input[type="date"]::-webkit-calendar-picker-indicator { display: none; }
+:root[data-theme="dark"] .vi-campo input[type="date"] { color-scheme: dark; }
+
+.vi-select {
+  width: 100%; height: 41px; padding: 0 38px 0 14px; border: 1px solid var(--vi-borde); border-radius: 8px; background-color: var(--vi-card); color: var(--vi-tinta); font: 400 15px var(--font-ui); cursor: pointer; appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'><path d='M2.5 4.5l3.5 3.5 3.5-3.5' fill='none' stroke='%23797e9c' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/></svg>"); background-repeat: no-repeat; background-position: right 14px center;
+}
+.vi-select:focus-visible { outline: none; border-color: var(--vi-indigo); box-shadow: 0 0 0 3px color-mix(in srgb, var(--vi-indigo) 24%, transparent); }
+
+.vi-pop-pie { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 18px 24px; border-top: 1px solid var(--vi-linea); }
+.vi-limpiar { padding: 8px 0; border: 0; background: none; color: var(--vi-gris); font: 500 15px var(--font-ui); cursor: pointer; }
+.vi-limpiar:hover:not(:disabled) { color: var(--vi-tinta); text-decoration: underline; text-underline-offset: 3px; }
+.vi-limpiar:disabled { opacity: 0.55; cursor: default; }
+.vi-aplicar { height: 40px; padding: 0 22px; border: 0; border-radius: 8px; background: var(--vi-indigo); color: #fff; font: 600 15px var(--font-ui); cursor: pointer; transition: filter 0.12s; }
+.vi-aplicar:hover { filter: brightness(1.1); }
+:root[data-theme="dark"] .vi-aplicar { color: #0a0e28; }
+
+/* ---------- Pantallas angostas ---------- */
+@media (max-width: 760px) {
+  .vi-busca { flex: 1 1 100%; }
+  .vi-acciones { margin-left: 0; width: 100%; justify-content: flex-end; }
+}
+/* En el celular el panel sube desde abajo, a todo el ancho, con un velo detrás. */
+@media (max-width: 640px) {
+  .vi-velo { display: block; position: fixed; inset: 0; z-index: 34; background: rgba(8, 12, 36, 0.45); }
+  .vi-pop { position: fixed; z-index: 36; top: auto; right: 0; bottom: 0; left: 0; width: auto; max-height: 88vh; border-radius: 18px 18px 0 0; padding-bottom: env(safe-area-inset-bottom); }
+  .vi-pop-x { display: inline-flex; }
+  .vi-pie { padding: 0 16px; }
+  .vi-paginas { margin-left: 0; width: 100%; justify-content: center; }
+}

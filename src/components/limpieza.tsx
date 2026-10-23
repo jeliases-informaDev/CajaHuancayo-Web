@@ -3,7 +3,7 @@ import { request } from "../api";
 import { useAuth } from "../AuthContext";
 import { Modal } from "./kit";
 import { Field } from "./ui";
-import { cambiarModoPruebas, correrHastaTerminar, useModoPruebas, type Totales } from "../lib/limpieza";
+import { cambiarModoPruebas, cargarVisitasDemo, correrHastaTerminar, leerEstadoDemo, quitarVisitasDemo, useModoPruebas, type EstadoDemo, type Totales } from "../lib/limpieza";
 
 // Borrar empleados y limpiar datos de prueba (solo con el modo pruebas encendido). Todo pasa por una ventana que muestra primero QUÉ se va a borrar,
 // pide escribir una palabra (y la contraseña cuando son muchos datos) y borra con avance a la vista.
@@ -191,6 +191,55 @@ export function LimpiarDatosModal({ onClose, onHecho }: { onClose: () => void; o
   );
 }
 
+// ---------------------------------------------------------------- visitas de ejemplo
+// Para ver las pantallas con información (Visitas, Resumen, Seguimiento, distritos) sin esperar a que los asesores visiten: carga 24 visitas ficticias con fotos
+// de ejemplo y las quita después. Solo se ve con el modo pruebas encendido; lo cargado lleva una marca y quitar no toca nada real.
+function DemoVisitas() {
+  const [estado, setEstado] = useState<EstadoDemo | null>(null);
+  const [trabajando, setTrabajando] = useState<"" | "cargar" | "quitar">("");
+  const [error, setError] = useState("");
+  const [ok, setOk] = useState("");
+  const leer = useCallback(() => { leerEstadoDemo().then(setEstado).catch(() => setEstado(null)); }, []);
+  useEffect(() => { leer(); }, [leer]);
+
+  const previstas = estado?.previstas ?? 24;
+  const cargar = async () => {
+    if (!window.confirm(`¿Cargar ${previstas} visitas de ejemplo?\n\nSe crean visitas, fotos, asignaciones y expedientes ficticios, hechos por tus asesores activos. Después puedes quitarlos con «Quitar las visitas de ejemplo»; lo real no se toca.`)) return;
+    setTrabajando("cargar"); setError(""); setOk("");
+    try {
+      const r = await cargarVisitasDemo();
+      setOk(r.creadas
+        ? `Listo: se cargaron ${num(r.creadas)} visitas de ejemplo con ${num(r.fotos)} fotos${r.omitidas ? ` (otras ${num(r.omitidas)} ya estaban)` : ""}. Míralas en Visitas, en el Resumen y en Seguimiento.`
+        : `Ya estaban cargadas las ${num(r.omitidas)} visitas de ejemplo.`);
+    } catch (e: any) { setError(e?.message || "No se pudieron cargar las visitas de ejemplo."); } finally { setTrabajando(""); leer(); }
+  };
+  const quitar = async () => {
+    if (!window.confirm("¿Quitar las visitas de ejemplo?\n\nSe borran solo las visitas, fotos, asignaciones y expedientes marcados como ejemplo. Lo real no se toca.")) return;
+    setTrabajando("quitar"); setError(""); setOk("");
+    try {
+      const r = await quitarVisitasDemo();
+      setOk(r.visitas || r.expedientes ? `Listo: se quitaron ${num(r.visitas)} visitas de ejemplo con ${num(r.fotos)} fotos.${r.archivos_sin_borrar ? ` ${num(r.archivos_sin_borrar)} archivos de foto quedaron en el almacén (la cuenta no tiene permiso de borrar).` : ""}` : "No había visitas de ejemplo que quitar.");
+    } catch (e: any) { setError(e?.message || "No se pudieron quitar las visitas de ejemplo."); } finally { setTrabajando(""); leer(); }
+  };
+
+  const hay = (estado?.visitas ?? 0) > 0 || (estado?.expedientes ?? 0) > 0;
+  return (
+    <div className="mp-demo">
+      <h3 className="mp-sub">Visitas de ejemplo</h3>
+      <p>Carga {previstas} visitas ficticias, con fotos de ejemplo y de varios resultados, para ver Visitas, el Resumen y Seguimiento con información. Se quitan con un botón y no tocan nada real.</p>
+      {error ? <div role="alert" className="error-box">{error}</div> : null}
+      {ok ? <div role="status" className="callout ok">{ok}</div> : null}
+      <div className="mp-acciones">
+        <button type="button" className="btn ghost" onClick={cargar} disabled={Boolean(trabajando) || !estado || estado.visitas >= previstas}>{trabajando === "cargar" ? "Cargando…" : estado && estado.visitas >= previstas ? "Ya están cargadas" : `Cargar ${previstas} visitas de ejemplo`}</button>
+        <button type="button" className="btn ghost mp-borrar" onClick={quitar} disabled={Boolean(trabajando) || !hay}>{trabajando === "quitar" ? "Quitando…" : "Quitar las visitas de ejemplo"}</button>
+        <p className="subtle" role="status">
+          {trabajando === "cargar" ? "Cargando las visitas y sus fotos; puede tardar un momento. No cierres esta pantalla." : estado ? `Hay ${num(estado.visitas)} de ${num(previstas)} visitas de ejemplo cargadas. Asesores activos: ${num(estado.auditores)}${estado.auditores ? "" : " (crea al menos uno en Usuarios para poder cargarlas)"}.` : "Revisando…"}
+        </p>
+      </div>
+    </div>
+  );
+}
+
 // ---------------------------------------------------------------- tarjeta de Seguridad
 export function ModoPruebasTarjeta() {
   const esAdmin = useEsAdmin();
@@ -226,6 +275,7 @@ export function ModoPruebasTarjeta() {
             <p className="subtle">Para borrar a un solo empleado, en Usuarios usa «Eliminar definitivamente» en el menú de su fila.</p>
           </div>
         ) : null}
+        {activo ? <DemoVisitas /> : null}
       </div>
       {abierto === "empleados" ? <BorrarEmpleadosModal onClose={() => setAbierto(null)} onHecho={() => { setAbierto(null); setOk("Listo: se borraron los asesores y supervisores."); }} /> : null}
       {abierto === "datos" ? <LimpiarDatosModal onClose={() => setAbierto(null)} onHecho={() => { setAbierto(null); setOk("Listo: se limpiaron los datos de prueba."); }} /> : null}

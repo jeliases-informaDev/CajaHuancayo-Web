@@ -303,6 +303,11 @@ function leerCola(): number[] {
   try { const v = JSON.parse(sessionStorage.getItem("ch_cola_visitas") || "[]"); return Array.isArray(v) ? v.map(Number) : []; } catch { return []; }
 }
 
+// Los filtros con los que se llegó desde la lista de visitas, para que «Visitas» vuelva a ella tal como estaba.
+function leerFiltrosDeLista(): string {
+  try { const s = sessionStorage.getItem("ch_visitas_url") || ""; return s.startsWith("?") ? s : ""; } catch { return ""; }
+}
+
 export default function VisitaDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -318,6 +323,7 @@ export default function VisitaDetailPage() {
 
   // Anterior / siguiente dentro de la lista que se estaba revisando (atajos: K y J).
   const cola = useMemo(leerCola, [id]);
+  const [filtrosDeLista] = useState(leerFiltrosDeLista);
   const posicion = cola.indexOf(Number(id));
   const anterior = posicion > 0 ? cola[posicion - 1] : null;
   const siguiente = posicion >= 0 && posicion < cola.length - 1 ? cola[posicion + 1] : null;
@@ -360,7 +366,7 @@ export default function VisitaDetailPage() {
     <>
       <div className="page-head">
         <div>
-          <p className="eyebrow"><Link to="/visitas"><Icon name="volver" size={14} /> Visitas</Link></p>
+          <p className="eyebrow"><Link to={`/visitas${filtrosDeLista}`}><Icon name="volver" size={14} /> Visitas</Link></p>
           <div className="who-cell" style={{ gap: 18 }}>
             <Avatar nombre={e.nombres_cliente} size="lg" />
             <div>
