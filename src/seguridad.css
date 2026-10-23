@@ -1,0 +1,52 @@
+/* Seguridad: cifras, avisos, filtros, tabla del registro y detalle de cada evento. */
+.seg-resumen { display: grid; gap: 12px; margin-bottom: 8px; }
+.seg-periodo { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.seg-periodo .lbl { margin: 0; }
+.seg-postura { margin: 0; font-size: 13.5px; color: var(--ink-2); }
+.seg-postura b { font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; }
+
+.seg-lista-avisos { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.seg-aviso { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+.seg-aviso .seg-punto { flex: none; width: 10px; height: 10px; border-radius: 50%; background: var(--warn); }
+.seg-aviso.critico { border-color: color-mix(in srgb, var(--bad) 35%, var(--line)); background: color-mix(in srgb, var(--bad-wash) 55%, var(--surface)); }
+.seg-aviso.critico .seg-punto { background: var(--bad); }
+.seg-aviso-cuerpo { flex: 1; min-width: 0; display: grid; gap: 2px; font-size: 14px; }
+.seg-aviso-cuerpo b { font-weight: 600; overflow-wrap: anywhere; }
+.seg-aviso-cuerpo span { color: var(--ink-2); font-size: 13px; }
+.seg-aviso-cuerpo small { color: var(--muted); font-size: 12px; }
+.seg-aviso .btn { flex: none; }
+@media (max-width: 640px) { .seg-aviso { flex-wrap: wrap; } }
+
+.seg-grave { display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: 999px; font-size: 11.5px; font-weight: 600; }
+.seg-grave.aviso { background: var(--warn-wash); color: var(--warn); }
+.seg-grave.critico { background: var(--bad-wash); color: var(--bad); }
+
+.seg-filtros { align-items: flex-end; row-gap: 12px; }
+.seg-filtros .select, .seg-filtros .input[type="date"] { min-width: 140px; }
+.seg-fichas { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.seg-ficha { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border: 1px solid var(--line-2); border-radius: 999px; background: var(--wash); color: var(--ink); font: inherit; font-size: 12.5px; cursor: pointer; }
+.seg-ficha:hover { border-color: var(--ink-2); }
+.seg-limpiar { align-self: flex-end; }
+
+.seg-tabla td { vertical-align: top; }
+.seg-quien { font-weight: 500; overflow-wrap: anywhere; }
+.seg-titulo { display: block; overflow-wrap: anywhere; }
+.seg-cat { color: var(--muted); }
+.seg-tabla .sub { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.seg-fila.critico { box-shadow: inset 3px 0 0 var(--bad); }
+.seg-fila.aviso { box-shadow: inset 3px 0 0 var(--warn); }
+.seg-fila.abierta td, .seg-fila-detalle td { background: var(--wash); }
+.seg-fila-detalle td { padding-top: 4px; }
+.seg-detalle { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; padding: 8px 4px 16px; }
+@media (max-width: 900px) { .seg-detalle { grid-template-columns: minmax(0, 1fr); } }
+.seg-datos { margin: 0; display: grid; gap: 8px; }
+.seg-datos > div { display: grid; grid-template-columns: 130px minmax(0, 1fr); gap: 10px; font-size: 13px; }
+.seg-datos dt { color: var(--muted); }
+.seg-datos dd { margin: 0; overflow-wrap: anywhere; }
+.seg-ua { font-size: 12px; color: var(--ink-2); }
+.seg-tabla-cambios { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 6px; }
+.seg-tabla-cambios th, .seg-tabla-cambios td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--line); vertical-align: top; overflow-wrap: anywhere; }
+.seg-tabla-cambios thead th { font-size: 11.5px; font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+.seg-tabla-cambios tbody th { font-weight: 500; width: 36%; }
+.seg-tabla-cambios td:last-child { color: var(--ok); font-weight: 500; }
+.seg-rango { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }

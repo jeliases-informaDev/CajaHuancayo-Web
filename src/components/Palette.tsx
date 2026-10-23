@@ -43,7 +43,7 @@ export default function Palette({ abierta, onClose, esAdmin }: { abierta: boolea
     { id: "n-exp", grupo: "Ir a", titulo: "Expedientes", detalle: "Cartera cargada desde la base", icono: "expedientes", ejecutar: ir("/expedientes") },
     { id: "n-asi", grupo: "Ir a", titulo: "Asignaciones", detalle: "Armar la muestra de cada auditor", icono: "asignaciones", ejecutar: ir("/asignaciones") },
     ...(esAdmin ? [{ id: "n-usr", grupo: "Ir a", titulo: "Usuarios", detalle: "Cuentas, zonas y dispositivos", icono: "usuarios", ejecutar: ir("/usuarios") }] : []),
-    { id: "n-seg2", grupo: "Ir a", titulo: "Seguridad", detalle: "Registro de accesos y operaciones", icono: "seguridad", ejecutar: ir("/seguridad") },
+    ...(esAdmin ? [{ id: "n-seg2", grupo: "Ir a", titulo: "Seguridad", detalle: "Registro de accesos y operaciones", icono: "seguridad", ejecutar: ir("/seguridad") }] : []),
     { id: "a-obs", grupo: "Atajos", titulo: "Visitas observadas", detalle: "Las que el auditor marcó con observaciones", icono: "alerta", ejecutar: ir("/visitas?resultado=OBSERVADO") },
     { id: "a-alert", grupo: "Atajos", titulo: "Visitas con alertas de seguridad", detalle: "GPS simulado, dispositivo o sin fotos", icono: "huella", ejecutar: ir("/visitas?alertas=1") },
     { id: "a-sin", grupo: "Atajos", titulo: "Expedientes sin coordenadas", detalle: "No se puede medir la distancia al domicilio", icono: "objetivo", ejecutar: ir("/expedientes?sin_coordenadas=1") },

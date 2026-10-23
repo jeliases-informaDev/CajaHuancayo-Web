@@ -45,7 +45,7 @@ export default function App() {
       <Route path="/visitas" element={<Protected><VisitasPage /></Protected>} />
       <Route path="/visitas/:id" element={<Protected><VisitaDetailPage /></Protected>} />
       <Route path="/usuarios" element={<Protected adminOnly><UsuariosPage /></Protected>} />
-      <Route path="/seguridad" element={<Protected><SeguridadPage /></Protected>} />
+      <Route path="/seguridad" element={<Protected adminOnly><SeguridadPage /></Protected>} />
       <Route path="/empresas" element={<Protected universalOnly><EmpresasPage /></Protected>} />
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
