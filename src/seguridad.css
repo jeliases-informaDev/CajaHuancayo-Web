@@ -50,3 +50,14 @@
 .seg-tabla-cambios tbody th { font-weight: 500; width: 36%; }
 .seg-tabla-cambios td:last-child { color: var(--ok); font-weight: 500; }
 .seg-rango { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+/* Historial de jornadas de campo de un auditor (cajón de Usuarios). */
+.jor-cuerpo { display: grid; gap: 12px; }
+.jor-lista { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.jor-lista li { padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; display: grid; gap: 6px; background: var(--surface); }
+.jor-cab { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.jor-cab b { font-weight: 600; text-transform: capitalize; }
+.jor-detalle { display: grid; gap: 4px; font-size: 13.5px; color: var(--ink-2); }
+.jor-dur { color: var(--muted); }
+.jor-gps { font-size: 12px; }
+.jor-detalle .state { justify-self: start; }

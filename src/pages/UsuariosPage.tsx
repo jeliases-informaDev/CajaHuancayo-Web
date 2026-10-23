@@ -4,17 +4,25 @@ import { useAuth } from "../AuthContext";
 import { Avatar, Badge, Empty, Field, Skeleton } from "../components/ui";
 import { Icon } from "../components/icons";
 import { ActionMenu, Drawer, Seg } from "../components/kit";
-import { dash, fechaHora } from "../lib/format";
+import { fechaHora } from "../lib/format";
 import { Link } from "react-router-dom";
 import { BorrarEmpleadosModal, BorrarUsuarioModal } from "../components/limpieza";
 import { QuitarCasosModal } from "../components/quitarcasos";
 import { useModoPruebas } from "../lib/limpieza";
 import { useQueryParam } from "../lib/useQueryParam";
+import { JornadasDrawer } from "../components/jornadas";
 
-const emptyForm = { username: "", password: "", rol: "AUDITOR", nombres: "", apellidos: "", email: "", departamento: "" };
-// La zona del auditor es solo una referencia: no limita qué expedientes puede recibir ni tomar (el celular le ordena los disponibles por cercanía).
-const AYUDA_ZONA = "Opcional. Solo sirve de referencia en listas y reportes, por ejemplo «Lince, Lima». No limita qué expedientes puede recibir o tomar: puede elegir de cualquier distrito, y en el celular le salen primero los más cercanos a su ubicación.";
+const emptyForm = { username: "", password: "", rol: "AUDITOR", nombres: "", apellidos: "", email: "" };
+// La zona de trabajo no se escribe: la toma el celular del auditor al iniciar su jornada (ver «Ver jornadas»). No limita qué expedientes puede tomar.
+const AYUDA_ZONA = "Su zona de trabajo no se escribe aquí: queda sola cuando inicia su jornada desde el celular (se toma con el GPS en ese momento y se guarda el historial). No limita qué expedientes puede tomar: puede elegir de cualquier distrito.";
 const nombreDe = (u: any) => `${u.nombres || ""} ${u.apellidos || ""}`.trim();
+
+// Zona de trabajo: la de su última jornada. Quien nunca inició una muestra la zona anterior (escrita a mano, si la tenía) con un aviso.
+function ZonaDeTrabajo({ u }: { u: any }) {
+  if (u.zona) return <><span>{u.zona.texto || <span className="muted">Posición sin nombre de zona</span>}</span><span className="sub">Jornada del {fechaHora(u.zona.en)}</span></>;
+  if (u.rol !== "AUDITOR") return <span className="muted">—</span>;
+  return <><span className="muted">{u.departamento ? `${u.departamento} (zona anterior)` : "—"}</span><span className="sub">Aún no inicia una jornada</span></>;
+}
 
 export default function UsuariosPage() {
   const { user, empresa } = useAuth();
@@ -28,8 +36,7 @@ export default function UsuariosPage() {
   const [saving, setSaving] = useState(false);
   const [clave, setClave] = useState<any | null>(null); // usuario al que se le cambia la contraseña
   const [nuevaClave, setNuevaClave] = useState("");
-  const [zonaDe, setZonaDe] = useState<any | null>(null); // auditor al que se le cambia la zona
-  const [nuevaZona, setNuevaZona] = useState("");
+  const [jornadasDe, setJornadasDe] = useState<any | null>(null); // auditor del que se ve el historial de jornadas
   const [rol, setRol] = useQueryParam("rol");
   const [busqueda, setBusqueda] = useQueryParam("q");
   const { activo: modoPruebas } = useModoPruebas(true); // esta pantalla es solo del administrador
@@ -65,17 +72,6 @@ export default function UsuariosPage() {
     try {
       await request(`/api/usuarios/${clave.id}`, { method: "PATCH", body: JSON.stringify({ password: nuevaClave }) });
       setOk(`Contraseña de @${clave.username} actualizada. Sus sesiones abiertas se cerraron.`); setClave(null); setNuevaClave("");
-      await cargar();
-    } catch (x: any) { setError(x.message); } finally { setSaving(false); }
-  };
-
-  const cambiarZona = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!zonaDe) return;
-    setError(""); setSaving(true);
-    try {
-      await request(`/api/usuarios/${zonaDe.id}`, { method: "PATCH", body: JSON.stringify({ departamento: nuevaZona.trim() }) });
-      setOk(nuevaZona.trim() ? `Zona de @${zonaDe.username}: ${nuevaZona.trim()}.` : `@${zonaDe.username} quedó sin zona habitual.`); setZonaDe(null); setNuevaZona("");
       await cargar();
     } catch (x: any) { setError(x.message); } finally { setSaving(false); }
   };
@@ -123,13 +119,13 @@ export default function UsuariosPage() {
       ) : (
         <div className="table-wrap">
           <table>
-            <thead><tr><th scope="col">Usuario</th><th scope="col">Rol</th><th scope="col">Zona</th><th scope="col">Estado</th><th scope="col">Último acceso</th><th scope="col">Términos</th><th scope="col" style={{ width: 48 }}></th></tr></thead>
+            <thead><tr><th scope="col">Usuario</th><th scope="col">Rol</th><th scope="col">Zona de trabajo</th><th scope="col">Estado</th><th scope="col">Último acceso</th><th scope="col">Términos</th><th scope="col" style={{ width: 48 }}></th></tr></thead>
             <tbody>
               {visibles.map((u) => (
                 <tr key={u.id}>
                   <td><div className="who-cell"><Avatar nombre={nombreDe(u) || u.username} /><div><b style={{ fontWeight: 500 }}>{nombreDe(u) || u.username}</b><span className="sub">@{u.username}</span></div></div></td>
                   <td><Badge label={u.rol} /></td>
-                  <td>{dash(u.departamento)}</td>
+                  <td><ZonaDeTrabajo u={u} /></td>
                   <td><Badge label={u.estado} /></td>
                   <td>{u.ultimo_acceso ? fechaHora(u.ultimo_acceso) : <span className="muted">Nunca</span>}</td>
                   <td>{u.rol === "UNIVERSAL" ? <span className="muted">No aplica</span> : u.terminos ? <span className="state ok" title={`Aceptados desde ${u.terminos.plataforma === "MOVIL" ? "la app" : "el panel"}`}>v{u.terminos.version} · {fechaHora(u.terminos.fecha)}</span> : <span className="state warn">Pendientes</span>}</td>
@@ -139,7 +135,7 @@ export default function UsuariosPage() {
                       items={[
                         { label: "Liberar dispositivo", hidden: u.rol === "ADMINISTRADOR", onClick: () => { if (window.confirm(`¿Liberar el dispositivo de @${u.username}? Podrá iniciar sesión desde otro teléfono.`)) accion(() => request(`/api/usuarios/${u.id}/device/reset`, { method: "POST" }), "Dispositivo liberado: podrá iniciar sesión desde otro teléfono."); } },
                         { label: "Quitar casos…", hidden: u.rol !== "AUDITOR", onClick: () => { setQuitarCasosA(u); setOk(""); } },
-                        { label: "Cambiar zona", hidden: u.rol !== "AUDITOR", onClick: () => { setZonaDe(u); setNuevaZona(u.departamento || ""); setOk(""); } },
+                        { label: "Ver jornadas", hidden: u.rol !== "AUDITOR", onClick: () => { setJornadasDe(u); setOk(""); } },
                         { label: "Cambiar contraseña", onClick: () => { setClave(u); setNuevaClave(""); setOk(""); } },
                         { label: "Restablecer verificación en dos pasos", onClick: () => { if (window.confirm(`¿Restablecer la verificación en dos pasos de @${u.username}? Tendrá que configurarla de nuevo.`)) accion(() => request(`/api/usuarios/${u.id}/mfa/reset`, { method: "POST" }), "Verificación en dos pasos restablecida."); } },
                         u.estado === "ACTIVO"
@@ -172,15 +168,7 @@ export default function UsuariosPage() {
         </Drawer>
       ) : null}
 
-      {zonaDe ? (
-        <Drawer title="Zona habitual" subtitle={`@${zonaDe.username} · ${nombreDe(zonaDe) || "auditor de campo"}`} onClose={() => setZonaDe(null)}
-          footer={<><button className="btn ghost" onClick={() => setZonaDe(null)}>Cancelar</button><button className="btn" type="submit" form="form-zona" disabled={saving}>{saving ? "Guardando…" : "Guardar zona"}</button></>}>
-          <form id="form-zona" onSubmit={cambiarZona}>
-            <Field label="Zona habitual (opcional)"><input name="zona" type="text" autoComplete="off" spellCheck={false} maxLength={100} placeholder="Ej. Lince, Lima…" value={nuevaZona} onChange={(e) => setNuevaZona(e.target.value)} /></Field>
-            <p className="subtle" style={{ marginTop: -6 }}>{AYUDA_ZONA}</p>
-          </form>
-        </Drawer>
-      ) : null}
+      {jornadasDe ? <JornadasDrawer usuario={{ id: jornadasDe.id, nombre: nombreDe(jornadasDe), username: jornadasDe.username }} onClose={() => setJornadasDe(null)} /> : null}
 
       {nuevo ? (
         <Drawer title="Nuevo usuario" subtitle="La contraseña debe tener al menos 12 caracteres." onClose={cerrarNuevo}
@@ -199,12 +187,7 @@ export default function UsuariosPage() {
             {campo("nombres", "Nombres")}
             {campo("apellidos", "Apellidos")}
             {campo("email", "Correo electrónico", "email")}
-            {form.rol === "AUDITOR" ? (
-              <>
-                {campo("departamento", "Zona habitual (opcional)", "text", { placeholder: "Ej. Lince, Lima…" })}
-                <p className="subtle" style={{ marginTop: -6 }}>{AYUDA_ZONA}</p>
-              </>
-            ) : null}
+            {form.rol === "AUDITOR" ? <p className="subtle" style={{ marginTop: -2 }}>{AYUDA_ZONA}</p> : null}
             <label className="check-inline" style={{ height: "auto", marginTop: 12, alignItems: "flex-start" }}>
               <input type="checkbox" name="mfa_habilitado" checked={mfa} onChange={(e) => setMfa(e.target.checked)} style={{ marginTop: 3 }} />
               <span>Exigir verificación en dos pasos (recomendado). En su primer ingreso configurará una app autenticadora.</span>
