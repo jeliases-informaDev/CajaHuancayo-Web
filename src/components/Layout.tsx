@@ -26,7 +26,7 @@ const ENLACES: Enlace[] = [
 // rediseñadas la tienen (las demás todavía traen su propio encabezado).
 const RUTAS: Record<string, { seccion: string; pantalla: string; nota?: string }> = {
   "": { seccion: "Dashboard", pantalla: "Overview" },
-  seguimiento: { seccion: "Seguimiento en Vivo", pantalla: "Mapa" },
+  seguimiento: { seccion: "Seguimiento en Vivo", pantalla: "Mapa", nota: "Filtra por zona para ver qué auditores y qué clientes hay en cada bloque geográfico. Elige un auditor para ver su ruta sugerida del día." },
   visitas: { seccion: "Operación", pantalla: "Visita" },
   expedientes: { seccion: "Cartera", pantalla: "Expediente" },
   asignaciones: { seccion: "Operación", pantalla: "Asignaciones" },
@@ -153,7 +153,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           <div className="top-spacer" />
           {ruta.nota ? <p className="top-nota">{ruta.nota}</p> : null}
         </header>
-        <main className="page" id="contenido" tabIndex={-1}>{children}</main>
+        <main className={"page" + (partes[0] === "seguimiento" ? " page-mapa" : "")} id="contenido" tabIndex={-1}>{children}</main>
       </div>
       <Palette abierta={paleta} onClose={() => setPaleta(false)} esAdmin={esAdmin} />
     </div>
