@@ -16,7 +16,7 @@ const pausa = (ms: number) => new Promise((r) => setTimeout(r, ms));
 export default function ImportModal({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
   const [archivo, setArchivo] = useState<File | null>(null);
   const [estado, setEstado] = useState<Estado>("elegir");
-  const [autoasignable, setAutoasignable] = useState(false);
+  const [autoasignable, setAutoasignable] = useState(true);
   const [avance, setAvance] = useState(0);
   const [reporte, setReporte] = useState<any>(null);
   const [repetido, setRepetido] = useState<any>(null);
@@ -126,7 +126,7 @@ export default function ImportModal({ onClose, onDone }: { onClose: () => void; 
           <PlantillasDescarga compacto onError={setError} />
           <label className="check-inline" style={{ height: "auto", marginTop: 12, alignItems: "flex-start" }}>
             <input type="checkbox" checked={autoasignable} onChange={(e) => setAutoasignable(e.target.checked)} style={{ marginTop: 3 }} />
-            <span>Dejar los expedientes nuevos disponibles para que los auditores los tomen por su cuenta (de cualquier distrito, los más cercanos a ellos primero). Si no lo marcas, solo un supervisor los asigna.</span>
+            <span>Dejar los expedientes nuevos disponibles para que los asesores los tomen por su cuenta, de cualquier distrito. Si lo desmarcas, solo un supervisor los asigna.</span>
           </label>
         </>
       ) : null}
