@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { useAuth } from "../AuthContext";
 import { Avatar, Badge, Skeleton } from "../components/ui";
 import { Icon } from "../components/icons";
-import { Anillo, GraficoArea, rotuloPeriodo, totalPeriodo } from "../components/graficos";
+import { Anillo, GraficoArea, rotuloPeriodo, ventanaPeriodo } from "../components/graficos";
 import { precargarActividad, useActividad, useResumen, type Metrica, type Periodo } from "../lib/resumen";
 import { fechaCorta } from "../lib/format";
 
@@ -13,11 +13,13 @@ const fechaCorta2 = (iso: string) => { const [y, m, d] = iso.split("-").map(Numb
 
 // Cada tarjeta de arriba elige qué dibuja el gráfico grande (no lleva a otra pantalla). El color de la tarjeta (diseño de Figma) pinta la franja,
 // el área y el borde de la tarjeta elegida; la línea del amarillo va más oscura para que se distinga sobre el blanco.
-const SERIES: { id: Metrica; rotulo: string; titulo: string; singular: string; plural: string; color: string; linea?: string }[] = [
-  { id: "expedientes", rotulo: "Expedientes totales", titulo: "Expedientes", singular: "expediente", plural: "expedientes", color: "#4d61ab" },
-  { id: "asignaciones", rotulo: "Asignaciones", titulo: "Asignaciones", singular: "asignación", plural: "asignaciones", color: "#4dab56" },
-  { id: "visitas", rotulo: "Visitas recientes", titulo: "Visitas", singular: "visita", plural: "visitas", color: "#d4d945", linea: "#8e9217" },
-  { id: "observados", rotulo: "Observados", titulo: "Observados", singular: "observado", plural: "observados", color: "#ab4d4d" },
+// La tarjeta dice lo que hay HOY (192 expedientes en total, 3 asignaciones activas) y el total del gráfico lo que pasó EN EL PERÍODO (101 cargados en 7 días):
+// `hechos` es lo que cuenta el gráfico (singular y plural) para leerlo junto al período, y debajo del total se repite la cifra de la tarjeta.
+const SERIES: { id: Metrica; rotulo: string; titulo: string; hechos: [string, string]; singular: string; plural: string; color: string; linea?: string }[] = [
+  { id: "expedientes", rotulo: "Expedientes totales", titulo: "Expedientes", hechos: ["cargado", "cargados"], singular: "expediente", plural: "expedientes", color: "#4d61ab" },
+  { id: "asignaciones", rotulo: "Asignaciones activas", titulo: "Asignaciones", hechos: ["asignación", "asignaciones"], singular: "asignación", plural: "asignaciones", color: "#4dab56" },
+  { id: "visitas", rotulo: "Visitas recientes", titulo: "Visitas", hechos: ["visita", "visitas"], singular: "visita", plural: "visitas", color: "#d4d945", linea: "#8e9217" },
+  { id: "observados", rotulo: "Observados", titulo: "Observados", hechos: ["observada", "observadas"], singular: "observado", plural: "observados", color: "#ab4d4d" },
 ];
 
 function Cargando() {
@@ -53,6 +55,16 @@ export default function DashboardPage() {
   const maxCarga = Math.max(1, ...(r?.auditores.map((a) => a.asignadas_activas) || [1]));
   const num = (n: number) => n.toLocaleString("es-PE");
   const valores: Record<Metrica, number> = { expedientes: r?.expedientes.total || 0, asignaciones: r?.asignaciones_activas || 0, visitas: recientes, observados };
+  // Bajo el total del gráfico: la cifra de hoy con la que se compara (la misma que la de la tarjeta, o el histórico de las visitas).
+  const activas = r?.asignaciones_activas || 0;
+  const referencias: Record<Metrica, string> = {
+    expedientes: `${num(r?.expedientes.total || 0)} en total hoy`,
+    asignaciones: `${num(activas)} ${activas === 1 ? "activa" : "activas"} hoy`,
+    visitas: `${num(r?.visitas.total || 0)} en total hoy`,
+    observados: `${num(observados)} en total hoy`,
+  };
+  const distritos = r?.distritos_actividad || [];
+  const hayVisitasEnDistritos = distritos.some((d) => d.visitas > 0);
   const segmentos = [
     { label: "Visitados", value: visitados, color: "#4d61ab" },
     { label: "Asignados", value: e?.ASIGNADO || 0, color: "#6e4dab" },
@@ -90,7 +102,11 @@ export default function DashboardPage() {
             <section id="rs-grafico" className="rs-tarjeta rs-grafico" aria-label={serie.titulo} style={{ ["--serie" as any]: serie.color, ["--serie-linea" as any]: serie.linea || serie.color }}>
               <div className="rs-grafico-cab">
                 <div><h2>{serie.titulo}</h2><p>{actividad ? rotuloPeriodo(actividad) : "Cargando…"}</p></div>
-                <div className="rs-total"><b>{actividad ? num(actividad.total) : "–"}</b><span>{totalPeriodo[periodo]}</span></div>
+                <div className="rs-total">
+                  <b>{actividad ? num(actividad.total) : "–"}</b>
+                  <span>{serie.hechos[actividad?.total === 1 ? 0 : 1]} {ventanaPeriodo[periodo]}</span>
+                  <em>{referencias[serieId]}</em>
+                </div>
               </div>
               {actividad ? <GraficoArea key={`${serieId}|${periodo}|${hasta}`} datos={actividad} nombre={serie} /> : <div className="rs-plot-cargando" role="status">Cargando el gráfico…</div>}
             </section>
@@ -112,12 +128,17 @@ export default function DashboardPage() {
             </section>
 
             <section className="rs-tarjeta rs-distritos" aria-label="Distritos más visitados">
-              <div className="rs-cab"><h2 className="rs-titulo-tarjeta">Distritos más visitados</h2></div>
-              {!r.distritos_visitados?.length ? <p className="rs-vacio">Aún no hay visitas con distrito en los últimos 30 días.</p> : (
-                <table className="rs-tabla">
-                  <thead><tr><th scope="col">Distritos</th><th scope="col">Visitas</th></tr></thead>
-                  <tbody>{r.distritos_visitados.map((d) => <tr key={d.distrito}><td>{d.distrito}</td><td>{num(d.visitas)}</td></tr>)}</tbody>
-                </table>
+              <div className="rs-cab"><h2 className="rs-titulo-tarjeta">Distritos más visitados</h2><span className="rs-apoyo">Últimos 30 días</span></div>
+              {!distritos.length ? <p className="rs-vacio">Aún no hay visitas ni casos asignados con distrito en los últimos 30 días.</p> : (
+                <>
+                  <table className="rs-tabla">
+                    <thead><tr><th scope="col">Distritos</th><th scope="col" title="Visitas hechas en los últimos 30 días">Visitas</th><th scope="col" title="Casos asignados a los asesores en los últimos 30 días">Asignados</th></tr></thead>
+                    <tbody>{distritos.map((d) => (
+                      <tr key={d.distrito}><td>{d.distrito}</td><td className={d.visitas ? undefined : "cero"}>{num(d.visitas)}</td><td className={d.asignados ? undefined : "cero"}>{num(d.asignados)}</td></tr>
+                    ))}</tbody>
+                  </table>
+                  {!hayVisitasEnDistritos ? <p className="rs-nota">Todavía no hay visitas hechas: por ahora se ordena por los casos asignados.</p> : null}
+                </>
               )}
             </section>
           </div>
