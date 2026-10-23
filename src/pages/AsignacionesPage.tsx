@@ -213,7 +213,7 @@ export default function AsignacionesPage() {
                 <li key={a.id}>
                   <button className={auditorId === a.id ? "on" : ""} onClick={() => setAuditorId(auditorId === a.id ? "" : a.id)} aria-pressed={auditorId === a.id}>
                     <Avatar nombre={nombreDe(a)} />
-                    <span><b>{nombreDe(a)}</b><small>{a.departamento || "Sin zona habitual"}</small></span>
+                    <span><b>{nombreDe(a)}</b><small>{a.zona?.texto || a.departamento || "Aún sin jornada"}</small></span>
                     <span className="load">{carga.get(a.id) || 0}<small>activos</small></span>
                   </button>
                 </li>

@@ -156,7 +156,7 @@ export default function DashboardPage() {
                       <Avatar nombre={a.nombre} />
                       <div>
                         <b>{a.nombre}</b>
-                        <span className="z">{a.zona || "Sin zona habitual"}</span>
+                        <span className="z">{a.zona || "Aún sin jornada"}</span>
                         <div className="loadbar" role="img" aria-label={`${a.asignadas_activas} casos asignados`}><i style={{ width: `${(a.asignadas_activas / maxCarga) * 100}%` }} /></div>
                       </div>
                       <div className="n"><b>{a.asignadas_activas}</b><br />{a.visitas_30_dias} en 30 d</div>

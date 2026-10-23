@@ -12,7 +12,7 @@ const num = (n: number) => n.toLocaleString("es-PE");
 const ROL: Record<string, string> = { ADMINISTRADOR: "Administrador", SUPERVISOR: "Supervisor", AUDITOR: "Asesor de campo" };
 const ETIQUETA: Record<string, string> = {
   usuarios: "usuarios", visitas: "visitas", fotos: "fotos", asignaciones: "asignaciones", ubicaciones: "puntos de ubicación",
-  avisos_campo: "avisos de llegada y salida", dispositivos: "dispositivos", terminos: "aceptaciones de términos", expedientes: "expedientes",
+  avisos_campo: "avisos de llegada y salida", jornadas: "jornadas de campo", dispositivos: "dispositivos", terminos: "aceptaciones de términos", expedientes: "expedientes",
   cargas_excel: "cargas de Excel", expedientes_a_pendiente: "expedientes vueltos a Pendiente",
 };
 
