@@ -27,7 +27,7 @@ const ENLACES: Enlace[] = [
 const RUTAS: Record<string, { seccion: string; pantalla: string; nota?: string }> = {
   "": { seccion: "Dashboard", pantalla: "Overview" },
   seguimiento: { seccion: "Seguimiento en Vivo", pantalla: "Mapa", nota: "Filtra por zona para ver qué auditores y qué clientes hay en cada bloque geográfico. Elige un auditor para ver su ruta sugerida del día." },
-  visitas: { seccion: "Operación", pantalla: "Visita" },
+  visitas: { seccion: "Operación", pantalla: "Visita", nota: "Verifica todas las visitas registradas en campo, con su ficha, evidencia y señales de verificación." },
   expedientes: { seccion: "Cartera", pantalla: "Expediente" },
   asignaciones: { seccion: "Operación", pantalla: "Asignaciones" },
   usuarios: { seccion: "Administración", pantalla: "Usuarios" },
