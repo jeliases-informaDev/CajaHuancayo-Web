@@ -10,6 +10,7 @@ const PATHS: Record<string, React.ReactNode> = {
   usuarios: <><circle cx="9" cy="8.5" r="3.2" /><path d="M3.5 19a5.5 5.5 0 0 1 11 0" /><path d="M16 5.6a3 3 0 0 1 0 5.8" /><path d="M17.5 14.2A5.5 5.5 0 0 1 20.5 19" /></>,
   seguridad: <><rect x="5" y="10.5" width="14" height="10" rx="2.6" /><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5" /><circle cx="12" cy="15.5" r="1.3" /></>,
   calendario: <><rect x="3.5" y="5" width="17" height="15.5" rx="2.6" /><path d="M3.5 10h17M8 3v4M16 3v4" /></>,
+  filtro: <><path d="M4 7h8M17.5 7H20M4 17h2.5M12 17h8" /><circle cx="15" cy="7" r="2.5" /><circle cx="9.2" cy="17" r="2.5" /></>,
   buscar: <><circle cx="11" cy="11" r="6.5" /><path d="M20 20l-4.2-4.2" /></>,
   sol: <><circle cx="12" cy="12" r="4" /><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4" /></>,
   luna: <path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z" />,

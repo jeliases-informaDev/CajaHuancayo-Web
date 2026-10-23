@@ -405,6 +405,18 @@ function SelectZona({ name, etiqueta, valor, onChange, opciones, todos, deshabil
   );
 }
 
+// Qué tarjetas flotantes están abiertas (filtros, lista de auditores y leyenda). Se acuerda la elección en este navegador; la primera vez, en pantallas
+// angostas empiezan ocultas para que se vea el mapa, y en las anchas abiertas como en el diseño.
+type Paneles = { filtros: boolean; auditores: boolean; leyenda: boolean };
+const CLAVE_PANELES = "ch_seg_paneles";
+function panelesGuardados(): Paneles {
+  try {
+    const g = JSON.parse(localStorage.getItem(CLAVE_PANELES) || "null");
+    if (g && typeof g === "object") return { filtros: g.filtros !== false, auditores: g.auditores !== false, leyenda: g.leyenda !== false };
+  } catch { /* sin almacenamiento o dato roto: se usa lo de siempre */ }
+  const ancha = window.innerWidth > 900;
+  return { filtros: ancha, auditores: ancha, leyenda: ancha };
+}
 const rangoPrioridad: Record<string, number> = { ALTA: 0, MEDIA: 1, BAJA: 2 };
 // Un cliente pasa los filtros de estado de la visita y de tipo de ficha (sin ninguno marcado, pasan todos).
 const cumpleEstadoYTipo = (a: { estadoVisita: string; tipo: string }, estados: string[], tipos: string[]) => (!estados.length || estados.includes(a.estadoVisita)) && (!tipos.length || tipos.includes(a.tipo));
@@ -456,6 +468,8 @@ export default function SeguimientoPage() {
   const [camara, setCamara] = useState<Camara | null>(null);
   const [mapa, setMapa] = useState<L.Map | null>(null);
   const inputBusca = useRef<HTMLInputElement | null>(null);
+  const [paneles, setPaneles] = useState<Paneles>(panelesGuardados);
+  const [focoPanel, setFocoPanel] = useState<string | null>(null);
   // Si el servidor todavía no conoce `visitados_desde` (se actualizó el panel antes que el servidor), el mapa se pide sin él y solo faltan los visitados.
   const visitadosOk = useRef(true);
 
@@ -844,6 +858,14 @@ export default function SeguimientoPage() {
     return cuentas.sinAsignaciones + " sin ningún caso activo.";
   })();
 
+  // Ocultar o mostrar una tarjeta flotante (al ocultarla queda un botón pequeño en su lugar).
+  const alternarPanel = (k: keyof Paneles) => {
+    const nuevo = { ...paneles, [k]: !paneles[k] };
+    setPaneles(nuevo); setFocoPanel(k + (paneles[k] ? "-burbuja" : "-ocultar"));
+    try { localStorage.setItem(CLAVE_PANELES, JSON.stringify(nuevo)); } catch { /* sin almacenamiento: la elección vale mientras la pantalla esté abierta */ }
+  };
+  // El foco pasa al botón que reemplaza a la tarjeta: quien usa el teclado no lo pierde.
+  useEffect(() => { if (!focoPanel) return; document.getElementById("sv-foco-" + focoPanel)?.focus(); setFocoPanel(null); }, [focoPanel]);
   const mover = (c: Omit<Camara, "n">) => setCamara({ ...c, n: Date.now() + Math.random() });
   const LEJOS_M = 60_000; // más allá de esto un cliente se considera de otra zona y no entra en el encuadre automático
   // Elegir (o soltar) a un auditor. Con un cliente, el mapa vuela al cliente; si no, se centra en el auditor (o, sin posición, en sus clientes cercanos).
@@ -902,6 +924,16 @@ export default function SeguimientoPage() {
     );
   };
 
+  const burbujaFiltros = (
+    <button type="button" id="sv-foco-filtros-burbuja" className="sv-burbuja" aria-expanded="false" aria-controls="sv-filtros" onClick={() => alternarPanel("filtros")}>
+      <Icon name="filtro" size={17} />Filtros{filtrosActivos ? <b title={filtrosActivos + (filtrosActivos === 1 ? " grupo de filtros activo" : " grupos de filtros activos")}>{filtrosActivos}</b> : null}
+    </button>
+  );
+  const burbujaAuditores = (
+    <button type="button" id="sv-foco-auditores-burbuja" className="sv-burbuja" aria-expanded="false" aria-controls="sv-auditores" onClick={() => alternarPanel("auditores")}>
+      <Icon name="usuarios" size={17} />Auditores<b>{auditoresVisibles.length}</b>{cuentas.alerta ? <i className="sv-alerta" role="img" aria-label={cuentas.alerta + (cuentas.alerta === 1 ? " auditor con alerta" : " auditores con alerta")} title={cuentas.alerta + (cuentas.alerta === 1 ? " auditor con alerta" : " auditores con alerta")} /> : null}
+    </button>
+  );
   const estadoPill = enVivo ? `${enVivo} ${enVivo === 1 ? "auditor transmite" : "auditores transmiten"} su ubicación` : "Nadie transmite ubicación ahora";
 
   return (
@@ -927,11 +959,15 @@ export default function SeguimientoPage() {
           ) : null}
         </div>
 
-        <section className="sv-card sv-filtros" aria-label="Filtros del mapa">
+        {!paneles.filtros && !paneles.auditores ? <div className="sv-burbujas">{burbujaFiltros}{burbujaAuditores}</div> : null}
+        {!paneles.filtros && paneles.auditores ? <div className="sv-burbujas">{burbujaFiltros}</div> : null}
+        {paneles.filtros ? (
+        <section className="sv-card sv-filtros" id="sv-filtros" aria-label="Filtros del mapa">
           <div className="sv-cab">
             <h2>Filtros</h2>
             {filtrosActivos ? <span className="sv-insignia">{filtrosActivos} {filtrosActivos === 1 ? "activo" : "activos"}</span> : null}
             <button type="button" className="sv-limpiar" onClick={limpiarFiltros} disabled={!filtrosActivos}>Limpiar</button>
+            <button type="button" id="sv-foco-filtros-ocultar" className="sv-min" aria-label="Ocultar los filtros" aria-expanded="true" aria-controls="sv-filtros" title="Ocultar los filtros" onClick={() => alternarPanel("filtros")}><Icon name="arriba" size={16} /></button>
           </div>
           <div className="sv-grupo">
             <h3>Zona</h3>
@@ -968,9 +1004,15 @@ export default function SeguimientoPage() {
             </div>
           </div>
         </section>
+        ) : null}
+        {paneles.filtros && !paneles.auditores ? <div className="sv-burbujas">{burbujaAuditores}</div> : null}
 
-        <section className="sv-card sv-auditores" aria-label="Auditores">
-          <h3 className="sv-tit">Auditores{zonaActiva ? ` en ${departamentoFiltro}` : ""} ({auditoresVisibles.length})</h3>
+        {paneles.auditores ? (
+        <section className="sv-card sv-auditores" id="sv-auditores" aria-label="Auditores">
+          <div className="sv-cab-aud">
+            <h3 className="sv-tit">Auditores{zonaActiva ? ` en ${departamentoFiltro}` : ""} ({auditoresVisibles.length})</h3>
+            <button type="button" id="sv-foco-auditores-ocultar" className="sv-min" aria-label="Ocultar la lista de auditores" aria-expanded="true" aria-controls="sv-auditores" title="Ocultar la lista de auditores" onClick={() => alternarPanel("auditores")}><Icon name="arriba" size={16} /></button>
+          </div>
           <div className="sv-chips" role="group" aria-label="Filtrar auditores por estado">
             <Chip on={chipsAud.includes("EN_LINEA")} onClick={() => setChipsAud(alternar(chipsAud, "EN_LINEA"))}>En línea {cuentas.enLinea}</Chip>
             <Chip on={chipsAud.includes("SIN_GPS")} onClick={() => setChipsAud(alternar(chipsAud, "SIN_GPS"))}>Sin GPS {cuentas.sinGps}</Chip>
@@ -988,9 +1030,10 @@ export default function SeguimientoPage() {
             ) : null}
           </div>
         </section>
+        ) : null}
       </div>
 
-      <div className="sv-mapa" data-clientes={clientesSinRuta.length + enRuta.length}>
+      <div className={"sv-mapa" + (paneles.leyenda ? "" : " sin-leyenda")} data-clientes={clientesSinRuta.length + enRuta.length}>
         <MapContainer center={CENTER} zoom={5} className="seguimiento-map" zoomControl={false} ref={setMapa}>
           <TileLayer attribution="&copy; OpenStreetMap" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
           {!seleccionado ? <FitBounds coords={coordsTodos} clave={zonaClave} nonce={reencuadre} /> : null}
@@ -1056,6 +1099,7 @@ export default function SeguimientoPage() {
         {error ? <div role="alert" className="sv-aviso mal">{error}</div> : null}
         {truncado ? <div role="status" className="sv-aviso">Hay {totalMapa} clientes en esta vista y se muestran los primeros {asignaciones.length}. Elige una zona (departamento, provincia o distrito) para verlos todos.</div> : null}
 
+        <div className="sv-der-col">
         <div className="sv-sup">
           <div className="sv-pill">
             <span className={`live${enVivo ? " on" : ""}`} role="status">{estadoPill}{conSenalAntigua ? ` · ${conSenalAntigua} con señal antigua` : ""}{perdieron ? ` · ⚠ ${perdieron} sin señal en plena jornada` : ""}</span>
@@ -1064,8 +1108,9 @@ export default function SeguimientoPage() {
             <button type="button" className="zoom" aria-label="Acercar el mapa" onClick={() => mapa?.zoomIn()}>+</button>
             <button type="button" className="zoom" aria-label="Alejar el mapa" onClick={() => mapa?.zoomOut()}>−</button>
             <button type="button" onClick={() => { setSeleccionado(null); setReencuadre((n) => n + 1); }}>Ver todo</button>
-            <button type="button" aria-pressed={capas.auditores} className={capas.auditores ? "on" : ""} onClick={() => setCapas((c) => ({ ...c, auditores: !c.auditores }))}>Auditores</button>
-            <button type="button" aria-pressed={capas.clientes} className={capas.clientes ? "on" : ""} onClick={() => setCapas((c) => ({ ...c, clientes: !c.clientes }))}>Clientes</button>
+            <button type="button" aria-pressed={capas.auditores} className={capas.auditores ? "on" : ""} onClick={() => setCapas((c) => ({ ...c, auditores: !c.auditores }))}>Ver auditores</button>
+            <button type="button" aria-pressed={capas.clientes} className={capas.clientes ? "on" : ""} onClick={() => setCapas((c) => ({ ...c, clientes: !c.clientes }))}>Ver clientes</button>
+            <button type="button" aria-pressed={paneles.leyenda} aria-controls="sv-leyenda" className={paneles.leyenda ? "on" : ""} onClick={() => alternarPanel("leyenda")}>Leyenda</button>
             <button type="button" aria-pressed={eventosAbiertos} aria-controls="sv-eventos" className={eventosAbiertos ? "on" : ""} onClick={() => setEventosAbiertos((v) => !v)}>Llegadas y salidas{eventosVisibles.length ? <b>{eventosVisibles.length}</b> : null}</button>
           </div>
         </div>
@@ -1184,8 +1229,10 @@ export default function SeguimientoPage() {
             </section>
           ) : null}
         </div>
+        </div>
 
-        <div className="maplegend sv-leyenda" aria-label="Leyenda del mapa">
+        {paneles.leyenda ? (
+        <div className="maplegend sv-leyenda" id="sv-leyenda" aria-label="Leyenda del mapa">
           <div className="leg-bloque">
             <span className="leg-tit">Prioridad del cliente</span>
             <div className="leg-items">
@@ -1208,6 +1255,7 @@ export default function SeguimientoPage() {
             </div>
           </div>
         </div>
+        ) : null}
       </div>
     </div>
   );
