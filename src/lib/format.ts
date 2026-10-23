@@ -68,6 +68,18 @@ export const PROPIEDAD_LOCAL: Record<string, string> = { PROPIO: "Propio", ALQUI
 
 export const PLANTILLA_NOMBRE: Record<string, string> = { MYPE_V1: "Ficha MYPE (créditos Otros)", CONSUMO_V1: "Ficha de Consumo" };
 
+// Nombres de clientes como en el diseño («Quispe Huaman, Maria Elena»): la base del core los trae TODO EN MAYÚSCULAS, así que solo si vienen así se pasan a
+// mayúscula inicial. Es solo cómo se muestran (los datos y la búsqueda no cambian). Las siglas de las empresas (S.A.C., E.I.R.L., SRL…) se respetan.
+const SIGLAS = new Set(["SAC", "SRL", "EIRL", "SA", "SCRL", "SAA"]);
+export function nombrePropio(nombre?: string | null) {
+  if (!nombre) return "";
+  if (nombre !== nombre.toLocaleUpperCase("es-PE")) return nombre;
+  return nombre.replace(/[^\s,]+/g, (palabra) => {
+    if (palabra.includes(".") || SIGLAS.has(palabra)) return palabra;
+    return palabra.toLocaleLowerCase("es-PE").replace(/(^|[-'’])(\p{L})/gu, (_m, antes: string, letra: string) => antes + letra.toLocaleUpperCase("es-PE"));
+  });
+}
+
 // ---- Identidad visual de las personas (iniciales y un color estable por nombre) ----
 export const iniciales = (nombre?: string | null) =>
   (nombre || "?").trim().split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase()).join("") || "?";

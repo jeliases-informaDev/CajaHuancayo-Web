@@ -1,5 +1,8 @@
 import { useCallback, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { FILAS_POR_DEFECTO, TAMANOS, paginasVisibles } from "./paginas";
+
+export { TAMANOS, paginasVisibles };
 
 // Filtros de la lista de visitas. Viven en la URL (se pueden compartir, recargar y volver atrás sin perderlos) y se escriben de a varios a la vez:
 // «Aplicar filtros» cambia resultado, ficha, fechas y auditor en una sola navegación. Una lista vacía significa «todas»: la URL sin filtro y el
@@ -18,8 +21,6 @@ export const FICHAS = [
 export const CLAVES_RESULTADO: string[] = RESULTADOS.map((r) => r.clave);
 export const CLAVES_FICHA: string[] = FICHAS.map((f) => f.clave);
 
-export const TAMANOS = [10, 25, 50, 100];
-export const FILAS_POR_DEFECTO = 10;
 
 export type Filtros = { resultado: string[]; tipo: string[]; desde: string; hasta: string; auditor: string; alertas: boolean; q: string };
 export const SIN_FILTROS: Filtros = { resultado: [], tipo: [], desde: "", hasta: "", auditor: "", alertas: false, q: "" };
@@ -106,14 +107,6 @@ export function etiquetaDia(dia: string) {
 export function etiquetaRango(desde: string, hasta: string) {
   if (desde && hasta) return desde === hasta ? etiquetaDia(desde) : `${etiquetaDia(desde)} – ${etiquetaDia(hasta)}`;
   return desde ? `desde el ${etiquetaDia(desde)}` : `hasta el ${etiquetaDia(hasta)}`;
-}
-
-// Números de página a mostrar: la primera, la última y las vecinas de la actual, con «…» donde se salta.
-export function paginasVisibles(actual: number, total: number): (number | "…")[] {
-  const orden = [...new Set([1, total, actual - 1, actual, actual + 1].filter((n) => n >= 1 && n <= total))].sort((a, b) => a - b);
-  const salida: (number | "…")[] = [];
-  orden.forEach((n, i) => { if (i && n - orden[i - 1] > 1) salida.push("…"); salida.push(n); });
-  return salida;
 }
 
 export function useFiltrosVisitas() {
