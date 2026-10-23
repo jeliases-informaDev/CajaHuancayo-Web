@@ -43,7 +43,7 @@
 .rs-kpi b { display: block; font-size: 40px; font-weight: 600; line-height: 1.05; letter-spacing: 0; font-variant-numeric: lining-nums; }
 .rs-kpi span { display: block; margin-top: 9px; max-width: 84px; font-size: 10px; font-weight: 400; line-height: 1.5; letter-spacing: 0.03em; text-transform: uppercase; }
 
-.rs-grafico { padding: 19px 41px 0 0; display: flex; flex-direction: column; min-height: 371px; }
+.rs-grafico { padding: 19px 41px 0 0; display: flex; flex-direction: column; min-height: 388px; }
 .rs-grafico::before { content: ""; position: absolute; left: 0; top: 27px; bottom: 27px; width: 15px; border-radius: 0 9px 9px 0; background: var(--serie, #4dab56); transition: background-color 0.25s ease; }
 .rs-grafico-cab { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; padding-left: 62px; min-height: 66px; }
 .rs-grafico-cab h2 { margin: 17px 0 0; font-size: 17px; font-weight: 600; line-height: 1.25; color: var(--tinta); }
@@ -52,6 +52,9 @@
 :root[data-theme="dark"] .rs-total { background: var(--sunken); }
 .rs-total b { display: block; font-family: var(--font-etiqueta); font-size: 24px; font-weight: 600; line-height: 1.15; color: var(--tinta); }
 .rs-total span { display: block; font-size: 12px; font-weight: 600; color: var(--gris-d); line-height: 1.3; }
+/* La cifra de hoy con la que se compara el total del período (192 en total hoy · 101 cargados en 7 días). */
+.rs-total em { display: block; margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(60, 70, 130, 0.18); font-style: normal; font-size: 11.5px; font-weight: 500; color: var(--gris-d); line-height: 1.3; }
+:root[data-theme="dark"] .rs-total em { border-top-color: var(--line-2); }
 .rs-plot { position: relative; height: 233px; margin: 30px 0 0 58px; padding-right: 82px; flex-shrink: 0; animation: rs-entra 0.3s ease; }
 .rs-plot-cargando { height: 233px; margin: 30px 0 0 58px; display: flex; align-items: center; justify-content: center; color: var(--gris-d); font-size: 13px; }
 @keyframes rs-entra { from { opacity: 0; } to { opacity: 1; } }
@@ -100,13 +103,16 @@
 .rs-leyenda b { font-size: 14px; font-weight: 600; color: var(--tinta); letter-spacing: 0; }
 .rs-tabla { width: 100%; margin-top: 25px; border-collapse: separate; border-spacing: 0 0; }
 .rs-tabla th { background: transparent; border: 0; padding: 0 0 10px; font-size: 11px; font-weight: 400; letter-spacing: 0.1em; text-transform: uppercase; color: #898989; }
-.rs-tabla th:last-child, .rs-tabla td:last-child { text-align: right; width: 76px; }
+/* Distritos | Visitas | Asignados: las columnas de números van a la derecha. */
+.rs-tabla th:nth-child(n+2), .rs-tabla td:nth-child(n+2) { text-align: right; width: 88px; }
 .rs-tabla td { padding: 0; height: 32px; font-size: 16px; color: #131313; border-bottom: 1px solid #ecebe9; vertical-align: middle; }
 :root[data-theme="dark"] .rs-tabla td { color: var(--ink); border-color: var(--line); }
-.rs-tabla td:last-child { border-bottom: 1px solid #ecebe9; padding: 0 11px 0 12px; box-sizing: border-box; }
-.rs-tabla th:last-child { padding-right: 4px; }
+.rs-tabla td:nth-child(n+2) { border-bottom: 1px solid #ecebe9; padding: 0 11px 0 12px; box-sizing: border-box; font-variant-numeric: tabular-nums; }
+.rs-tabla td.cero, :root[data-theme="dark"] .rs-tabla td.cero { color: var(--gris-d); }
+.rs-tabla th:nth-child(n+2) { padding-right: 4px; }
 .rs-tabla tr + tr td:first-child { padding-top: 1px; }
 .rs-tabla tbody tr:last-child td { border-bottom: 1px solid #ecebe9; }
+.rs-nota { margin: 14px 0 0; font-size: 12px; line-height: 1.4; color: var(--gris-d); }
 
 /* ---------- Fila 3: listas ---------- */
 .rs-fila3 { display: grid; grid-template-columns: minmax(0, 668fr) minmax(0, 473fr); gap: 15px; margin-top: 29px; }

@@ -3,11 +3,14 @@ import { getEmpresaElegida, request } from "../api";
 
 // El resumen de la muestra lo usan el tablero, el menú lateral (cuántas visitas esperan revisión) y los
 // filtros de varias pantallas. Se pide una sola vez y se comparte; se refresca cada minuto mientras haya alguien mirando.
+// A dónde van los asesores: por distrito, las visitas hechas y los casos asignados de los últimos 30 días (más visitas primero).
+export type DistritoActividad = { distrito: string; visitas: number; asignados: number };
 export type Resumen = {
   expedientes: { total: number; por_estado: Record<string, number>; por_tipo: Record<string, number> };
   asignaciones_activas: number;
   visitas: { total: number; por_resultado: Record<string, number>; actividad: { dia: string; total: number }[]; recientes?: number };
-  distritos_visitados?: { distrito: string; visitas: number }[];
+  distritos_actividad?: DistritoActividad[];
+  distritos_visitados?: { distrito: string; visitas: number }[]; // primera versión (solo visitas): lo que manda un servidor sin actualizar
   auditores: { id: string; nombre: string; zona: string | null; asignadas_activas: number; visitas_30_dias: number }[];
   cola_revision: { id_visita: number; resultado: string; fecha: string; cliente: string; codigo: string; tipo_credito: string; auditor: string; motivos: string[] }[];
 };

@@ -22,7 +22,8 @@ export function rotuloPeriodo(d: Actividad) {
   if (d.periodo === "semanal") return `Últimas 8 semanas | ${diaMes(d.desde)} - ${diaMes(d.hasta)}`;
   return `Últimos 6 meses | ${MESES[a.m]} - ${MESES[b.m]}`;
 }
-export const totalPeriodo: Record<Periodo, string> = { diario: "Total semana", semanal: "Total 8 semanas", mensual: "Total 6 meses" };
+// Lo que abarca el total del gráfico, para leerlo junto a lo que se cuenta: «101 cargados en 7 días».
+export const ventanaPeriodo: Record<Periodo, string> = { diario: "en 7 días", semanal: "en 8 semanas", mensual: "en 6 meses" };
 
 function etiquetaEje(d: Actividad, i: number): { principal: string; mes?: string } {
   const p = d.puntos[i], f = fecha(p.inicio);
