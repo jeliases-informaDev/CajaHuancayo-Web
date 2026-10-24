@@ -250,7 +250,9 @@ export function EvaluacionMype({ e, conformidad }: { e: any; conformidad?: any }
 }
 
 export function IngresosConsumo({ e }: { e: any }) {
-  const ingresos: any[] = e.evaluacion_financiera?.ingresos || [];
+  const ingresos: any[] = e.evaluacion_financiera?.ingresos_consumo || [];
+  // Si la base de Consumo trajo la evaluación tipo MYPE (ventas con días buenos y malos) y no las líneas de consumo, se muestra esa para no perder los datos (igual que la ficha Word).
+  if (!ingresos.length && (e.evaluacion_financiera?.ingresos || []).length) return <EvaluacionMype e={e} />;
   return (
     <Card>
       <p className="section-title">Ingresos registrados en la evaluación <Origen tipo="base" /></p>
