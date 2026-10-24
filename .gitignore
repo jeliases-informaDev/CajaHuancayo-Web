@@ -22,3 +22,10 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Variables de entorno y llaves: nunca al repositorio (el ejemplo si)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
