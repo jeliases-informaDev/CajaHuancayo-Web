@@ -1,200 +1,218 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import { request } from "../api";
 import { useAuth } from "../AuthContext";
-import { Avatar, Badge, Empty, Field, Skeleton } from "../components/ui";
+import { Empty, Skeleton } from "../components/ui";
 import { Icon } from "../components/icons";
-import { ActionMenu, Drawer, Seg } from "../components/kit";
-import { fechaHora } from "../lib/format";
-import { Link } from "react-router-dom";
+import MenuFila, { type OpcionMenu } from "../components/MenuFila";
+import Paginador from "../components/Paginador";
+import { CambiarClave, ConfirmarAccion, NuevoUsuario } from "../components/usuarios/DialogosUsuario";
 import { BorrarEmpleadosModal, BorrarUsuarioModal } from "../components/limpieza";
 import { QuitarCasosModal } from "../components/quitarcasos";
-import { useModoPruebas } from "../lib/limpieza";
-import { useQueryParam } from "../lib/useQueryParam";
 import { JornadasDrawer } from "../components/jornadas";
+import { useModoPruebas } from "../lib/limpieza";
+import { TAMANOS } from "../lib/paginas";
+import { iniciales } from "../lib/format";
+import { ROL, fechaHoraCorta, nombreDe, ultimoAcceso, useFiltrosUsuarios, zonaDe, type Usuario } from "../lib/usuarios";
+import "../pantalla.css";
+import "../usuarios.css";
 
-const emptyForm = { username: "", password: "", rol: "AUDITOR", nombres: "", apellidos: "", email: "" };
-// La zona de trabajo no se escribe: la toma el celular del auditor al iniciar su jornada (ver «Ver jornadas»). No limita qué expedientes puede tomar.
-const AYUDA_ZONA = "Su zona de trabajo no se escribe aquí: queda sola cuando inicia su jornada desde el celular (se toma con el GPS en ese momento y se guarda el historial). No limita qué expedientes puede tomar: puede elegir de cualquier distrito.";
-const nombreDe = (u: any) => `${u.nombres || ""} ${u.apellidos || ""}`.trim();
+// Usuarios — diseño de Figma: «NUEVO USUARIO» arriba a la derecha, buscador con pestañas por rol y la tabla en una tarjeta con su pie de páginas. La lista la pagina el
+// servidor (la búsqueda, el rol y la página viven en la URL), así que crece sin que nadie tenga que desplazarse por cientos de filas. Cada acción de la fila (⋯) abre su
+// ventana del diseño; lo que ya existía se conserva: liberar dispositivo, quitar casos, ver jornadas, activar y el borrado del modo pruebas.
 
-// Zona de trabajo: la de su última jornada. Quien nunca inició una muestra la zona anterior (escrita a mano, si la tenía) con un aviso.
-function ZonaDeTrabajo({ u }: { u: any }) {
-  if (u.zona) return <><span>{u.zona.texto || <span className="muted">Posición sin nombre de zona</span>}</span><span className="sub">Jornada del {fechaHora(u.zona.en)}</span></>;
-  if (u.rol !== "AUDITOR") return <span className="muted">—</span>;
-  return <><span className="muted">{u.departamento ? `${u.departamento} (zona anterior)` : "—"}</span><span className="sub">Aún no inicia una jornada</span></>;
-}
+type Dialogo = null | { tipo: "nuevo" } | { tipo: "clave" | "desactivar" | "activar" | "mfa" | "dispositivo"; u: Usuario };
 
 export default function UsuariosPage() {
   const { user, empresa } = useAuth();
-  const [data, setData] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { q, rol, pagina, filas, fijarQ, fijarRol, irAPagina, fijarFilas } = useFiltrosUsuarios();
+  const [data, setData] = useState<Usuario[]>([]);
+  const [total, setTotal] = useState(0);
+  const [paginas, setPaginas] = useState(1);
+  const [cargando, setCargando] = useState(true);
   const [error, setError] = useState("");
   const [ok, setOk] = useState("");
-  const [nuevo, setNuevo] = useState(false);
-  const [form, setForm] = useState(emptyForm);
-  const [mfa, setMfa] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [clave, setClave] = useState<any | null>(null); // usuario al que se le cambia la contraseña
-  const [nuevaClave, setNuevaClave] = useState("");
-  const [jornadasDe, setJornadasDe] = useState<any | null>(null); // auditor del que se ve el historial de jornadas
-  const [rol, setRol] = useQueryParam("rol");
-  const [busqueda, setBusqueda] = useQueryParam("q");
-  const { activo: modoPruebas } = useModoPruebas(true); // esta pantalla es solo del administrador
-  const [borrarA, setBorrarA] = useState<any | null>(null); // usuario que se va a borrar por completo
+  const [recarga, setRecarga] = useState(0);
+  const [dialogo, setDialogo] = useState<Dialogo>(null);
+  const [jornadasDe, setJornadasDe] = useState<Usuario | null>(null); // auditor del que se ve el historial de jornadas
+  const [borrarA, setBorrarA] = useState<Usuario | null>(null); // usuario que se va a borrar por completo (modo pruebas)
   const [borrarTodos, setBorrarTodos] = useState(false);
-  const [quitarCasosA, setQuitarCasosA] = useState<any | null>(null); // asesor al que se le quitan los casos abiertos
+  const [quitarCasosA, setQuitarCasosA] = useState<Usuario | null>(null); // asesor al que se le quitan los casos abiertos
+  const { activo: modoPruebas } = useModoPruebas(true); // esta pantalla es solo del administrador
+  const [texto, setTexto] = useState(q);
+  const entradaBusca = useRef<HTMLInputElement>(null);
+  const tarjeta = useRef<HTMLDivElement>(null);
 
-  const cargar = async () => {
-    try { const r: any = await request("/api/usuarios"); setData(r.data); setError(""); }
-    catch (e: any) { setError(e.message); } finally { setLoading(false); }
+  const consulta = useMemo(() => {
+    const p = new URLSearchParams({ limit: String(filas), page: String(pagina) });
+    if (q) p.set("q", q);
+    if (rol) p.set("rol", rol);
+    return p.toString();
+  }, [q, rol, pagina, filas]);
+
+  useEffect(() => {
+    let vigente = true; // si llega una respuesta vieja después de cambiar un filtro, se ignora
+    setCargando(true);
+    request<{ data: Usuario[]; pagination: { total: number; pages: number } }>(`/api/usuarios?${consulta}`)
+      .then((r) => {
+        if (!vigente) return;
+        // Si el filtro o un borrado dejaron menos páginas que la que se miraba, se vuelve a la última.
+        if (!r.data.length && r.pagination.total > 0 && pagina > 1) { irAPagina(Math.max(1, r.pagination.pages)); return; }
+        setData(r.data); setTotal(r.pagination.total); setPaginas(r.pagination.pages); setError("");
+      })
+      .catch((e) => { if (vigente) setError(e?.message || "No se pudieron cargar los usuarios."); })
+      .finally(() => { if (vigente) setCargando(false); });
+    return () => { vigente = false; };
+  }, [consulta, recarga]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const recargar = useCallback(() => setRecarga((n) => n + 1), []);
+  const hecho = (mensaje: string) => { setDialogo(null); setError(""); setOk(mensaje); recargar(); };
+
+  // Búsqueda por texto: espera un momento después de la última tecla (o Enter) y se guarda en la URL.
+  useEffect(() => {
+    if (texto.trim() === q) return;
+    const t = setTimeout(() => fijarQ(texto), 300);
+    return () => clearTimeout(t);
+  }, [texto]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Si la URL cambia desde afuera (por ejemplo «Limpiar filtros»), la caja la sigue; sin pisar lo que se está escribiendo.
+  useEffect(() => { setTexto((t) => (t.trim() === q ? t : q)); }, [q]);
+
+  // Ctrl/Cmd + K lleva al buscador de esta pantalla (en vez de abrir la paleta general), como en Seguimiento, Visitas y Expedientes.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") { e.preventDefault(); e.stopImmediatePropagation(); entradaBusca.current?.focus(); entradaBusca.current?.select(); }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, []);
+
+  const irPagina = (n: number) => {
+    irAPagina(n);
+    const arriba = tarjeta.current?.getBoundingClientRect().top ?? 0;
+    if (arriba < 60) window.scrollBy({ top: arriba - 70 });
   };
-  useEffect(() => { cargar(); }, []);
+  const hayFiltros = Boolean(q || rol);
+  const limpiar = () => { setTexto(""); fijarQ(""); fijarRol(""); };
+  const anuncio = cargando ? "Cargando usuarios…" : `${total.toLocaleString("es-PE")} ${total === 1 ? "usuario encontrado" : "usuarios encontrados"}`;
 
-  const cerrarNuevo = () => {
-    if (JSON.stringify(form) !== JSON.stringify(emptyForm) && !window.confirm("Hay datos sin guardar. ¿Cerrar y descartarlos?")) return;
-    setNuevo(false); setForm(emptyForm); setMfa(true);
-  };
-
-  const crear = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(""); setSaving(true);
-    try {
-      await request("/api/usuarios", { method: "POST", body: JSON.stringify({ ...form, mfa_habilitado: mfa }) });
-      setNuevo(false); setForm(emptyForm); setMfa(true); setOk("Usuario creado.");
-      await cargar();
-    } catch (x: any) { setError(x.message); } finally { setSaving(false); }
-  };
-
-  const cambiarClave = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!clave) return;
-    setError(""); setSaving(true);
-    try {
-      await request(`/api/usuarios/${clave.id}`, { method: "PATCH", body: JSON.stringify({ password: nuevaClave }) });
-      setOk(`Contraseña de @${clave.username} actualizada. Sus sesiones abiertas se cerraron.`); setClave(null); setNuevaClave("");
-      await cargar();
-    } catch (x: any) { setError(x.message); } finally { setSaving(false); }
-  };
-
-  const accion = async (fn: () => Promise<unknown>, mensaje: string) => {
-    try { await fn(); setError(""); setOk(mensaje); await cargar(); } catch (x: any) { setOk(""); setError(x.message); }
-  };
-
-  const q = busqueda.trim().toLowerCase();
-  const visibles = useMemo(
-    () => data.filter((u) => (!rol || u.rol === rol) && (!q || [u.username, u.nombres, u.apellidos, u.email].some((v) => String(v || "").toLowerCase().includes(q)))),
-    [data, rol, q],
-  );
-
-  const campo = (k: keyof typeof emptyForm, etiqueta: string, tipo = "text", extra: Partial<React.InputHTMLAttributes<HTMLInputElement>> = {}) => (
-    <Field label={etiqueta}><input name={k} type={tipo} autoComplete="off" spellCheck={false} value={form[k]} onChange={(e) => setForm({ ...form, [k]: e.target.value })} {...extra} /></Field>
-  );
+  const opciones = (u: Usuario): OpcionMenu[] => [
+    { etiqueta: "Cambiar contraseña", icono: "llave", onClick: () => { setOk(""); setDialogo({ tipo: "clave", u }); } },
+    { etiqueta: "Restablecer verificación en dos pasos", icono: "escudoOk", onClick: () => { setOk(""); setDialogo({ tipo: "mfa", u }); } },
+    { etiqueta: "Liberar dispositivo", icono: "celular", oculto: u.rol === "ADMINISTRADOR", onClick: () => { setOk(""); setDialogo({ tipo: "dispositivo", u }); } },
+    { etiqueta: "Ver jornadas", icono: "reloj", oculto: u.rol !== "AUDITOR", onClick: () => { setOk(""); setJornadasDe(u); } },
+    { etiqueta: "Quitar casos…", icono: "cambiar", oculto: u.rol !== "AUDITOR", onClick: () => { setOk(""); setQuitarCasosA(u); } },
+    u.estado === "ACTIVO"
+      ? { etiqueta: "Desactivar usuario", icono: "usuarioX", peligro: true, oculto: u.id === user?.id, onClick: () => { setOk(""); setDialogo({ tipo: "desactivar", u }); } }
+      : { etiqueta: "Activar usuario", icono: "usuarioOk", onClick: () => { setOk(""); setDialogo({ tipo: "activar", u }); } },
+    { etiqueta: "Eliminar definitivamente", icono: "papelera", peligro: true, oculto: !modoPruebas || u.id === user?.id, onClick: () => { setOk(""); setBorrarA(u); } },
+  ];
 
   return (
-    <>
-      <div className="page-head">
-        <div>
-          <h1>Usuarios</h1>
-          <p>Administradores, supervisores y auditores con acceso al sistema.{!modoPruebas ? <> Para borrar usuarios de prueba, enciende el <Link to="/seguridad">modo pruebas</Link> en Seguridad.</> : null}</p>
+    <div className="pa-pagina us-pagina">
+      <h1 className="sr-only">Usuarios</h1>
+      <p className="sr-only" role="status" aria-live="polite">{anuncio}</p>
+
+      <div className="us-acciones">
+        {modoPruebas ? <button type="button" className="pa-boton chico suave mp-borrar" onClick={() => setBorrarTodos(true)}>Borrar a todos los asesores y supervisores…</button> : null}
+        <button type="button" className="pa-boton cabecera primario" onClick={() => { setOk(""); setDialogo({ tipo: "nuevo" }); }}><Icon name="mas" size={15} /><span>Nuevo usuario</span></button>
+      </div>
+
+      <div className="us-barra">
+        <div className="pa-busca">
+          <Icon name="buscar" size={16} />
+          <label className="sr-only" htmlFor="us-q">Buscar usuario, nombre o correo</label>
+          <input ref={entradaBusca} id="us-q" name="q" type="search" placeholder="Buscar usuario, nombre o correo…" autoComplete="off" spellCheck={false} maxLength={100}
+            value={texto} onChange={(e) => setTexto(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") fijarQ(texto); }} />
+          <kbd aria-hidden="true">Ctrl K</kbd>
         </div>
-        <div className="actions">
-          {modoPruebas ? <button className="btn ghost mp-borrar" onClick={() => setBorrarTodos(true)}>Borrar a todos los asesores y supervisores…</button> : null}
-          <button className="btn" onClick={() => { setNuevo(true); setOk(""); }}><Icon name="mas" size={17} />Nuevo usuario</button>
+        <div className="pa-seg" role="group" aria-label="Filtrar por rol">
+          {([["", "Todos"], ["AUDITOR", "Auditores"], ["SUPERVISOR", "Supervisores"], ["ADMINISTRADOR", "Administradores"]] as const).map(([v, et]) => (
+            <button key={v} type="button" className={rol === v ? "on" : ""} aria-pressed={rol === v} onClick={() => fijarRol(v)}>{et}</button>
+          ))}
         </div>
       </div>
+
       {error ? <div role="alert" className="error-box">{error}</div> : null}
       {ok ? <div role="status" className="callout ok">{ok}</div> : null}
 
-      <div className="filters">
-        <div className="fgroup grow"><label className="lbl" htmlFor="b-user">Buscar</label><input id="b-user" name="q" type="search" autoComplete="off" spellCheck={false} className="input" placeholder="Usuario, nombre o correo…" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} /></div>
-        <div className="fgroup"><span className="lbl">Rol</span>
-          <Seg label="Rol" value={rol} onChange={setRol} options={[{ value: "", label: "Todos" }, { value: "AUDITOR", label: "Auditores" }, { value: "SUPERVISOR", label: "Supervisores" }, { value: "ADMINISTRADOR", label: "Administradores" }]} />
-        </div>
-      </div>
-
-      {loading ? (
-        <div className="table-wrap" style={{ padding: 18 }}>{[0, 1, 2, 3, 4].map((i) => <Skeleton key={i} height={26} radius={8} style={{ display: "block", margin: "14px 0" }} />)}</div>
-      ) : !visibles.length ? (
-        <Empty tipo="busqueda" title="Sin usuarios" text="Ningún usuario coincide con la búsqueda." />
+      {cargando && !data.length ? (
+        <div className="pa-tarjeta" aria-busy="true"><div className="pa-esqueleto">{[0, 1, 2, 3, 4, 5].map((i) => <Skeleton key={i} height={44} radius={10} style={{ display: "block" }} />)}</div></div>
+      ) : !data.length ? (
+        <Empty tipo={hayFiltros ? "busqueda" : "vacio"} title="Sin usuarios" text={hayFiltros ? "Ningún usuario coincide con la búsqueda." : "Todavía no hay usuarios en esta empresa."}
+          action={hayFiltros ? <button type="button" className="btn ghost" onClick={limpiar}>Limpiar filtros</button> : undefined} />
       ) : (
-        <div className="table-wrap">
-          <table>
-            <thead><tr><th scope="col">Usuario</th><th scope="col">Rol</th><th scope="col">Zona de trabajo</th><th scope="col">Estado</th><th scope="col">Último acceso</th><th scope="col">Términos</th><th scope="col" style={{ width: 48 }}></th></tr></thead>
-            <tbody>
-              {visibles.map((u) => (
-                <tr key={u.id}>
-                  <td><div className="who-cell"><Avatar nombre={nombreDe(u) || u.username} /><div><b style={{ fontWeight: 500 }}>{nombreDe(u) || u.username}</b><span className="sub">@{u.username}</span></div></div></td>
-                  <td><Badge label={u.rol} /></td>
-                  <td><ZonaDeTrabajo u={u} /></td>
-                  <td><Badge label={u.estado} /></td>
-                  <td>{u.ultimo_acceso ? fechaHora(u.ultimo_acceso) : <span className="muted">Nunca</span>}</td>
-                  <td>{u.rol === "UNIVERSAL" ? <span className="muted">No aplica</span> : u.terminos ? <span className="state ok" title={`Aceptados desde ${u.terminos.plataforma === "MOVIL" ? "la app" : "el panel"}`}>v{u.terminos.version} · {fechaHora(u.terminos.fecha)}</span> : <span className="state warn">Pendientes</span>}</td>
-                  <td style={{ textAlign: "right" }}>
-                    <ActionMenu
-                      header={{ title: nombreDe(u) || u.username, sub: `@${u.username}` }}
-                      items={[
-                        { label: "Liberar dispositivo", hidden: u.rol === "ADMINISTRADOR", onClick: () => { if (window.confirm(`¿Liberar el dispositivo de @${u.username}? Podrá iniciar sesión desde otro teléfono.`)) accion(() => request(`/api/usuarios/${u.id}/device/reset`, { method: "POST" }), "Dispositivo liberado: podrá iniciar sesión desde otro teléfono."); } },
-                        { label: "Quitar casos…", hidden: u.rol !== "AUDITOR", onClick: () => { setQuitarCasosA(u); setOk(""); } },
-                        { label: "Ver jornadas", hidden: u.rol !== "AUDITOR", onClick: () => { setJornadasDe(u); setOk(""); } },
-                        { label: "Cambiar contraseña", onClick: () => { setClave(u); setNuevaClave(""); setOk(""); } },
-                        { label: "Restablecer verificación en dos pasos", onClick: () => { if (window.confirm(`¿Restablecer la verificación en dos pasos de @${u.username}? Tendrá que configurarla de nuevo.`)) accion(() => request(`/api/usuarios/${u.id}/mfa/reset`, { method: "POST" }), "Verificación en dos pasos restablecida."); } },
-                        u.estado === "ACTIVO"
-                          ? { label: "Desactivar usuario", tone: "bad", separatorBefore: true, onClick: () => { if (window.confirm(`¿Desactivar a @${u.username}? No podrá iniciar sesión y sus casos activos se liberan.`)) accion(() => request(`/api/usuarios/${u.id}`, { method: "PATCH", body: JSON.stringify({ estado: "INACTIVO" }) }), "Usuario desactivado."); } }
-                          : { label: "Activar usuario", separatorBefore: true, onClick: () => accion(() => request(`/api/usuarios/${u.id}`, { method: "PATCH", body: JSON.stringify({ estado: "ACTIVO" }) }), "Usuario activado.") },
-                        { label: "Eliminar definitivamente", tone: "bad", hidden: !modoPruebas || u.id === user?.id, onClick: () => setBorrarA(u) },
-                      ]}
-                    />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="pa-tarjeta" ref={tarjeta} aria-busy={cargando}>
+          <div className="pa-scroll">
+            <table className="pa-tabla us-tabla">
+              <caption className="sr-only">Usuarios con acceso al sistema</caption>
+              <colgroup><col style={{ width: "25%" }} /><col style={{ width: "12%" }} /><col style={{ width: "13%" }} /><col style={{ width: "8%" }} /><col style={{ width: "12.5%" }} /><col style={{ width: "23.5%" }} /><col style={{ width: "6%" }} /></colgroup>
+              <thead><tr><th scope="col">Usuario</th><th scope="col" className="c">Rol</th><th scope="col">Zona</th><th scope="col" className="c">Estado</th><th scope="col" className="c">Último acceso</th><th scope="col">Términos</th><th scope="col"><span className="sr-only">Acciones</span></th></tr></thead>
+              <tbody>
+                {data.map((u) => {
+                  const nombre = nombreDe(u); const r = ROL[u.rol]; const z = zonaDe(u); const acceso = ultimoAcceso(u.ultimo_acceso);
+                  return (
+                    <tr key={u.id}>
+                      <td><div className="us-quien"><span className="pa-avatar" aria-hidden="true">{iniciales(nombre)}</span><div><b>{nombre}</b><small translate="no">@{u.username}</small></div></div></td>
+                      <td className="c"><span className={`pa-pastilla ${r?.clase || "gris"}`}>{r?.etiqueta || u.rol}</span></td>
+                      <td className="us-zona"><span>{z.texto}</span>{z.sub ? <small>{z.sub}</small> : null}</td>
+                      <td className="c"><span className={`pa-pastilla ${u.estado === "ACTIVO" ? "ok" : "gris"}`}>{u.estado === "ACTIVO" ? "Activo" : "Inactivo"}</span></td>
+                      <td className="c" title={acceso.titulo}>{acceso.texto === "Nunca" ? <span className="us-nunca">Nunca</span> : acceso.texto}</td>
+                      <td>
+                        {u.rol === "UNIVERSAL" ? <span className="us-nunca">No aplica</span>
+                          : u.terminos ? <span className="pa-pastilla punto ok" title={`Aceptados desde ${u.terminos.plataforma === "MOVIL" ? "la app" : "el panel"}`}><i aria-hidden="true" />v{u.terminos.version} - {fechaHoraCorta(u.terminos.fecha)}</span>
+                          : <span className="pa-pastilla punto aviso"><i aria-hidden="true" />Pendiente</span>}
+                      </td>
+                      <td className="us-fin"><MenuFila etiqueta={`Acciones de ${nombre}`} encabezado={{ titulo: nombre, sub: `@${u.username}` }} opciones={opciones(u)} /></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <Paginador pagina={pagina} paginas={paginas} filas={filas} total={total} mostrados={data.length} tamanos={TAMANOS} onPagina={irPagina} onFilas={fijarFilas} />
         </div>
       )}
 
-      {quitarCasosA ? (
-        <QuitarCasosModal auditor={{ id: quitarCasosA.id, nombre: nombreDe(quitarCasosA) || quitarCasosA.username }} onClose={() => setQuitarCasosA(null)}
-          onHecho={(r) => { const u = quitarCasosA; setQuitarCasosA(null); setOk(`Se ${r.quitadas === 1 ? "quitó 1 caso" : `quitaron ${r.quitadas.toLocaleString("es-PE")} casos`} a @${u.username}.`); }} />
-      ) : null}
-      {borrarA ? <BorrarUsuarioModal usuario={borrarA} onClose={() => setBorrarA(null)} onHecho={() => { const u = borrarA; setBorrarA(null); setOk(`@${u.username} se borró por completo.`); cargar(); }} /> : null}
-      {borrarTodos ? <BorrarEmpleadosModal onClose={() => setBorrarTodos(false)} onHecho={() => { setBorrarTodos(false); setOk("Listo: se borraron los asesores y supervisores."); cargar(); }} /> : null}
+      {!modoPruebas ? <p className="us-ayuda">Para borrar usuarios de prueba, enciende el <Link to="/seguridad">modo pruebas</Link> en Seguridad.</p> : null}
 
-      {clave ? (
-        <Drawer title="Cambiar contraseña" subtitle={`@${clave.username} · mínimo 12 caracteres. Se cerrarán sus sesiones abiertas.`} onClose={() => setClave(null)}
-          footer={<><button className="btn ghost" onClick={() => setClave(null)}>Cancelar</button><button className="btn" type="submit" form="form-clave" disabled={saving}>{saving ? "Guardando…" : "Guardar contraseña"}</button></>}>
-          <form id="form-clave" onSubmit={cambiarClave}>
-            <Field label="Nueva contraseña"><input name="password" type="password" autoComplete="new-password" spellCheck={false} required minLength={12} maxLength={128} value={nuevaClave} onChange={(e) => setNuevaClave(e.target.value)} /></Field>
-          </form>
-        </Drawer>
+      {dialogo?.tipo === "nuevo" ? <NuevoUsuario prefijo={empresa?.prefijo} esUniversal={user?.rol === "UNIVERSAL"} onClose={() => setDialogo(null)} onCreado={hecho} /> : null}
+      {dialogo?.tipo === "clave" ? <CambiarClave usuario={dialogo.u} onClose={() => setDialogo(null)} onHecho={hecho} /> : null}
+      {dialogo?.tipo === "mfa" ? (
+        <ConfirmarAccion usuario={dialogo.u} icono="escudoOk" titulo="Restablecer verificación de dos pasos" subtitulo="Confirmación de seguridad" boton="Restablecer verificación"
+          pregunta={<>Se eliminará la configuración actual de verificación de dos pasos de {nombreDe(dialogo.u)}. El usuario deberá configurar de nuevo la verificación para proteger su cuenta.</>}
+          alerta={{ tono: "aviso", icono: "escudoOk", titulo: "Verifica su identidad antes de continuar", texto: "Confirma que la solicitud corresponde a esta persona antes de restablecer su verificación de dos pasos." }}
+          nota="Esta acción no cambia la contraseña del usuario."
+          ejecutar={async () => { await request(`/api/usuarios/${dialogo.u.id}/mfa/reset`, { method: "POST" }); return `Verificación en dos pasos de @${dialogo.u.username} restablecida.`; }}
+          onClose={() => setDialogo(null)} onHecho={hecho} />
+      ) : null}
+      {dialogo?.tipo === "dispositivo" ? (
+        <ConfirmarAccion usuario={dialogo.u} icono="celular" titulo="Liberar dispositivo" subtitulo="Confirma el cambio de celular" boton="Liberar dispositivo"
+          pregunta={<>¿Quieres liberar el dispositivo de {nombreDe(dialogo.u)}? Podrá iniciar sesión desde otro teléfono.</>}
+          nota="Esta acción no cambia su contraseña ni sus casos."
+          ejecutar={async () => { await request(`/api/usuarios/${dialogo.u.id}/device/reset`, { method: "POST" }); return "Dispositivo liberado: podrá iniciar sesión desde otro teléfono."; }}
+          onClose={() => setDialogo(null)} onHecho={hecho} />
+      ) : null}
+      {dialogo?.tipo === "desactivar" ? (
+        <ConfirmarAccion usuario={dialogo.u} icono="usuarioX" tono="peligro" titulo="Desactivar usuario" subtitulo="Confirma el cambio de acceso" boton="Desactivar usuario" botonPeligro
+          pregunta={<>¿Quieres desactivar la cuenta de {nombreDe(dialogo.u)}? El usuario dejará de tener acceso al sistema.</>}
+          alerta={{ tono: "mal", icono: "usuarioX", titulo: "Se impedirá su acceso", texto: `Se conservarán su historial y sus registros de auditoría. Desactivar la cuenta no elimina al usuario de forma permanente.${dialogo.u.rol === "AUDITOR" ? " Sus casos activos se liberan para que otro asesor los tome." : ""}` }}
+          ejecutar={async () => { await request(`/api/usuarios/${dialogo.u.id}`, { method: "PATCH", body: JSON.stringify({ estado: "INACTIVO" }) }); return `Usuario @${dialogo.u.username} desactivado.`; }}
+          onClose={() => setDialogo(null)} onHecho={hecho} />
+      ) : null}
+      {dialogo?.tipo === "activar" ? (
+        <ConfirmarAccion usuario={dialogo.u} icono="usuarioOk" titulo="Activar usuario" subtitulo="Confirma el cambio de acceso" boton="Activar usuario"
+          pregunta={<>¿Quieres activar la cuenta de {nombreDe(dialogo.u)}? El usuario podrá volver a iniciar sesión.</>}
+          ejecutar={async () => { await request(`/api/usuarios/${dialogo.u.id}`, { method: "PATCH", body: JSON.stringify({ estado: "ACTIVO" }) }); return `Usuario @${dialogo.u.username} activado.`; }}
+          onClose={() => setDialogo(null)} onHecho={hecho} />
       ) : null}
 
       {jornadasDe ? <JornadasDrawer usuario={{ id: jornadasDe.id, nombre: nombreDe(jornadasDe), username: jornadasDe.username }} onClose={() => setJornadasDe(null)} /> : null}
-
-      {nuevo ? (
-        <Drawer title="Nuevo usuario" subtitle="La contraseña debe tener al menos 12 caracteres." onClose={cerrarNuevo}
-          footer={<><button className="btn ghost" onClick={cerrarNuevo}>Cancelar</button><button className="btn" type="submit" form="form-usuario" disabled={saving}>{saving ? "Creando…" : "Crear usuario"}</button></>}>
-          <form id="form-usuario" onSubmit={crear}>
-            {empresa?.prefijo && form.rol !== "UNIVERSAL" ? (
-              // La abreviatura de la empresa va fija delante: el usuario escribe solo su parte (jorge → arq.jorge).
-              <Field label={"Usuario (quedará como " + empresa.prefijo + ".…)"}>
-                <div className="prefijo-fijo"><span translate="no" aria-hidden="true">{empresa.prefijo}.</span><input name="username" type="text" autoComplete="off" spellCheck={false} required autoCapitalize="none" value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} placeholder="jorge" /></div>
-              </Field>
-            ) : campo("username", "Usuario", "text", { required: true, autoCapitalize: "none" })}
-            {campo("password", "Contraseña", "password", { required: true, minLength: 12, autoComplete: "new-password", spellCheck: false })}
-            <Field label="Rol">
-              <select name="rol" value={form.rol} onChange={(e) => setForm({ ...form, rol: e.target.value })}><option value="AUDITOR">Auditor de campo</option><option value="SUPERVISOR">Supervisor</option><option value="ADMINISTRADOR">Administrador</option>{user?.rol === "UNIVERSAL" ? <option value="UNIVERSAL">Administrador universal (Sulotec)</option> : null}</select>
-            </Field>
-            {campo("nombres", "Nombres")}
-            {campo("apellidos", "Apellidos")}
-            {campo("email", "Correo electrónico", "email")}
-            {form.rol === "AUDITOR" ? <p className="subtle" style={{ marginTop: -2 }}>{AYUDA_ZONA}</p> : null}
-            <label className="check-inline" style={{ height: "auto", marginTop: 12, alignItems: "flex-start" }}>
-              <input type="checkbox" name="mfa_habilitado" checked={mfa} onChange={(e) => setMfa(e.target.checked)} style={{ marginTop: 3 }} />
-              <span>Exigir verificación en dos pasos (recomendado). En su primer ingreso configurará una app autenticadora.</span>
-            </label>
-          </form>
-        </Drawer>
+      {quitarCasosA ? (
+        <QuitarCasosModal auditor={{ id: quitarCasosA.id, nombre: nombreDe(quitarCasosA) }} onClose={() => setQuitarCasosA(null)}
+          onHecho={(r) => { const u = quitarCasosA; setQuitarCasosA(null); setOk(`Se ${r.quitadas === 1 ? "quitó 1 caso" : `quitaron ${r.quitadas.toLocaleString("es-PE")} casos`} a @${u.username}.`); }} />
       ) : null}
-    </>
+      {borrarA ? <BorrarUsuarioModal usuario={borrarA} onClose={() => setBorrarA(null)} onHecho={() => { const u = borrarA; setBorrarA(null); hecho(`@${u.username} se borró por completo.`); }} /> : null}
+      {borrarTodos ? <BorrarEmpleadosModal onClose={() => setBorrarTodos(false)} onHecho={() => { setBorrarTodos(false); hecho("Listo: se borraron los asesores y supervisores."); }} /> : null}
+    </div>
   );
 }

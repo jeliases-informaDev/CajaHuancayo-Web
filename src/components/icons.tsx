@@ -44,6 +44,17 @@ const PATHS: Record<string, React.ReactNode> = {
   alertaCirculo: <><circle cx="12" cy="12" r="8.5" /><path d="M12 7.5v5.5M12 16.2v.1" /></>,
   cambiar: <><path d="M4.5 9.5A8 8 0 0 1 18.2 6.8L19.5 8.2" /><path d="M19.5 4v4.2h-4.2" /><path d="M19.5 14.5A8 8 0 0 1 5.8 17.2L4.5 15.8" /><path d="M4.5 20v-4.2h4.2" /></>,
   planilla: <><path d="M7 3.5h6.5l5 5v10a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-13a2 2 0 0 1 2-2z" /><path d="M13.5 3.5v5h5" /><path d="M8.5 13h2M13 13h2.5M8.5 16.5h2M13 16.5h2.5" /></>,
+  llave: <><circle cx="8" cy="15.5" r="3.6" /><path d="M10.6 12.9L19.5 4M16.2 7.3l2.4 2.4M13.6 9.9l1.9 1.9" /></>,
+  escudoOk: <><path d="M12 3.5l7 2.5v5.6c0 4.1-2.9 7.5-7 8.9-4.1-1.4-7-4.8-7-8.9V6z" /><path d="M9 12l2.2 2.2L15.3 10" /></>,
+  usuarioX: <><circle cx="9.5" cy="8.5" r="3.3" /><path d="M3.5 19.5a6 6 0 0 1 12 0" /><path d="M16.6 8.6l4 4M20.6 8.6l-4 4" /></>,
+  usuarioMas: <><circle cx="9.5" cy="8.5" r="3.3" /><path d="M3.5 19.5a6 6 0 0 1 12 0" /><path d="M18.5 7.5v6M15.5 10.5h6" /></>,
+  usuarioOk: <><circle cx="9.5" cy="8.5" r="3.3" /><path d="M3.5 19.5a6 6 0 0 1 12 0" /><path d="M16.2 11l2 2 3.4-4" /></>,
+  ojo: <><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z" /><circle cx="12" cy="12" r="3" /></>,
+  ojoCerrado: <><path d="M4 4l16 16" /><path d="M10.7 5.7A9.6 9.6 0 0 1 12 5.5c6 0 9.5 6.5 9.5 6.5a16 16 0 0 1-3.1 3.9M6.4 7.6A15.7 15.7 0 0 0 2.5 12S6 18.5 12 18.5c1.5 0 2.8-.4 4-.9" /><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" /></>,
+  portapapeles: <><rect x="5" y="4.5" width="14" height="16.5" rx="2.6" /><path d="M9 4.5V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v.5" /><path d="M8.5 11h7M8.5 14.5h7M8.5 18h4" /></>,
+  celular: <><rect x="7" y="3" width="10" height="18" rx="2.4" /><path d="M11 17.8h2" /></>,
+  papelera: <path d="M4.5 7h15M9.5 7V4.5h5V7M6.5 7l.8 12.2a1.6 1.6 0 0 0 1.6 1.3h6.2a1.6 1.6 0 0 0 1.6-1.3L17.5 7M10 11v6M14 11v6" />,
+  tuerca: <><circle cx="12" cy="12" r="3" /><path d="M12 3.5v2.2M12 18.3v2.2M3.5 12h2.2M18.3 12h2.2M6 6l1.6 1.6M16.4 16.4L18 18M6 18l1.6-1.6M16.4 7.6L18 6" /></>,
 };
 
 export function Icon({ name, size = 20, className, strokeWidth = 1.7 }: { name: keyof typeof PATHS | string; size?: number; className?: string; strokeWidth?: number }) {

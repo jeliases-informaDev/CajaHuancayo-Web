@@ -29,8 +29,8 @@ const RUTAS: Record<string, { seccion: string; pantalla: string; nota?: string }
   seguimiento: { seccion: "Seguimiento en Vivo", pantalla: "Mapa", nota: "Filtra por zona para ver qué auditores y qué clientes hay en cada bloque geográfico. Elige un auditor para ver su ruta sugerida del día." },
   visitas: { seccion: "Operación", pantalla: "Visita", nota: "Verifica todas las visitas registradas en campo, con su ficha, evidencia y señales de verificación." },
   expedientes: { seccion: "Cartera", pantalla: "Expediente", nota: "Crea todos los expedientes con la información del cliente que los auditores tendrán que visitar." },
-  asignaciones: { seccion: "Operación", pantalla: "Asignaciones" },
-  usuarios: { seccion: "Administración", pantalla: "Usuarios" },
+  asignaciones: { seccion: "Operación", pantalla: "Asignaciones", nota: "Selecciona un auditor, elige los expedientes y revisa la carga antes de confirmar" },
+  usuarios: { seccion: "Administración", pantalla: "Usuarios", nota: "Administradores, supervisores y auditores con acceso al sistema" },
   empresas: { seccion: "Administración", pantalla: "Empresas" },
   seguridad: { seccion: "Administración", pantalla: "Seguridad" },
   privacidad: { seccion: "Cuenta", pantalla: "Privacidad" },
@@ -86,6 +86,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const marcaNombre = empresa?.marca?.nombre || empresa?.nombre_corto || (esUniversal ? "Sulotec" : "");
   const marcaProducto = empresa?.marca?.producto || "Auditoría de Visitas";
   const nombre = [user?.nombres, user?.apellidos].filter(Boolean).join(" ") || user?.username || "";
+  // Logo de la empresa: el que tenga en su marca (una dirección https) o, si no, el que está en /marca/<empresa>/icono.png; sin logo (o si no carga) se usa su sigla.
+  const logoUrl = empresa?.marca?.logo_url || (empresa?.slug ? `/marca/${empresa.slug}/icono.png` : "");
+  const [logoFalla, setLogoFalla] = useState("");
+  const logo = logoUrl && logoFalla !== logoUrl ? logoUrl : "";
   const porRevisar = resumen?.cola_revision.length || 0;
   const visibles = ENLACES.filter((e) => (e.universalOnly ? esUniversal : (esUniversal && !empresaElegida ? false : !e.adminOnly || esAdmin)));
 
@@ -103,8 +107,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       <a className="skip-link" href="#contenido">Saltar al contenido</a>
       <aside className="sidebar" aria-label="Navegación principal">
         <Link to={esUniversal && !empresaElegida ? "/empresas" : "/"} className="ws" aria-label={`${marcaProducto}, ${marcaNombre || "Sulotec"}. Ir al inicio`} translate="no">
-          <span className="ws-badge" aria-hidden="true">{siglas(marcaNombre || "Sulotec")}</span>
-          <span className="ws-mark" aria-hidden="true" />
+          {logo ? <img className="ws-logo" src={logo} alt="" width={44} height={44} onError={() => setLogoFalla(logo)} />
+            : <><span className="ws-badge" aria-hidden="true">{siglas(marcaNombre || "Sulotec")}</span><span className="ws-mark" aria-hidden="true" /></>}
           <div className="ws-texto"><b>{marcaNombre || "Sulotec"}</b><span>Panel de operaciones</span></div>
         </Link>
         {esUniversal ? <Link to="/empresas" className="empresa-actual" aria-label="Cambiar de empresa">{empresaElegida && empresa ? `Dentro de ${empresa.nombre}` : "Elige una empresa"}</Link> : null}
@@ -153,7 +157,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           <div className="top-spacer" />
           {ruta.nota ? <p className="top-nota">{ruta.nota}</p> : null}
         </header>
-        <main className={"page" + (partes[0] === "seguimiento" ? " page-mapa" : "")} id="contenido" tabIndex={-1}>{children}</main>
+        <main className={"page" + (partes[0] === "seguimiento" ? " page-mapa" : partes[0] === "asignaciones" ? " page-planner" : "")} id="contenido" tabIndex={-1}>{children}</main>
       </div>
       <Palette abierta={paleta} onClose={() => setPaleta(false)} esAdmin={esAdmin} />
     </div>
