@@ -61,3 +61,7 @@
 .jor-dur { color: var(--muted); }
 .jor-gps { font-size: 12px; }
 .jor-detalle .state { justify-self: start; }
+
+/* ---------- Sello de integridad del registro ---------- */
+.seg-sello-texto { margin: 0 0 10px; font-size: 13.5px; line-height: 1.5; color: var(--ink-2); }
+.seg-sello code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
