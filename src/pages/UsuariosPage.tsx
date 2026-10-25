@@ -21,7 +21,7 @@ import "../usuarios.css";
 // servidor (la búsqueda, el rol y la página viven en la URL), así que crece sin que nadie tenga que desplazarse por cientos de filas. Cada acción de la fila (⋯) abre su
 // ventana del diseño; lo que ya existía se conserva: liberar dispositivo, quitar casos, ver jornadas, activar y el borrado del modo pruebas.
 
-type Dialogo = null | { tipo: "nuevo" } | { tipo: "clave" | "desactivar" | "activar" | "mfa" | "dispositivo"; u: Usuario };
+type Dialogo = null | { tipo: "nuevo" } | { tipo: "clave" | "desactivar" | "activar" | "eliminar" | "mfa" | "dispositivo"; u: Usuario };
 
 export default function UsuariosPage() {
   const { user, empresa } = useAuth();
@@ -104,7 +104,9 @@ export default function UsuariosPage() {
     u.estado === "ACTIVO"
       ? { etiqueta: "Desactivar usuario", icono: "usuarioX", peligro: true, oculto: u.id === user?.id, onClick: () => { setOk(""); setDialogo({ tipo: "desactivar", u }); } }
       : { etiqueta: "Activar usuario", icono: "usuarioOk", onClick: () => { setOk(""); setDialogo({ tipo: "activar", u }); } },
-    { etiqueta: "Eliminar definitivamente", icono: "papelera", peligro: true, oculto: !modoPruebas || u.id === user?.id, onClick: () => { setOk(""); setBorrarA(u); } },
+    // «Eliminar» no borra nada de la base: la cuenta deja de verse en el panel (el servidor la marca ELIMINADO y conserva su historial). Borrar de verdad solo existe en modo pruebas.
+    { etiqueta: "Eliminar cuenta definitivamente", icono: "papelera", peligro: true, oculto: u.id === user?.id, onClick: () => { setOk(""); setDialogo({ tipo: "eliminar", u }); } },
+    { etiqueta: "Borrar de la base (solo pruebas)", icono: "papelera", peligro: true, oculto: !modoPruebas || u.id === user?.id, onClick: () => { setOk(""); setBorrarA(u); } },
   ];
 
   return (
@@ -197,6 +199,14 @@ export default function UsuariosPage() {
           pregunta={<>¿Quieres desactivar la cuenta de {nombreDe(dialogo.u)}? El usuario dejará de tener acceso al sistema.</>}
           alerta={{ tono: "mal", icono: "usuarioX", titulo: "Se impedirá su acceso", texto: `Se conservarán su historial y sus registros de auditoría. Desactivar la cuenta no elimina al usuario de forma permanente.${dialogo.u.rol === "AUDITOR" ? " Sus casos activos se liberan para que otro asesor los tome." : ""}` }}
           ejecutar={async () => { await request(`/api/usuarios/${dialogo.u.id}`, { method: "PATCH", body: JSON.stringify({ estado: "INACTIVO" }) }); return `Usuario @${dialogo.u.username} desactivado.`; }}
+          onClose={() => setDialogo(null)} onHecho={hecho} />
+      ) : null}
+      {dialogo?.tipo === "eliminar" ? (
+        <ConfirmarAccion usuario={dialogo.u} icono="papelera" tono="peligro" titulo="Eliminar cuenta" subtitulo="La cuenta dejará de verse en el panel" boton="Eliminar cuenta" botonPeligro
+          pregunta={<>¿Quieres eliminar la cuenta de {nombreDe(dialogo.u)}? Ya no aparecerá en el panel y no se podrá volver a activar desde aquí.</>}
+          alerta={{ tono: "mal", icono: "usuarioX", titulo: "No podrá entrar al sistema", texto: `Su historial, sus visitas y sus registros de auditoría se conservan.${dialogo.u.rol === "AUDITOR" ? " Sus casos activos se liberan para que otro asesor los tome." : ""} Si solo quieres quitarle el acceso por un tiempo, usa «Desactivar usuario»: sigue en la lista y se puede activar cuando quieras.` }}
+          nota="Su nombre de usuario queda reservado: no se podrá crear otra cuenta con el mismo."
+          ejecutar={async () => { await request(`/api/usuarios/${dialogo.u.id}`, { method: "DELETE" }); return `Cuenta de @${dialogo.u.username} eliminada.`; }}
           onClose={() => setDialogo(null)} onHecho={hecho} />
       ) : null}
       {dialogo?.tipo === "activar" ? (
