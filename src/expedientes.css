@@ -255,6 +255,7 @@
 :root[data-theme="dark"] .ex-calidad { background: var(--warn-wash); color: var(--warn); }
 .ex-liberar { padding: 12px 14px; border-radius: 10px; background: var(--ex-info-fondo); font-size: 13px; color: var(--ex-sec); }
 .ex-vacio-chico { margin: 0; padding: 18px 0; color: var(--ex-gris); font-size: 14px; }
+.ex-nota-chica { margin: 0 0 14px; font-size: 13px; line-height: 1.5; color: var(--ex-gris); }
 
 .ex-trabajando { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 34px 0 26px; text-align: center; }
 .ex-trabajando b { font-size: 15px; font-weight: 600; }

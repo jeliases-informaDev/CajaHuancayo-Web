@@ -4,14 +4,15 @@ import { useAuth } from "../../AuthContext";
 import { Icon } from "../icons";
 import Ventana from "./Ventana";
 
-// Plantillas de Excel para la carga masiva (diseño de Figma): Modelo Consumo y Modelo MYPE (mismas columnas básicas, cambia el tipo de las filas de ejemplo) y,
-// si la empresa la acepta, la base del core de 262 columnas. Debajo, cómo se completa cada columna. Solo se ofrece lo que la empresa tiene permitido.
+// Plantillas de Excel para la carga masiva: los dos modelos COMPLETOS (MYPE y Consumo) traen todas las columnas que pide la ficha de entrevista del banco, con los
+// mismos nombres del core; la carga rápida es solo lo mínimo para asignar y visitar (la ficha queda con los datos básicos). Debajo, cómo se completa la carga rápida.
+// Solo se ofrece lo que la empresa tiene permitido (los completos son el formato del core; la carga rápida, el formato simple).
 
 type Modelo = { clave: string; formato: "SIMPLE" | "CORE_262"; tipo?: "CONSUMO" | "OTROS"; titulo: string; detalle: string; archivo: string };
 const MODELOS: Modelo[] = [
-  { clave: "consumo", formato: "SIMPLE", tipo: "CONSUMO", titulo: "Modelo Consumo", detalle: "Mismas columnas básicas. Completa Tipo con «Consumo».", archivo: "plantilla-expedientes-simple-consumo.xlsx" },
-  { clave: "mype", formato: "SIMPLE", tipo: "OTROS", titulo: "Modelo MYPE", detalle: "Mismas columnas básicas. Completa Tipo con «MYPE».", archivo: "plantilla-expedientes-simple-mype.xlsx" },
-  { clave: "core", formato: "CORE_262", titulo: "Base del core (262 columnas)", detalle: "El mismo formato que exporta el core del banco, con la ficha completa. Pon las filas en una hoja llamada OTROS (MYPE) o CONSUMO.", archivo: "plantilla-expedientes-core_262.xlsx" },
+  { clave: "mype", formato: "CORE_262", tipo: "OTROS", titulo: "Modelo MYPE completo", detalle: "Las 262 columnas de la base del core: toda la ficha MYPE (historial, evaluación financiera, endeudamiento, cónyuge). Pon las filas en la hoja OTROS.", archivo: "plantilla-expedientes-core_262-mype.xlsx" },
+  { clave: "consumo", formato: "CORE_262", tipo: "CONSUMO", titulo: "Modelo Consumo completo", detalle: "Las 103 columnas de la ficha de Consumo: datos del cliente y del empleador, historial, endeudamiento, documento de sustento y los ingresos. Pon las filas en la hoja CONSUMO.", archivo: "plantilla-expedientes-core_262-consumo.xlsx" },
+  { clave: "rapida", formato: "SIMPLE", titulo: "Carga rápida (solo lo mínimo)", detalle: "16 columnas para asignar y visitar: cliente, dirección, asesor y monto. La ficha queda sin historial, evaluación ni endeudamiento. Completa Tipo con «Consumo» o «MYPE».", archivo: "plantilla-expedientes-simple.xlsx" },
 ];
 
 const COLUMNAS: { columna: string; tecnica: string; ejemplo: string; como: string }[] = [
@@ -42,9 +43,10 @@ export default function PlantillasModal({ onClose, onCargar }: { onClose: () => 
       nota={<>Después de completar el modelo, vuelve a <button type="button" className="ex-enlace en-linea" onClick={onCargar}>Cargar archivo</button> para validarlo.</>}
       acciones={<button type="button" className="ex-boton claro" onClick={onClose}>Cerrar</button>}>
       {error ? <div role="alert" className="error-box">{error}</div> : null}
+      <p className="ex-nota-chica">Para que la ficha del auditor salga completa usa un modelo completo. Si un crédito ya existe, volver a cargarlo con el modelo completo le agrega lo que faltaba (mientras nadie lo haya visitado).</p>
       <div className="ex-modelos">
         {modelos.map((m) => (
-          <article key={m.clave} className={`ex-modelo${m.formato === "CORE_262" ? " ancho" : ""}`}>
+          <article key={m.clave} className={`ex-modelo${m.formato === "SIMPLE" ? " ancho" : ""}`}>
             <h3><Icon name="planilla" size={26} />{m.titulo}</h3>
             <p>{m.detalle}</p>
             <button type="button" className="ex-boton claro" disabled={Boolean(bajando)} onClick={() => descargar(m)}><Icon name="descargar" size={17} />{bajando === m.clave ? "Descargando…" : "Descargar XLSX"}</button>
@@ -54,10 +56,10 @@ export default function PlantillasModal({ onClose, onCargar }: { onClose: () => 
       </div>
       {hayModeloSimple ? (
         <section className="ex-problemas" aria-label="Cómo completar las columnas">
-          <h3>Cómo completar las columnas</h3>
+          <h3>Cómo completar la carga rápida</h3>
           <div className="ex-tabla-caja ex-columnas">
             <table>
-              <caption className="sr-only">Cómo completar las columnas de los modelos Consumo y MYPE</caption>
+              <caption className="sr-only">Cómo completar las columnas de la carga rápida</caption>
               <thead><tr><th scope="col">Columna(s)</th><th scope="col">Ejemplo</th><th scope="col">Cómo rellenar</th></tr></thead>
               <tbody>{COLUMNAS.map((c) => <tr key={c.columna}><th scope="row">{c.columna}<small translate="no">{c.tecnica}</small></th><td>{c.ejemplo}</td><td>{c.como}</td></tr>)}</tbody>
             </table>
