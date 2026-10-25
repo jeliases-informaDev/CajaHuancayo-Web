@@ -94,7 +94,7 @@ export default function VisitasPage() {
 
   const exportar = async () => {
     setExportando(true); setErrorExportar("");
-    try { await descargarArchivo(`/api/visitas/exportar?${consultaApi(filtros, desfase).toString()}`, `visitas-${hoyLocal()}.csv`); }
+    try { await descargarArchivo(`/api/visitas/exportar?${consultaApi(filtros, desfase).toString()}`, `visitas-${hoyLocal()}.xlsx`); }
     catch (e: any) { setErrorExportar(e?.message || "No se pudo exportar. Intenta de nuevo."); }
     finally { setExportando(false); }
   };
@@ -134,7 +134,7 @@ export default function VisitasPage() {
         </div>
         <div className="vi-acciones">
           <button type="button" className="vi-boton" onClick={exportar} disabled={exportando || (!cargando && total === 0)} aria-busy={exportando}>
-            <Icon name="descargar" size={15} /><span>{exportando ? "Exportando…" : "Exportar"}</span>
+            <Icon name="descargar" size={15} /><span>{exportando ? "Exportando…" : "Exportar Excel"}</span>
           </button>
           <FiltrosVisitas filtros={filtros} conteos={conteos} auditores={auditores}
             onAplicar={(f) => fijarFiltros(f)} onLimpiar={() => fijarFiltros({ resultado: [], tipo: [], desde: "", hasta: "", auditor: "", alertas: false })} />
