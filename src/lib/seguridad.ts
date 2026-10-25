@@ -27,6 +27,12 @@ export type Metricas = {
   cuentas_bloqueadas: number; retencion_dias: number; postura: { oficina_total: number; oficina_con_mfa: number; cuentas_sin_entrar_30d: number };
 };
 
+// Resultado de verificar el sello de integridad del registro (cadena de huellas): intacto, o dónde y por qué se rompió.
+export type Integridad = {
+  ok: boolean; revisadas: number; desde: number | null; hasta: number | null; rotura?: { secuencia: number | null; motivo: string; detalle: string };
+  sello_actual: string | null; fecha_cabeza: string | null; sin_sellar: number; verificado_en: string;
+};
+
 // Filtros del registro: viven en la URL (se pueden compartir y sobreviven a recargar). Las fechas son días locales (AAAA-MM-DD).
 export type Filtros = { q: string; categoria: string; severidad: string; resultado: string; desde: string; hasta: string; cambios: boolean; actor: string; accion: string };
 export const SIN_FILTROS: Filtros = { q: "", categoria: "", severidad: "", resultado: "", desde: "", hasta: "", cambios: false, actor: "", accion: "" };

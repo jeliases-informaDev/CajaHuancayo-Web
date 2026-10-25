@@ -5,7 +5,7 @@ import { Icon } from "../components/icons";
 import { ModoPruebasTarjeta } from "../components/limpieza";
 import { AvisosSeguridad, ExportarModal, FiltrosRegistro, MetricasSeguridad, TablaRegistro } from "../components/seguridad";
 import { useQueryParam } from "../lib/useQueryParam";
-import { SIN_FILTROS, consultaDe, diaLocal, hayFiltros, textoRetencion, type Aviso, type Filtros, type Metricas, type Registro } from "../lib/seguridad";
+import { SIN_FILTROS, consultaDe, diaLocal, hayFiltros, textoRetencion, type Aviso, type Filtros, type Integridad, type Metricas, type Registro } from "../lib/seguridad";
 
 type Pagina = { data: Registro[]; siguiente: string | null; total?: number; total_es_minimo?: boolean };
 
@@ -46,6 +46,18 @@ export default function SeguridadPage() {
     } catch (e: any) { setErrorResumen(e.message || "No se pudieron leer las cifras de seguridad."); }
   }, [ventana]);
   useEffect(() => { resumen(); }, [resumen]);
+
+  // ---------------------------------------------------------------- sello de integridad (cadena de huellas del registro)
+  const [integridad, setIntegridad] = useState<Integridad | null>(null);
+  const [verificandoSello, setVerificandoSello] = useState(false);
+  const [errorSello, setErrorSello] = useState("");
+  const verificarSello = async () => {
+    setVerificandoSello(true); setErrorSello("");
+    try { setIntegridad((await request<{ data: Integridad }>("/api/seguridad/integridad?ultimas=10000")).data); }
+    catch (e: any) { setErrorSello(e.message || "No se pudo verificar el sello."); }
+    finally { setVerificandoSello(false); }
+  };
+  const cifra = (x: number | null | undefined) => (x ?? 0).toLocaleString("es-PE");
 
   // ---------------------------------------------------------------- el registro, por páginas con cursor
   const [filas, setFilas] = useState<Registro[]>([]);
@@ -102,6 +114,25 @@ export default function SeguridadPage() {
       {errorResumen ? <div role="alert" className="error-box">{errorResumen}</div> : null}
       <MetricasSeguridad metricas={metricas} ventana={ventana} onVentana={setVentana} cargando={!errorResumen && !metricas} />
       <AvisosSeguridad avisos={avisos} cargando={!errorResumen && !avisos} onVer={verAviso} />
+
+      <section className="section seg-sello" aria-labelledby="seg-sello-t">
+        <div className="section-head">
+          <h2 id="seg-sello-t">Sello de integridad</h2>
+          <button type="button" className="btn quiet" onClick={verificarSello} disabled={verificandoSello} aria-busy={verificandoSello}>{verificandoSello ? "Verificando…" : "Verificar ahora"}</button>
+        </div>
+        <p className="seg-sello-texto">Cada anotación lleva una huella encadenada con la anterior. Si alguien modifica, borra o inserta una anotación directamente en la base de datos, la cadena se rompe y aquí se ve.</p>
+        {integridad ? (integridad.ok ? (
+          <div role="status" className="callout ok">
+            <b>Intacto.</b> Las últimas {cifra(integridad.revisadas)} anotaciones (n.° {cifra(integridad.desde)} a {cifra(integridad.hasta)}) coinciden con sus sellos
+            {integridad.sin_sellar ? `; ${cifra(integridad.sin_sellar)} anotaciones antiguas siguen sin sellar y se sellan solas` : ""}. Sello actual: <code translate="no">{integridad.sello_actual?.slice(0, 16)}…</code> · verificado a las {new Date(integridad.verificado_en).toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit" })}.
+          </div>
+        ) : (
+          <div role="alert" className="error-box">
+            <b>Cadena rota en la anotación n.° {integridad.rotura?.secuencia ?? "?"}:</b> {integridad.rotura?.detalle}. Alguien tocó el registro fuera del sistema: exporta el registro y avisa al responsable de seguridad.
+          </div>
+        )) : null}
+        {errorSello ? <div role="alert" className="error-box">{errorSello}</div> : null}
+      </section>
 
       <div id="modo-pruebas"><ModoPruebasTarjeta /></div>
 
