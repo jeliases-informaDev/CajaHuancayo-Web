@@ -200,8 +200,10 @@
 /* ---------- Ventana «Asignaciones» ---------- */
 .as-lista-cab { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px 16px; }
 .as-lista-tarjeta { box-shadow: 0 0 0 1px var(--pa-linea); }
+/* La tabla baja por dentro (con los títulos fijos) y el paginador queda siempre a la vista debajo; 380px = lo que ocupan cabecera, filtros, paginador y pie de la ventana. */
+.as-lista-tarjeta .pa-scroll { max-height: max(240px, calc(100vh - 380px)); overflow-y: auto; overscroll-behavior: contain; }
 .as-lista-tabla { min-width: 760px; }
-.as-lista-tabla th { height: 46px; font-size: 11.5px; }
+.as-lista-tabla th { position: sticky; top: 0; z-index: 1; background: var(--pa-card); border-bottom: 0; box-shadow: inset 0 -1px 0 var(--pa-linea); height: 46px; font-size: 11.5px; }
 .as-lista-tabla th:first-child { padding-left: 20px; }
 .as-lista-tabla td { height: 64px; font-size: 13.5px; }
 .as-lista-tabla td:first-child { padding-left: 20px; }
