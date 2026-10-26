@@ -49,12 +49,12 @@ export default function PrivacyPage() {
         <p>
           Los datos se conservan mientras dure la relación de Informa Perú con {cliente} para este
           servicio. Un usuario puede solicitar la eliminación de su cuenta y de sus datos personales
-          asociados escribiendo a <a href="mailto:serviciosdigitales@informaperu.com">serviciosdigitales@informaperu.com</a>.
+          asociados escribiendo a <a href="mailto:servicioalcliente@informaperu.com">servicioalcliente@informaperu.com</a>.
         </p>
 
         <h2>Contacto</h2>
         <p>
-          Informa Perú — <a href="mailto:serviciosdigitales@informaperu.com">serviciosdigitales@informaperu.com</a>
+          Informa Perú — <a href="mailto:servicioalcliente@informaperu.com">servicioalcliente@informaperu.com</a>
         </p>
         <p style={{ marginTop: 28 }}><Link to="/" className="btn ghost"><Icon name="volver" size={16} />Volver al panel</Link></p>
       </div>

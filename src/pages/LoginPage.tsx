@@ -161,7 +161,7 @@ export default function LoginPage() {
           {ssoActivo && !challenge ? <a className="login-sso" href="/sso">Entrar con mi cuenta Sulotec</a> : null}
           <div className="login-foot">
             <a className="privacidad" href="/privacidad">Política de privacidad</a>
-            <a className="soporte" href="mailto:serviciosdigitales@informaperu.com">Soporte: serviciosdigitales@informaperu.com</a>
+            <a className="soporte" href="mailto:servicioalcliente@informaperu.com">Soporte: servicioalcliente@informaperu.com</a>
           </div>
         </form>
       </div>
