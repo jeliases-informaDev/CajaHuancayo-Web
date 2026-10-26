@@ -1,6 +1,7 @@
 {
   "empresa": "Caja Huancayo",
   "producto": "Auditoria de Visitas",
+  "logo": "/marca/caja-huancayo/completo.png",
   "titular": ["Cada visita,", "comprobada", "en campo"],
   "chips": ["Ubicación en tiempo real", "KPI e Información al instante"],
   "titulo": "Inicia Sesion",

@@ -35,6 +35,8 @@
 
 .login-hero .brand { position: absolute; left: calc(var(--brand-x) * var(--u)); top: calc(var(--brand-y) * var(--u)); display: flex; align-items: flex-start; gap: calc(var(--brand-gap) * var(--u)); z-index: 3; }
 .login-hero .marca-cuadro { width: calc(45 * var(--u)); height: calc(45 * var(--u)); border-radius: calc(9 * var(--u)); background: linear-gradient(135deg, #3046c8 0%, #f90206 100%); flex-shrink: 0; }
+/* Logo de la empresa (login.json → logo): a la altura del cuadro, con el nombre del producto al lado. */
+.login-hero .marca-logo { height: calc(45 * var(--u)); width: auto; flex-shrink: 0; }
 .login-hero .brand-texto { margin-top: calc(8.5 * var(--u)); line-height: 1.25; }
 .login-hero .brand-texto b { display: block; font-weight: 600; font-size: max(11px, calc(15 * var(--u))); color: #242424; white-space: nowrap; }
 .login-hero .brand-texto span { display: block; font-weight: 500; font-size: max(10px, calc(10 * var(--u))); color: #596a92; white-space: nowrap; }
@@ -118,6 +120,7 @@
   .login-card { --uf: 1px; width: min(387px, 100%); margin-top: 0; }
   .login-mobile-brand { display: flex; align-items: center; gap: 9px; margin-bottom: 36px; }
   .login-mobile-brand .marca-cuadro { width: 45px; height: 45px; border-radius: 9px; background: linear-gradient(135deg, #3046c8 0%, #f90206 100%); }
+  .login-mobile-brand .marca-logo { height: 40px; width: auto; }
   .login-mobile-brand b { display: block; font-weight: 600; font-size: 15px; color: #242424; }
   .login-mobile-brand span { display: block; font-weight: 500; font-size: 10px; color: #596a92; }
   .login-title { font-size: 32px; line-height: 40px; }
