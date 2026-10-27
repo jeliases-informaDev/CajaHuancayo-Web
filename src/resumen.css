@@ -136,3 +136,88 @@
   .rs-avance, .rs-distritos { padding: 22px 18px; }
   .rs-saludo { margin-left: 0; font-size: 22px; }
 }
+
+/* ---------- Tramo común, indicador en vivo y variación de las tarjetas ---------- */
+/* Colores de las categorías de las visitas: los usan la barra de cada auditor y la leyenda del ranking. */
+:root { --c-conforme: #2f9e6a; --c-observado: #e0a82e; --c-noubicado: #8d94b3; --c-rechazado: #cf4a5f; }
+.rs-periodo select { width: 190px; }
+.rs-tramo { margin: -12px 0 20px 13px; font-size: 13px; line-height: 1.4; color: var(--muted); }
+.rs-vivo { display: inline-flex; align-items: center; gap: 8px; height: 34px; padding: 0 13px; border-radius: 7px; background: var(--surface); box-shadow: 0 1px 2px rgba(60, 70, 130, 0.3), 0 0 0 1px rgba(60, 70, 130, 0.06); font-size: 13px; color: var(--muted); white-space: nowrap; }
+.rs-vivo i { width: 8px; height: 8px; border-radius: 50%; background: var(--faint); flex-shrink: 0; }
+.rs-vivo[data-estado="vivo"] { color: var(--ink-2); }
+.rs-vivo[data-estado="vivo"] i { background: var(--ok); animation: rs-pulso 2.4s ease-out infinite; }
+@keyframes rs-pulso { 0% { box-shadow: 0 0 0 0 rgba(12, 133, 89, 0.45); } 70% { box-shadow: 0 0 0 7px rgba(12, 133, 89, 0); } 100% { box-shadow: 0 0 0 0 rgba(12, 133, 89, 0); } }
+@media (prefers-reduced-motion: reduce) { .rs-vivo[data-estado="vivo"] i { animation: none; } }
+
+.rs-kpi { transition: transform 0.12s ease, box-shadow 0.15s ease, opacity 0.2s ease; }
+.rs-kpi.cargando { opacity: 0.55; }
+.rs-kpi em { display: block; margin-top: 7px; max-width: 100%; font-style: normal; font-size: 10.5px; line-height: 1.35; letter-spacing: 0; text-transform: none; color: var(--muted); }
+.rs-var { display: inline-block; margin-top: 7px; padding: 1px 8px; border-radius: 999px; font-style: normal; font-size: 11.5px; font-weight: 600; letter-spacing: 0; text-transform: none; line-height: 1.5; white-space: nowrap; }
+.rs-var.sube { color: var(--ok); background: var(--ok-wash); }
+.rs-var.baja { color: var(--bad); background: var(--bad-wash); }
+.rs-var.sube.mal { color: var(--bad); background: var(--bad-wash); }
+.rs-var.baja.mal { color: var(--ok); background: var(--ok-wash); }
+.rs-var.nuevo { color: var(--brand); background: var(--brand-soft); }
+.rs-var.igual, .rs-var.nada { color: var(--muted); background: var(--sunken); }
+.rs-rank .rs-var { margin-top: 0; }
+
+/* ---------- Ranking de auditores ---------- */
+.rs-ranking { margin-top: 26px; padding: 26px 28px 22px; }
+.rs-ranking .rs-cab { padding-left: 4px; align-items: flex-start; flex-wrap: wrap; row-gap: 10px; }
+.rs-rank-resumen { display: flex; flex-direction: column; align-items: flex-end; text-align: right; max-width: 460px; }
+.rs-rank-resumen b { font-size: 28px; font-weight: 600; line-height: 1.1; color: var(--tinta); font-variant-numeric: tabular-nums; }
+.rs-rank-resumen span { margin-top: 3px; font-size: 12px; line-height: 1.35; color: var(--gris-d); }
+.rs-rank-leyenda { display: flex; flex-wrap: wrap; gap: 8px 26px; margin: 18px 4px 6px; padding: 0; list-style: none; }
+.rs-rank-leyenda li { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; color: var(--gris-d); }
+.rs-rank-leyenda li::before { content: ""; width: 10px; height: 10px; border-radius: 3px; background: var(--c); }
+.rs-rank-leyenda b { font-size: 13.5px; font-weight: 600; color: var(--tinta); }
+.rs-rank-scroll { overflow-x: auto; margin: 8px -4px 0; padding: 0 4px; }
+.rs-rank { width: 100%; min-width: 940px; border-collapse: collapse; }
+.rs-rank th { padding: 10px 6px; border-bottom: 1px solid var(--line); font-size: 10.5px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: #898989; text-align: right; white-space: nowrap; }
+.rs-rank th:nth-child(2), .rs-rank th:nth-child(3) { text-align: left; }
+.rs-rank th i { display: inline-block; width: 8px; height: 8px; margin-right: 6px; border-radius: 2px; background: var(--c); }
+.rs-rank td { height: 56px; padding: 9px 6px; border-bottom: 1px solid var(--line); font-size: 15px; font-variant-numeric: tabular-nums; color: var(--ink); text-align: right; vertical-align: middle; }
+.rs-rank td:nth-child(2), .rs-rank td:nth-child(3) { text-align: left; }
+.rs-rank td:first-child, .rs-rank th:first-child { width: 44px; text-align: center; }
+.rs-rank tr.sin td { opacity: 0.6; }
+.rs-rank td.cero { color: var(--faint); }
+.rs-rank td:nth-child(n+4) { white-space: nowrap; }
+.rs-rank td.rs-rank-tipo { color: var(--ink-2); }
+.rs-rank td.rs-rank-tipo.cero { color: var(--faint); }
+.rs-pos { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%; font-size: 13px; font-weight: 600; color: var(--gris-d); background: var(--sunken); }
+.rs-pos[data-top="1"] { color: #6b4a00; background: #fbe08a; }
+.rs-pos[data-top="2"] { color: #3d4559; background: #dfe3ee; }
+.rs-pos[data-top="3"] { color: #6a3b17; background: #f1c9a5; }
+.rs-rank-quien { display: flex; align-items: center; gap: 11px; min-width: 170px; }
+.rs-rank-quien b { display: block; font-size: 14.5px; font-weight: 600; color: var(--tinta); }
+.rs-rank-quien i { display: block; font-size: 12px; font-style: normal; color: var(--gris-d); }
+.rs-rank-visitas { display: flex; align-items: center; gap: 10px; min-width: 170px; }
+.rs-rank-visitas b { min-width: 34px; font-size: 17px; font-weight: 600; color: var(--tinta); }
+.rs-rank-pista { flex: 1; min-width: 70px; }
+.rs-rank-barra { display: flex; gap: 2px; height: 10px; }
+.rs-rank-barra i { display: block; height: 100%; min-width: 4px; border-radius: 5px; }
+.rs-rank-var { white-space: nowrap; }
+.rs-nivel { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap; color: var(--muted); background: var(--sunken); }
+.rs-nivel[data-nivel="DESTACADO"] { color: var(--ok); background: var(--ok-wash); }
+.rs-nivel[data-nivel="BAJO"] { color: var(--warn); background: var(--warn-wash); }
+.rs-rank-mas { display: block; margin: 14px auto 0; padding: 7px 16px; border: 1px solid var(--line-2); border-radius: 8px; background: transparent; font: inherit; font-size: 13.5px; font-weight: 500; color: var(--brand); cursor: pointer; }
+.rs-rank-mas:hover { background: var(--brand-soft); }
+.rs-ranking .rs-nota { margin: 16px 4px 0; }
+/* La tabla se adapta al ancho de su tarjeta (no al de la pantalla: con la barra lateral abierta queda menos espacio): primero se quita «Vs. ant.», luego MYPE y Consumo; las categorías de resultado se quedan siempre. */
+.rs-ranking { container-type: inline-size; }
+@container (max-width: 1000px) {
+  .rs-rank { min-width: 880px; }
+  .rs-rank th:nth-child(11), .rs-rank td:nth-child(11) { display: none; }
+  .rs-rank-quien, .rs-rank-visitas { min-width: 150px; }
+}
+@container (max-width: 780px) {
+  .rs-rank { min-width: 720px; }
+  .rs-rank th:nth-child(8), .rs-rank td:nth-child(8), .rs-rank th:nth-child(9), .rs-rank td:nth-child(9) { display: none; }
+}
+@media (max-width: 760px) {
+  .rs-periodo select { width: 150px; }
+  .rs-periodo label { min-width: 0; }
+  .rs-ranking { padding: 20px 14px 18px; }
+  .rs-rank-resumen { align-items: flex-start; text-align: left; }
+  .rs-tramo { margin-left: 0; }
+}

@@ -214,6 +214,9 @@ function controlesDe(visita: any, esMype: boolean) {
     llegoAlCliente
       ? visita.firma_evidencia ? { tone: "ok", title: "Firma del cliente", detail: visita.firmante_documento ? `Documento ${visita.firmante_documento}` : "Registrada" } : { tone: "bad", title: "Falta la firma", detail: "No se registró la firma del cliente" }
       : { tone: "na", title: "Firma del cliente", detail: "No aplica: no se llegó al cliente" },
+    visita.firma_auditor
+      ? { tone: "ok", title: "Firma del auditor", detail: "Cerró su trabajo con su firma" }
+      : { tone: "na", title: "Firma del auditor", detail: "Sin firma: la visita se hizo con una versión anterior de la app" },
     llegoAlCliente
       ? tresRespuestas ? { tone: "ok", title: "Cuestionario completo", detail: "Las 3 preguntas obligatorias respondidas" } : { tone: "bad", title: "Cuestionario incompleto", detail: "Faltan preguntas obligatorias" }
       : { tone: "na", title: "Cuestionario", detail: "No aplica: no se llegó al cliente" },
@@ -280,6 +283,13 @@ function Evidencias({ visita }: { visita: any }) {
         <div className="railblock">
           <span className="lbl">Firma del cliente</span>
           <div className="signature"><img src={visita.firma_evidencia} alt="Firma del cliente" width={520} height={260} /></div>
+        </div>
+      ) : null}
+
+      {visita.firma_auditor ? (
+        <div className="railblock">
+          <span className="lbl">Firma del auditor de campo</span>
+          <div className="signature"><img src={visita.firma_auditor} alt="Firma del auditor de campo" width={520} height={260} /></div>
         </div>
       ) : null}
 

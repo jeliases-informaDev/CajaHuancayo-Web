@@ -8,6 +8,7 @@ import Palette from "./Palette";
 import { useRail, useTheme, type Tema } from "../lib/theme";
 import { olvidarResumen, useResumen } from "../lib/resumen";
 import { olvidarModoPruebas, useModoPruebas } from "../lib/limpieza";
+import { PRODUCTO, tituloDe } from "../lib/producto";
 
 type Enlace = { universalOnly?: boolean; to: string; label: string; icon: string; end?: boolean; adminOnly?: boolean };
 // Las secciones van en una sola lista, sin títulos de grupo (diseño de Figma). El orden es el de los íconos de la barra compacta.
@@ -37,12 +38,6 @@ const RUTAS: Record<string, { seccion: string; pantalla: string; nota?: string }
 };
 const ROL: Record<string, string> = { ADMINISTRADOR: "Administrador", SUPERVISOR: "Supervisor", UNIVERSAL: "Administrador universal" };
 const TEMAS: { id: Tema; label: string; icon: string }[] = [{ id: "light", label: "Claro", icon: "sol" }, { id: "dark", label: "Oscuro", icon: "luna" }, { id: "auto", label: "Sistema", icon: "auto" }];
-
-// «Caja Huancayo» o «CajaHuancayo» → «CH»; un nombre de una sola palabra → sus dos primeras letras.
-const siglas = (nombre: string) => {
-  const mayusculas = nombre.match(/[A-ZÁÉÍÓÚÑ]/g);
-  return (mayusculas && mayusculas.length >= 2 ? mayusculas.slice(0, 2).join("") : nombre.replace(/\s+/g, "").slice(0, 2)).toUpperCase();
-};
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const { user, empresa, empresaElegida, logout } = useAuth();
@@ -84,12 +79,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const { activo: modoPruebas } = useModoPruebas(esAdmin);
   // Marca que ve el usuario: la de su empresa (o la elegida por el universal); sin empresa, la de la plantilla.
   const marcaNombre = empresa?.marca?.nombre || empresa?.nombre_corto || (esUniversal ? "Sulotec" : "");
-  const marcaProducto = empresa?.marca?.producto || "Auditoría de Visitas";
+  const marcaProducto = PRODUCTO; // el producto es siempre GeoMatrix; lo que cambia es el nombre de la empresa
   const nombre = [user?.nombres, user?.apellidos].filter(Boolean).join(" ") || user?.username || "";
-  // Logo de la empresa: el que tenga en su marca (una dirección https) o, si no, el que está en /marca/<empresa>/icono.png; sin logo (o si no carga) se usa su sigla.
-  const logoUrl = empresa?.marca?.logo_url || (empresa?.slug ? `/marca/${empresa.slug}/icono.png` : "");
-  const [logoFalla, setLogoFalla] = useState("");
-  const logo = logoUrl && logoFalla !== logoUrl ? logoUrl : "";
+  // Pestaña del navegador: «GeoMatrix – empresa».
+  useEffect(() => { document.title = tituloDe(marcaNombre); }, [marcaNombre]);
   const porRevisar = resumen?.cola_revision.length || 0;
   const visibles = ENLACES.filter((e) => (e.universalOnly ? esUniversal : (esUniversal && !empresaElegida ? false : !e.adminOnly || esAdmin)));
 
@@ -107,9 +100,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       <a className="skip-link" href="#contenido">Saltar al contenido</a>
       <aside className="sidebar" aria-label="Navegación principal">
         <Link to={esUniversal && !empresaElegida ? "/empresas" : "/"} className="ws" aria-label={`${marcaProducto}, ${marcaNombre || "Sulotec"}. Ir al inicio`} translate="no">
-          {logo ? <img className="ws-logo" src={logo} alt="" width={44} height={44} onError={() => setLogoFalla(logo)} />
-            : <><span className="ws-badge" aria-hidden="true">{siglas(marcaNombre || "Sulotec")}</span><span className="ws-mark" aria-hidden="true" /></>}
-          <div className="ws-texto"><b>{marcaNombre || "Sulotec"}</b><span>Panel de operaciones</span></div>
+          <img className="ws-logo" src="/marca/geomatrix/icono-512.png" alt="" width={44} height={44} />
+          <div className="ws-texto"><b>{marcaProducto}</b><span>{marcaNombre || "Sulotec"}</span></div>
         </Link>
         {esUniversal ? <Link to="/empresas" className="empresa-actual" aria-label="Cambiar de empresa">{empresaElegida && empresa ? `Dentro de ${empresa.nombre}` : "Elige una empresa"}</Link> : null}
         <nav className="side-nav" aria-label="Secciones">

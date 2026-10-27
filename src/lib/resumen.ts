@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import { getEmpresaElegida, request } from "../api";
+import { cerrarTiempoReal, EVENTOS_RESUMEN, revisarConexion, suscribir } from "./tiempoReal";
 
-// El resumen de la muestra lo usan el tablero, el menú lateral (cuántas visitas esperan revisión) y los
-// filtros de varias pantallas. Se pide una sola vez y se comparte; se refresca cada minuto mientras haya alguien mirando.
+// El resumen de la muestra lo usan el tablero, el menú lateral (cuántas visitas esperan revisión) y los filtros de varias pantallas. Se pide una
+// sola vez y se comparte. Se mantiene al día en vivo: cuando el servidor avisa que cambió algo (visita registrada, muestra cambiada, expedientes
+// cargados) se vuelve a pedir, y además cada 30 s mientras la pestaña se vea (respaldo si se corta la conexión).
 // A dónde van los asesores: por distrito, las visitas hechas y los casos asignados de los últimos 30 días (más visitas primero).
 export type DistritoActividad = { distrito: string; visitas: number; asignados: number };
 export type Resumen = {
@@ -15,12 +17,31 @@ export type Resumen = {
   cola_revision: { id_visita: number; resultado: string; fecha: string; cliente: string; codigo: string; tipo_credito: string; auditor: string; motivos: string[] }[];
 };
 
+// Mantiene al día una consulta. La repite (1) cuando el servidor avisa de un cambio, varios avisos seguidos valen por una sola consulta; (2) cada `cada` ms
+// mientras la pestaña se vea; y (3) al volver a la pestaña o recuperar la red. Devuelve la función que lo detiene.
+function mantenerAlDia(refrescar: () => void, cada: number) {
+  let espera = 0;
+  const pronto = () => { window.clearTimeout(espera); espera = window.setTimeout(refrescar, 600); };
+  const baja = suscribir(EVENTOS_RESUMEN, pronto);
+  const reloj = window.setInterval(() => { revisarConexion(); if (!document.hidden) refrescar(); }, cada);
+  const visible = () => { if (!document.hidden) { revisarConexion(); refrescar(); } };
+  document.addEventListener("visibilitychange", visible);
+  window.addEventListener("online", visible);
+  return () => {
+    baja();
+    window.clearTimeout(espera);
+    window.clearInterval(reloj);
+    document.removeEventListener("visibilitychange", visible);
+    window.removeEventListener("online", visible);
+  };
+}
+
 let cache: Resumen | null = null;
 let error = "";
 let enVuelo: Promise<void> | null = null;
 let ultima = 0;
-const oyentes = new Set<() => void>();
-const avisar = () => oyentes.forEach((f) => f());
+const oyentesResumen = new Set<() => void>();
+const avisar = () => oyentesResumen.forEach((f) => f());
 
 function cargar(forzar = false) {
   if (enVuelo) return enVuelo;
@@ -32,62 +53,90 @@ function cargar(forzar = false) {
   return enVuelo;
 }
 
-// Gráfico del Resumen: cada tarjeta dibuja su serie (expedientes cargados, asignaciones hechas, visitas y visitas observadas) por día, semana o mes.
+// Tablero del Resumen: las cuatro series (expedientes cargados, asignaciones hechas, visitas y visitas observadas), los resultados y el ranking de auditores
+// de UN mismo tramo (7 días, 8 semanas o 6 meses terminando en el día elegido). Tarjetas, gráfico y ranking salen de esta misma respuesta, por eso coinciden.
 // El servidor cuenta con los días del usuario: se le manda su desfase horario.
 export type Periodo = "diario" | "semanal" | "mensual";
 export type Metrica = "expedientes" | "asignaciones" | "visitas" | "observados";
 export type Actividad = { metrica: Metrica; periodo: Periodo; desde: string; hasta: string; total: number; puntos: { inicio: string; fin: string; total: number }[] };
+export type SerieTablero = { total: number; anterior: number; puntos: { inicio: string; fin: string; total: number }[] };
+export type ResultadoVisita = "CONFORME" | "OBSERVADO" | "NO_UBICADO" | "RECHAZADO";
+export type NivelAuditor = "DESTACADO" | "PROMEDIO" | "BAJO" | "SIN_VISITAS";
+export type FilaRanking = {
+  id: string; nombre: string; usuario: string | null; zona: string | null; activo: boolean;
+  visitas: number; resultados: Record<ResultadoVisita, number>; tipos: { MYPE: number; CONSUMO: number };
+  anterior: number; posicion: number; efectividad: number | null; nivel: NivelAuditor;
+};
+export type Tablero = {
+  periodo: Periodo; desde: string; hasta: string; dias: number; anterior: { desde: string; hasta: string }; generado_en: string;
+  series: Record<Metrica, SerieTablero>;
+  hoy: { expedientes: number; asignaciones_activas: number; visitas: number; observados: number };
+  resultados: Record<ResultadoVisita, number>;
+  ranking: { promedio: number; total_auditores: number; con_visitas: number; auditores: FilaRanking[] };
+};
 
-// Lo ya pedido (por empresa elegida, serie, período y último día): al pasar de una tarjeta a otra, o al volver a una, el gráfico cambia al instante
-// y se refresca por detrás. Tiene tope para que no crezca si alguien recorre muchas fechas.
-const actividades = new Map<string, { en: number; datos: Actividad }>();
-const enVueloAct = new Map<string, Promise<void>>();
-const oyentesAct = new Set<() => void>();
-const MAX_ACTIVIDADES = 48;
-const claveActividad = (m: Metrica, p: Periodo, h: string) => `${getEmpresaElegida() || ""}|${m}|${p}|${h}`;
+const tableros = new Map<string, { en: number; datos: Tablero }>();
+const enVueloTablero = new Map<string, Promise<void>>();
+const oyentesTablero = new Set<() => void>();
+let errorTablero = "";
+let ultimoTablero: Tablero | null = null; // lo último que llegó, de cualquier tramo: se muestra mientras llega el del tramo nuevo
+const MAX_TABLEROS = 24; // tope para que no crezca si alguien recorre muchas fechas
+const claveTablero = (p: Periodo, h: string) => `${getEmpresaElegida() || ""}|${p}|${h}`;
 
-function pedirActividad(m: Metrica, p: Periodo, h: string) {
-  const clave = claveActividad(m, p, h);
-  const previa = enVueloAct.get(clave);
+function pedirTablero(p: Periodo, h: string, forzar = false) {
+  const clave = claveTablero(p, h);
+  const previa = enVueloTablero.get(clave);
   if (previa) return previa;
-  const pedido = request<{ data: Actividad }>(`/api/reportes/actividad?metrica=${m}&periodo=${p}&hasta=${h}&desfase=${new Date().getTimezoneOffset()}`)
-    .then((r) => { if (actividades.size >= MAX_ACTIVIDADES) actividades.clear(); actividades.set(clave, { en: Date.now(), datos: r.data }); oyentesAct.forEach((f) => f()); })
-    .finally(() => { enVueloAct.delete(clave); });
-  enVueloAct.set(clave, pedido);
+  const hit = tableros.get(clave);
+  if (!forzar && hit && Date.now() - hit.en < 4000) return Promise.resolve();
+  const pedido = request<{ data: Tablero }>(`/api/reportes/tablero?periodo=${p}&hasta=${h}&desfase=${new Date().getTimezoneOffset()}`)
+    .then((r) => {
+      if (tableros.size >= MAX_TABLEROS) tableros.clear();
+      tableros.set(clave, { en: Date.now(), datos: r.data });
+      ultimoTablero = r.data;
+      errorTablero = "";
+    })
+    .catch((e) => { errorTablero = e?.message || "No se pudo cargar el resumen."; })
+    .finally(() => { enVueloTablero.delete(clave); oyentesTablero.forEach((f) => f()); });
+  enVueloTablero.set(clave, pedido);
   return pedido;
 }
 
-// Al pasar el cursor por una tarjeta se pide su serie con anticipación (si no está fresca) para que al hacer clic ya esté.
-export function precargarActividad(m: Metrica, p: Periodo, h: string) {
-  const hit = actividades.get(claveActividad(m, p, h));
-  if (!hit || Date.now() - hit.en > 30000) void pedirActividad(m, p, h).catch(() => { /* se reintenta al elegir la tarjeta */ });
-}
-
-export function useActividad(metrica: Metrica, periodo: Periodo, hasta: string): { datos: Actividad | null } {
+// `tablero` es lo último que llegó (aunque sea de otro tramo mientras llega el nuevo); `vigente` dice si corresponde al tramo pedido.
+// `actualizado` es el instante (ms) en que llegó, para mostrar «hace 5 s».
+export function useTablero(periodo: Periodo, hasta: string): { tablero: Tablero | null; vigente: boolean; actualizado: number; error: string } {
   const [, forzar] = useState(0);
   useEffect(() => {
     const f = () => forzar((n) => n + 1);
-    oyentesAct.add(f);
-    const pedir = () => { void pedirActividad(metrica, periodo, hasta).catch(() => { /* el gráfico queda como estaba; el resto del resumen ya avisa si el servidor falla */ }); };
-    const hit = actividades.get(claveActividad(metrica, periodo, hasta));
-    if (!hit || Date.now() - hit.en > 15000) pedir();
-    const t = window.setInterval(() => { if (!document.hidden) pedir(); }, 60000);
-    return () => { oyentesAct.delete(f); window.clearInterval(t); };
-  }, [metrica, periodo, hasta]);
-  return { datos: actividades.get(claveActividad(metrica, periodo, hasta))?.datos ?? null };
+    oyentesTablero.add(f);
+    void pedirTablero(periodo, hasta);
+    const detener = mantenerAlDia(() => { void pedirTablero(periodo, hasta, true); }, 20000);
+    return () => { oyentesTablero.delete(f); detener(); };
+  }, [periodo, hasta]);
+  const hit = tableros.get(claveTablero(periodo, hasta));
+  return { tablero: hit?.datos ?? ultimoTablero, vigente: Boolean(hit), actualizado: hit?.en ?? 0, error: errorTablero };
 }
 
 export const refrescarResumen = () => cargar(true);
-export const olvidarResumen = () => { cache = null; error = ""; ultima = 0; actividades.clear(); avisar(); };
+export const olvidarResumen = () => { cache = null; error = ""; ultima = 0; tableros.clear(); errorTablero = ""; ultimoTablero = null; cerrarTiempoReal(); avisar(); };
+
+let usuarios = 0;
+let detenerResumen: (() => void) | null = null;
 
 export function useResumen(): { resumen: Resumen | null; error: string; refrescar: () => void } {
   const [, forzar] = useState(0);
   useEffect(() => {
     const f = () => forzar((n) => n + 1);
-    oyentes.add(f);
+    oyentesResumen.add(f);
     cargar();
-    const t = window.setInterval(() => { if (!document.hidden) cargar(true); }, 60000);
-    return () => { oyentes.delete(f); window.clearInterval(t); };
+    // Una sola vigilancia compartida por todas las pantallas que usan el resumen (el menú lateral, el tablero, expedientes...).
+    usuarios += 1;
+    if (usuarios === 1) detenerResumen = mantenerAlDia(() => { void cargar(true); }, 30000);
+    return () => {
+      oyentesResumen.delete(f);
+      usuarios -= 1;
+      if (usuarios === 0) { detenerResumen?.(); detenerResumen = null; }
+    };
   }, []);
   return { resumen: cache, error, refrescar: () => { cargar(true); } };
 }

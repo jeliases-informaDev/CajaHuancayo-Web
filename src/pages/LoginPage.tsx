@@ -4,16 +4,17 @@ import QRCode from "qrcode";
 import { useAuth } from "../AuthContext";
 import { request } from "../api";
 import "../login.css";
+import { PRODUCTO, tituloDe } from "../lib/producto";
 
 // Diseño de Figma «LOGIN 5» (y su versión «estirada» para pantallas anchas, ver login.css). Lo que se ve en el lado izquierdo (empresa,
 // titular, chips, foto, mapa y puntos de visita) se lee de public/marca/login.json, con las posiciones de los puntos en px de diseño
 // del lienzo de 1440 × 1024: cambiar la imagen o los textos de una instalación no requiere tocar código. Si el archivo falta, se usan estos valores.
 type Etiqueta = { x: number; y: number; w: number; h: number };
 type Punto = { nombre: string; x: number; y: number; tono: string; etiqueta?: Etiqueta };
-type MarcaLogin = { empresa: string; producto: string; logo?: string; titular: [string, string, string]; chips: string[]; titulo: string; foto: string; mapa: string; puntos: Punto[] };
+type MarcaLogin = { empresa: string; titular: [string, string, string]; chips: string[]; titulo: string; foto: string; mapa: string; puntos: Punto[] };
 const MARCA_DEFECTO: MarcaLogin = {
-  empresa: "Caja Huancayo", producto: "Auditoria de Visitas", titular: ["Cada visita,", "comprobada", "en campo"],
-  logo: "/marca/caja-huancayo/completo.png", chips: ["Ubicación en tiempo real", "KPI e Información al instante"], titulo: "Inicia Sesion", foto: "/marca/equipo.webp", mapa: "/marca/mapa-peru.webp",
+  empresa: "Caja Huancayo", titular: ["Cada visita,", "comprobada", "en campo"],
+  chips: ["Ubicación en tiempo real", "KPI e Información al instante"], titulo: "Inicia Sesion", foto: "/marca/equipo.webp", mapa: "/marca/mapa-peru.webp",
   puntos: [
     { nombre: "La Libertad", x: 492, y: 388, tono: "amarillo", etiqueta: { x: 512, y: 353, w: 80, h: 22 } },
     { nombre: "Lima", x: 580, y: 612, tono: "verde", etiqueta: { x: 580, y: 570, w: 45, h: 21 } },
@@ -43,6 +44,7 @@ export default function LoginPage() {
   // Si el servidor tiene activo el inicio con la cuenta Sulotec, se ofrece como segunda puerta (la misma cuenta de sulotec.com).
   const [ssoActivo, setSsoActivo] = useState(false);
   useEffect(() => { request<any>("/api/auth/sso/config").then((c) => setSsoActivo(Boolean(c?.activo))).catch(() => setSsoActivo(false)); }, []);
+  useEffect(() => { document.title = tituloDe(marca.empresa); }, [marca.empresa]);
   useEffect(() => {
     fetch("/marca/login.json", { cache: "no-cache" })
       .then((r) => (r.ok ? r.json() : null))
@@ -101,8 +103,8 @@ export default function LoginPage() {
         </div>
         <img className="foto" src={marca.foto} alt="" width={1360} height={1360} decoding="async" fetchPriority="high" />
         <div className="brand">
-          {marca.logo ? <img className="marca-logo" src={marca.logo} alt={marca.empresa} height={45} decoding="async" /> : <span className="marca-cuadro" />}
-          <div className="brand-texto"><b translate="no">{marca.producto}</b>{marca.logo ? null : <span translate="no">{marca.empresa}</span>}</div>
+          <img className="marca-logo" src="/marca/geomatrix/icono-512.png" alt="" width={45} height={45} decoding="async" />
+          <div className="brand-texto"><b translate="no">{PRODUCTO}</b><span translate="no">{marca.empresa}</span></div>
         </div>
         <h2 className="titular">
           <span className="l1">{marca.titular[0]}</span>
@@ -113,7 +115,7 @@ export default function LoginPage() {
 
       <div className="login-panel">
         <form className="login-card" onSubmit={submit}>
-          <div className="login-mobile-brand">{marca.logo ? <img className="marca-logo" src={marca.logo} alt={marca.empresa} height={40} decoding="async" /> : <span className="marca-cuadro" />}<div><b translate="no">{marca.producto}</b>{marca.logo ? null : <span translate="no">{marca.empresa}</span>}</div></div>
+          <div className="login-mobile-brand"><img className="marca-logo" src="/marca/geomatrix/icono-512.png" alt="" width={40} height={40} decoding="async" /><div><b translate="no">{PRODUCTO}</b><span translate="no">{marca.empresa}</span></div></div>
           <h1 className={`login-title${challenge ? " paso" : ""}`}>{challenge ? "Verificación en dos pasos" : marca.titulo}</h1>
           <p className="login-sub">
             {challenge ? "Confirma tu identidad para continuar." : "Ingresa con tu usuario del panel de administración"}
