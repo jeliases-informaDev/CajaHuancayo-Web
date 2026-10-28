@@ -33,6 +33,7 @@ export const ADVERTENCIAS: Record<string, string> = {
   DISTRITO_IGUAL_A_AGENCIA: "El distrito coincide con el de la agencia: puede no ser el distrito real del domicilio.",
   SIN_EVALUACION: "La base no trae evaluación financiera para este crédito.",
   DOCUMENTO_ATIPICO: "El documento del cliente no tiene 8, 9 u 11 dígitos.",
+  EVALUACION_POSTERIOR_AL_DESEMBOLSO: "La fecha de la evaluación es posterior al desembolso: la evaluación, los ingresos y las deudas de esta fila pueden ser de otro cliente. Pide el archivo otra vez con los datos de cada crédito en su misma fila.",
   DIRECCION_SIN_NUMERO: "La dirección no trae número de puerta: el mapa solo podrá ubicar la calle (precisión aproximada).",
   DIRECCION_MANZANA_LOTE: "La dirección es de manzana y lote (sin calle ni número): el mapa la ubica con baja precisión.",
   DIRECCION_SIN_TIPO_VIA: "La dirección no indica si es avenida, jirón, calle o pasaje.",
