@@ -11,7 +11,7 @@ import Ventana from "./Ventana";
 type Modelo = { clave: string; formato: "SIMPLE" | "CORE_262"; tipo?: "CONSUMO" | "OTROS"; titulo: string; detalle: string; archivo: string };
 const MODELOS: Modelo[] = [
   { clave: "mype", formato: "CORE_262", tipo: "OTROS", titulo: "Modelo MYPE completo", detalle: "Las 262 columnas de la base del core: toda la ficha MYPE (historial, evaluación financiera, endeudamiento, cónyuge). Pon las filas en la hoja OTROS.", archivo: "plantilla-expedientes-core_262-mype.xlsx" },
-  { clave: "consumo", formato: "CORE_262", tipo: "CONSUMO", titulo: "Modelo Consumo completo", detalle: "Las 103 columnas de la ficha de Consumo: datos del cliente y del empleador, historial, endeudamiento, documento de sustento y los ingresos. Pon las filas en la hoja CONSUMO.", archivo: "plantilla-expedientes-core_262-consumo.xlsx" },
+  { clave: "consumo", formato: "CORE_262", tipo: "CONSUMO", titulo: "Modelo Consumo completo", detalle: "Las 297 columnas de la base de Consumo del banco, con sus mismos nombres: cliente y empleador, historial con hasta 4 créditos anteriores, ingresos y endeudamiento del cliente y del cónyuge. Cada fila debe traer todos sus datos juntos. Pon las filas en la hoja CONSUMO.", archivo: "plantilla-expedientes-core_262-consumo.xlsx" },
   { clave: "rapida", formato: "SIMPLE", titulo: "Carga rápida (solo lo mínimo)", detalle: "16 columnas para asignar y visitar: cliente, dirección, asesor y monto. La ficha queda sin historial, evaluación ni endeudamiento. Completa Tipo con «Consumo» o «MYPE».", archivo: "plantilla-expedientes-simple.xlsx" },
 ];
 

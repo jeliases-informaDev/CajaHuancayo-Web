@@ -111,7 +111,7 @@ function TrazabilidadDato({ e, onSaved }: { e: any; onSaved: () => void }) {
         {imp ? (
           <>
             <InfoRow k="Archivo" v={imp.archivo} />
-            <InfoRow k="Formato detectado" v={imp.formato === "CORE_262" ? "Base MYPE del core (262 columnas)" : dash(imp.formato)} />
+            <InfoRow k="Formato detectado" v={imp.formato === "CORE_262" ? (e.tipo_credito === "CONSUMO" ? "Base de Consumo del banco (297 columnas)" : "Base MYPE del core (262 columnas)") : dash(imp.formato)} />
             <InfoRow k="Importado por / cuándo" v={`${dash(imp.actor)} · ${fechaHora(imp.fecha_creacion)}`} />
             <InfoRow k="Fila en el archivo" v={dash(e.fila_origen)} />
             <InfoRow k="Huella del archivo (SHA-256)" v={<code style={{ fontSize: 11 }}>{imp.archivo_sha256 ? imp.archivo_sha256.slice(0, 24) + "…" : "-"}</code>} />
