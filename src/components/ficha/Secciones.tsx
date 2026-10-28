@@ -40,26 +40,27 @@ export function ClienteSeccion({ e }: { e: any }) {
   );
 }
 
-export function NegocioSeccion({ e }: { e: any }) {
+// consumo: la base de Consumo trae los datos laborales del cliente (empleador, su dirección, antigüedad, documento con que sustenta el ingreso) en los mismos bloques que el negocio de la MYPE.
+export function NegocioSeccion({ e, consumo = false }: { e: any; consumo?: boolean }) {
   const n = e.datos_negocio || {};
   const negocios: any[] = n.negocios || [];
   return (
     <>
       <Card>
-        <p className="section-title">Negocio <Origen tipo="base" /></p>
+        <p className="section-title">{consumo ? "Datos laborales" : "Negocio"} <Origen tipo="base" /></p>
         <Grid>
           <div>
             <InfoRow k="Actividad" v={dash(n.actividad)} />
-            <InfoRow k="Sector económico" v={dash(n.sector_economico)} />
+            {consumo ? <InfoRow k="Documento de ingreso" v={dash(n.sustento_ingreso)} /> : <InfoRow k="Sector económico" v={dash(n.sector_economico)} />}
           </div>
           <div>
-            <InfoRow k="Antigüedad" v={n.antiguedad_meses != null ? `${n.antiguedad_meses} meses` : dash(n.antiguedad_texto)} />
+            <InfoRow k="Antigüedad" v={consumo && n.antiguedad_texto ? n.antiguedad_texto : n.antiguedad_meses != null ? `${n.antiguedad_meses} meses` : dash(n.antiguedad_texto)} />
           </div>
         </Grid>
       </Card>
       {negocios.length ? negocios.map((x, i) => (
         <Card key={i}>
-          <p className="section-title">Local del negocio {negocios.length > 1 ? i + 1 : ""}</p>
+          <p className="section-title">{consumo ? "Empleador" : "Local del negocio"} {negocios.length > 1 ? i + 1 : ""}</p>
           <Grid>
             <div>
               <InfoRow k="Dirección" v={dash(x.direccion)} />
@@ -68,11 +69,11 @@ export function NegocioSeccion({ e }: { e: any }) {
             <div>
               <InfoRow k="Referencia" v={dash(x.referencia)} />
               <InfoRow k="Teléfono" v={dash(x.telefono)} />
-              <InfoRow k="Contacto" v={dash(x.contacto)} />
+              <InfoRow k={consumo ? "Empleador" : "Contacto"} v={dash(x.contacto)} />
             </div>
           </Grid>
         </Card>
-      )) : <Card><p className="subtle">La base no trae direcciones del negocio.</p></Card>}
+      )) : <Card><p className="subtle">{consumo ? "La base no trae datos del empleador." : "La base no trae direcciones del negocio."}</p></Card>}
     </>
   );
 }
@@ -103,7 +104,8 @@ export function CreditoSeccion({ e }: { e: any }) {
             <InfoRow k="Producto / subproducto" v={dash([cr.producto, cr.subproducto].filter(Boolean).join(" / "))} />
             <InfoRow k="Tipo / modalidad / línea" v={dash([cr.tipo_credito_desc, cr.modalidad, cr.linea_credito].filter(Boolean).join(" · "))} />
             <InfoRow k="Monto desembolsado" v={`${e.moneda === "USD" ? "US$" : "S/"} ${n2(e.monto_desembolso)}` + (e.moneda === "USD" && cr.monto_desembolsado_soles != null ? ` (S/ ${n2(cr.monto_desembolsado_soles)}, T.C. ${n2(cr.tipo_cambio)})` : "")} />
-            <InfoRow k="Saldo de capital" v={n2(cr.saldo_capital) + (e.moneda === "USD" && cr.saldo_capital_soles != null ? ` (S/ ${n2(cr.saldo_capital_soles)})` : "")} />
+            {/* La base de Consumo solo trae el saldo en soles: en un crédito en soles ese es el saldo de capital. */}
+            <InfoRow k="Saldo de capital" v={n2(cr.saldo_capital ?? (e.moneda === "USD" ? null : cr.saldo_capital_soles)) + (e.moneda === "USD" && cr.saldo_capital_soles != null ? ` (S/ ${n2(cr.saldo_capital_soles)})` : "")} />
             <InfoRow k="Solicitud / días de gracia" v={`${dash(cr.solicitud)} / ${dash(cr.dias_gracia)}`} />
             <InfoRow k="Cuota" v={`${n2(cr.monto_cuota)} · ${dash(cr.plazo_cuotas)} cuotas`} />
             <InfoRow k="Destino" v={dash(cr.destino)} />

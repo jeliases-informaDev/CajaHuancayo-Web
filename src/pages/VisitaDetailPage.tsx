@@ -121,7 +121,7 @@ function DatosBase({ e, esMype, conformidad }: { e: any; esMype: boolean; confor
   const [sub, setSub] = useState("cliente");
   const tabs = [
     { id: "cliente", label: "Cliente" }, { id: "credito", label: "Crédito" },
-    ...(esMype ? [{ id: "negocio", label: "Negocio" }] : []),
+    { id: "negocio", label: esMype ? "Negocio" : "Datos laborales" },
     { id: "eval", label: esMype ? "Evaluación" : "Ingresos" }, { id: "deuda", label: "Endeudamiento" },
   ];
   return (
@@ -130,7 +130,7 @@ function DatosBase({ e, esMype, conformidad }: { e: any; esMype: boolean; confor
       <Tabs name="base" tabs={tabs} value={sub} onChange={setSub} />
       {sub === "cliente" ? <ClienteSeccion e={e} /> : null}
       {sub === "credito" ? <CreditoSeccion e={e} /> : null}
-      {sub === "negocio" ? <NegocioSeccion e={e} /> : null}
+      {sub === "negocio" ? <NegocioSeccion e={e} consumo={!esMype} /> : null}
       {sub === "eval" ? (esMype ? <EvaluacionMype e={e} conformidad={conformidad} /> : <IngresosConsumo e={e} />) : null}
       {sub === "deuda" ? <EndeudamientoSeccion e={e} /> : null}
     </>
