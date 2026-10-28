@@ -197,7 +197,7 @@ export default function ExpedienteDetailPage() {
   const tabs = useMemo(() => [
     { id: "resumen", label: "Cliente" },
     { id: "credito", label: "Crédito e historial" },
-    ...(esMype ? [{ id: "negocio", label: "Negocio" }] : []),
+    { id: "negocio", label: esMype ? "Negocio" : "Datos laborales" },
     { id: "evaluacion", label: esMype ? "Evaluación financiera" : "Ingresos" },
     { id: "deuda", label: "Endeudamiento" },
     { id: "campos", label: "Todos los campos" },
@@ -229,7 +229,7 @@ export default function ExpedienteDetailPage() {
       <TabPanel name="expediente" id={tab}>
       {tab === "resumen" ? <ClienteSeccion e={expediente} /> : null}
       {tab === "credito" ? <CreditoSeccion e={expediente} /> : null}
-      {tab === "negocio" && esMype ? <NegocioSeccion e={expediente} /> : null}
+      {tab === "negocio" ? <NegocioSeccion e={expediente} consumo={!esMype} /> : null}
       {tab === "evaluacion" ? (esMype ? <EvaluacionMype e={expediente} /> : <IngresosConsumo e={expediente} />) : null}
       {tab === "deuda" ? <EndeudamientoSeccion e={expediente} /> : null}
       {tab === "campos" ? <TodosLosCampos e={expediente} /> : null}
