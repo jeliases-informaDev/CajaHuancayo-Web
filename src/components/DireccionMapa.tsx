@@ -58,7 +58,8 @@ export default function DireccionMapa({ e, onSaved }: { e: any; onSaved: () => v
           {e.geo_confianza ? <InfoRow k="Confianza" v={e.geo_confianza === "ALTA" ? "Alta: punto exacto con el número y el distrito declarados" : e.geo_confianza === "MEDIA" ? "Media: ubica la calle, no la puerta (sirve para ver la zona, no para medir los 100 m)" : "Baja: dudosa (manzana y lote, o cae fuera del distrito declarado)"} /> : null}
           {e.geo_precision ? <InfoRow k="Precisión" v={PRECISION_GEO[e.geo_precision] || e.geo_precision} /> : null}
           {e.geo_direccion_encontrada ? <InfoRow k="Dirección que devolvió el mapa" v={e.geo_direccion_encontrada} /> : null}
-          {e.geo_proveedor ? <InfoRow k="Fuente" v={e.geo_proveedor === "vecinos" ? "Visitas anteriores de GeoMatrix (misma zona o manzana)" : e.geo_proveedor} /> : null}
+          {e.geo_proveedor ? <InfoRow k="Fuente" v={e.geo_proveedor === "vecinos" ? "Visitas anteriores de GeoMatrix (misma zona o manzana)" : e.geo_proveedor === "google" ? "Google Maps (sugerencia temporal: se borra a los 30 días)" : e.geo_proveedor} /> : null}
+          {e.geo_proveedor === "google" && !referencia ? <p className="subtle" style={{ marginTop: 6 }}>Sugerencia temporal: sirve para llegar y para comprobar que la primera visita se hace en la zona. No puede quedar como referencia: la fija la primera visita limpia del auditor (o una ubicación puesta a mano).</p> : null}
           {e.ubicacion_origen ? <InfoRow k="Referencia vigente" v={ORIGEN_UBICACION[e.ubicacion_origen] || e.ubicacion_origen} /> : <InfoRow k="Referencia vigente" v="Ninguna todavía: la primera visita limpia la tomará, o puedes aceptar la sugerencia" />}
           {separacion !== null && !yaEsLaReferencia ? <InfoRow k="Distancia entre la sugerencia y la referencia" v={separacion < 1000 ? `${Math.round(separacion)} m` : `${(separacion / 1000).toFixed(1)} km`} /> : null}
         </>
@@ -75,7 +76,7 @@ export default function DireccionMapa({ e, onSaved }: { e: any; onSaved: () => v
       ) : null}
 
       <div className="row" style={{ marginTop: 12 }}>
-        {sugerida && !yaEsLaReferencia ? <Button title={ocupado ? "Guardando…" : "Usar esta ubicación"} onClick={() => llamar(`/api/expedientes/${e.id_expediente}/aceptar-ubicacion`, "Ubicación aceptada: queda como referencia verificada.")} disabled={ocupado} /> : null}
+        {sugerida && !yaEsLaReferencia && e.geo_proveedor !== "google" ? <Button title={ocupado ? "Guardando…" : "Usar esta ubicación"} onClick={() => llamar(`/api/expedientes/${e.id_expediente}/aceptar-ubicacion`, "Ubicación aceptada: queda como referencia verificada.")} disabled={ocupado} /> : null}
         {e.direccion_normalizada ? <Button title="Buscar de nuevo" kind="ghost" onClick={() => llamar(`/api/expedientes/${e.id_expediente}/geocodificar`, "Búsqueda hecha.")} disabled={ocupado} /> : null}
       </div>
       {mensaje ? <div role="status" className="subtle" style={{ marginTop: 8 }}>{mensaje}</div> : null}

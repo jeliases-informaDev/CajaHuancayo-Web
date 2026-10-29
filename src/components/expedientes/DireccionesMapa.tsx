@@ -10,6 +10,8 @@ import { GEO_ESTADO } from "../../lib/format";
 type Resumen = {
   total: number; precisas: number; verificadas: number; aproximadas: number; por_revisar: number; no_encontradas: number; con_error: number; pendientes: number;
   con_ubicacion_de_la_base_o_persona: number; activa: boolean;
+  // Proveedor del mapa: si sus sugerencias son temporales, si solo busca casos asignados y el consumo del mes contra el tope.
+  proveedor?: string; temporal?: boolean; vence_dias?: number; solo_asignados?: boolean; consultas_mes?: number; tope_mes?: number;
 };
 const n = (v: number) => v.toLocaleString("es-PE");
 
@@ -55,6 +57,14 @@ export default function DireccionesMapa({ geo, onGeo, onCambio }: { geo: string;
           <p>
             {n(resumen.precisas + resumen.verificadas)} precisas o verificadas · {n(resumen.aproximadas)} aproximadas · {n(resumen.por_revisar)} por revisar · {n(resumen.no_encontradas + resumen.con_error)} sin ubicar · {n(resumen.pendientes)} en cola · {n(resumen.con_ubicacion_de_la_base_o_persona)} con coordenadas de la base o fijadas por una persona.
           </p>
+          {resumen.activa && resumen.proveedor ? (
+            <p className="nota">
+              Mapa: {resumen.proveedor === "google" ? "Google Maps" : resumen.proveedor === "mapbox" ? "Mapbox" : "OpenStreetMap"}
+              {resumen.temporal ? ` (sugerencias temporales: se borran a los ${resumen.vence_dias} días y no se vuelven referencia)` : ""}
+              {resumen.solo_asignados ? " · solo se buscan los casos asignados a un auditor" : ""}
+              {" · consultas este mes: "}{n(resumen.consultas_mes || 0)}{resumen.tope_mes ? ` de ${n(resumen.tope_mes)}` : " (sin tope)"}.
+            </p>
+          ) : null}
           <div className="ex-campo">
             <label htmlFor={`${id}-geo`}>Mostrar en la lista</label>
             <select id={`${id}-geo`} name="ubicacion" value={geo} onChange={(e) => onGeo(e.target.value)}>
