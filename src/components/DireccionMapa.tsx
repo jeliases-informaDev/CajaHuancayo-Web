@@ -10,6 +10,14 @@ import { ADVERTENCIAS, GEO_ESTADO, ORIGEN_UBICACION, dash } from "../lib/format"
 const pin = (color: string) => L.divIcon({ className: "", html: `<div style="width:18px;height:18px;border-radius:50%;background:${color};border:3px solid #fff;box-shadow:0 1px 6px rgba(0,0,0,.4)"></div>`, iconSize: [18, 18], iconAnchor: [9, 9] });
 
 const PARTES: [string, string][] = [["tipo_via", "Tipo de vía"], ["nombre_via", "Nombre de la vía"], ["numero", "Número"], ["manzana", "Manzana"], ["lote", "Lote"], ["urbanizacion", "Urbanización / zona"], ["interior", "Interior"], ["referencia", "Referencia"]];
+// Qué tan fina es la ubicación sugerida: del punto exacto a la zona.
+const PRECISION_GEO: Record<string, string> = {
+  EXACTA: "Punto exacto (número de puerta)",
+  APROXIMADA: "Aproximada: la calle, no la puerta",
+  DISTRITO: "La zona (AA.HH., urbanización) encontrada en el mapa",
+  MANZANA: "La manzana: punto medio de lotes ya verificados en visitas anteriores",
+  ZONA: "La zona: punto medio de visitas anteriores en la misma zona",
+};
 const CALIDAD_A_AVISO: Record<string, string> = { SIN_NUMERO: "DIRECCION_SIN_NUMERO", MANZANA_LOTE: "DIRECCION_MANZANA_LOTE", SIN_TIPO_VIA: "DIRECCION_SIN_TIPO_VIA", SIN_DISTRITO: "DIRECCION_SIN_DISTRITO", DIRECCION_CORTA: "DIRECCION_CORTA", SIN_DIRECCION: "SIN_DIRECCION" };
 
 function distanciaM(a: [number, number], b: [number, number]) {
@@ -48,8 +56,9 @@ export default function DireccionMapa({ e, onSaved }: { e: any; onSaved: () => v
           <p className="section-title" style={{ marginTop: 16 }}>Lo que encontró el mapa</p>
           <InfoRow k="Situación" v={<span className={`state ${geo.tono === "na" ? "warn" : geo.tono}`}>{geo.etiqueta}</span>} />
           {e.geo_confianza ? <InfoRow k="Confianza" v={e.geo_confianza === "ALTA" ? "Alta: punto exacto con el número y el distrito declarados" : e.geo_confianza === "MEDIA" ? "Media: ubica la calle, no la puerta (sirve para ver la zona, no para medir los 100 m)" : "Baja: dudosa (manzana y lote, o cae fuera del distrito declarado)"} /> : null}
+          {e.geo_precision ? <InfoRow k="Precisión" v={PRECISION_GEO[e.geo_precision] || e.geo_precision} /> : null}
           {e.geo_direccion_encontrada ? <InfoRow k="Dirección que devolvió el mapa" v={e.geo_direccion_encontrada} /> : null}
-          {e.geo_proveedor ? <InfoRow k="Proveedor" v={e.geo_proveedor} /> : null}
+          {e.geo_proveedor ? <InfoRow k="Fuente" v={e.geo_proveedor === "vecinos" ? "Visitas anteriores de GeoMatrix (misma zona o manzana)" : e.geo_proveedor} /> : null}
           {e.ubicacion_origen ? <InfoRow k="Referencia vigente" v={ORIGEN_UBICACION[e.ubicacion_origen] || e.ubicacion_origen} /> : <InfoRow k="Referencia vigente" v="Ninguna todavía: la primera visita limpia la tomará, o puedes aceptar la sugerencia" />}
           {separacion !== null && !yaEsLaReferencia ? <InfoRow k="Distancia entre la sugerencia y la referencia" v={separacion < 1000 ? `${Math.round(separacion)} m` : `${(separacion / 1000).toFixed(1)} km`} /> : null}
         </>
