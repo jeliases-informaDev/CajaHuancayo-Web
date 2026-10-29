@@ -57,6 +57,7 @@ export const ORIGEN_UBICACION: Record<string, string> = {
   MANUAL: "Fijada manualmente en el panel",
   PRIMERA_VISITA: "Tomada en la primera visita del auditor",
   GEOCODIFICADA: "Ubicada por el mapa (punto exacto con número y distrito)",
+  MANZANA_VECINA: "Por manzana vecina: lotes de la misma manzana ya verificados en visitas anteriores",
 };
 
 export const ESTADO_NEGOCIO: Record<string, string> = {

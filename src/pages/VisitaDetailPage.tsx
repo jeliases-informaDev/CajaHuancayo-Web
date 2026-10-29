@@ -79,12 +79,13 @@ function FichaEntrevista({ visita, esMype }: { visita: any; esMype: boolean }) {
       <Card>
         <p className="section-title">Cuestionario al cliente <Origen tipo="campo" /></p>
         {grupos.map((g) => {
-          const filas = g.items.filter(([k]) => r[k] !== undefined);
+          // En Consumo el cónyuge puede venir como «No aplica» (sin respuesta Sí/No).
+          const filas = g.items.filter(([k]) => r[k] !== undefined || (k === "conyuge_conoce_prestamo" && r.conyuge_no_aplica === true));
           if (!filas.length) return null;
           return (
             <div key={g.titulo} style={{ marginBottom: 10 }}>
               <p className="subtle" style={{ fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.5, margin: "6px 0 2px" }}>{g.titulo}</p>
-              {filas.map(([k, etiqueta]) => <InfoRow key={k} k={etiqueta} v={respuesta(r[k])} />)}
+              {filas.map(([k, etiqueta]) => <InfoRow key={k} k={etiqueta} v={k === "conyuge_conoce_prestamo" && r.conyuge_no_aplica === true ? "No aplica" : respuesta(r[k])} />)}
             </div>
           );
         })}
