@@ -10,6 +10,9 @@ import { enteroDe, useParametros } from "../../lib/useParametros";
 // Columna «Expedientes sin asignar» de Asignaciones (diseño de Figma): buscador, tipo de crédito, distrito, la franja de lo marcado y la tabla con su pie de páginas.
 // La lista se pide por páginas al servidor (del más antiguo al más nuevo) y todo lo que se filtra vive en la URL (q, tipo, distrito, pagina, filas). Lo marcado
 // se conserva al cambiar de página o de filtro: lo guarda la pantalla, no esta columna.
+// Pastilla del tipo de crédito: en pantallas anchas va en su columna y en celular bajo el nombre (asignaciones.css muestra una u otra).
+const Tipo = ({ tipo }: { tipo: string }) => <span className={"as-tipo " + (tipo === "OTROS" ? "mype" : "consumo")}>{tipo === "OTROS" ? "MYPE" : "Consumo"}</span>;
+
 export default function ColumnaExpedientes({ seleccion, onAlternar, onPagina, onLimpiar, refrescar }: {
   seleccion: Seleccion; onAlternar: (p: Pendiente) => void; onPagina: (filas: Pendiente[], marcar: boolean) => void; onLimpiar: () => void; refrescar: number;
 }) {
@@ -128,11 +131,10 @@ export default function ColumnaExpedientes({ seleccion, onAlternar, onPagina, on
         ) : (
           <table className="as-tabla">
             <caption className="sr-only">Expedientes sin asignar</caption>
-            <colgroup><col style={{ width: "13%" }} /><col style={{ width: "42%" }} /><col style={{ width: "17%" }} /><col style={{ width: "28%" }} /></colgroup>
             <thead>
               <tr>
                 <th scope="col" className="chk"><input ref={marcador} type="checkbox" className="pa-chk" checked={todas} onChange={() => onPagina(data, !todas)} aria-label="Marcar todos los de esta página" /></th>
-                <th scope="col">Cliente / Crédito</th><th scope="col">Tipo</th><th scope="col">Distrito</th>
+                <th scope="col" className="col-cliente">Cliente / Crédito</th><th scope="col" className="col-tipo">Tipo</th><th scope="col" className="col-dist">Distrito</th>
               </tr>
             </thead>
             <tbody>
@@ -141,9 +143,14 @@ export default function ColumnaExpedientes({ seleccion, onAlternar, onPagina, on
                 return (
                   <tr key={x.id_expediente} className={on ? "on" : ""} aria-selected={on} onClick={() => onAlternar(x)}>
                     <td className="chk"><input type="checkbox" className="pa-chk" checked={on} onChange={() => onAlternar(x)} onClick={(e) => e.stopPropagation()} aria-label={`Marcar ${x.nombres_cliente}`} /></td>
-                    <td><div className="as-cliente"><b>{x.nombres_cliente}</b><small translate="no">{x.codigo_expediente}</small></div></td>
-                    <td><span className={"as-tipo " + (x.tipo_credito === "OTROS" ? "mype" : "consumo")}>{x.tipo_credito === "OTROS" ? "MYPE" : "Consumo"}</span></td>
-                    <td className="as-dist">{dash(x.distrito)}</td>
+                    <td>
+                      <div className="as-cliente">
+                        <b>{x.nombres_cliente}</b><small translate="no">{x.codigo_expediente}</small>
+                        <div className="as-cliente-meta"><Tipo tipo={x.tipo_credito} /><span>{dash(x.distrito)}</span></div>
+                      </div>
+                    </td>
+                    <td className="col-tipo"><Tipo tipo={x.tipo_credito} /></td>
+                    <td className="as-dist col-dist">{dash(x.distrito)}</td>
                   </tr>
                 );
               })}
