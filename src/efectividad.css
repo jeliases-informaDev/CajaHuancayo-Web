@@ -1,7 +1,7 @@
 /* Efectividad de auditores — misma familia visual que Usuarios y Asignaciones (piezas comunes en pantalla.css, prefijo pa-). Lo propio lleva ef-.
    La barra de arriba se acomoda en varias filas en pantallas angostas; las tarjetas de totales se reparten solas; la tabla es ancha y se desplaza
    de lado dentro de su tarjeta (pa-scroll) en vez de apretarse. */
-.ef-pagina { display: flex; flex-direction: column; gap: 18px; }
+.ef-pagina { display: flex; flex-direction: column; gap: 18px; container-type: inline-size; container-name: efectividad; }
 .ef-barra { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; }
 .ef-campo { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--pa-gris); }
 .ef-campo .pa-entrada { height: 34px; padding: 0 10px; width: auto; }
@@ -18,13 +18,19 @@
 .ef-t-valor { font-size: 26px; line-height: 1.15; color: var(--pa-tinta); font-weight: 600; }
 .ef-t-detalle { font-size: 12.5px; line-height: 1.35; color: var(--pa-gris); }
 
-/* Tabla por auditor */
-.ef-tabla { table-layout: auto; min-width: 1120px; }
+/* Tabla por auditor: las cabeceras se parten en dos líneas y, según el ancho que de verdad le queda a la página (con la barra lateral),
+   ceden primero «Inicio · fin» y «Casos cerrados» (quedan en el detalle por día y en el Excel) y después «Días en campo» y «Alertas».
+   En celular lo que queda se desplaza de lado dentro de la tarjeta. */
+.ef-tabla { table-layout: auto; min-width: 0; }
+.ef-tabla th { height: auto; padding: 14px 10px; white-space: normal; line-height: 1.25; letter-spacing: 0.14em; font-size: 11.5px; }
+.ef-tabla td { height: 64px; padding-left: 10px; padding-right: 10px; }
 .ef-tabla th.c, .ef-tabla td.c { text-align: center; }
-.ef-tabla td { height: 64px; }
-.ef-col-aud { min-width: 230px; }
-.ef-col-res { min-width: 170px; }
-.ef-col-mas { width: 54px; }
+.ef-col-aud { min-width: 200px; }
+.ef-col-res { min-width: 140px; }
+.ef-col-mas { width: 48px; }
+@container efectividad (max-width: 1099px) { .ef-tabla .col-ini, .ef-tabla .col-cerrados { display: none; } }
+@container efectividad (max-width: 999px) { .ef-tabla .col-dias, .ef-tabla .col-alertas, .ef-tabla .ef-nota { display: none; } }
+@container efectividad (max-width: 859px) { .ef-col-aud { min-width: 180px; } }
 .ef-aud { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .ef-aud b { display: block; font-weight: 600; }
 .ef-aud small { display: block; color: var(--pa-gris); font-size: 12px; }
@@ -55,6 +61,8 @@
 
 /* Detalle por día (dentro de la fila abierta) */
 .ef-detalle td { height: auto; padding: 0 14px 16px 33px; background: var(--pa-hover); }
+/* La caja del detalle no ensancha la tabla de afuera (ancho 0 con mínimo 100 %): si el detalle no cabe, se desplaza de lado dentro de su fila. */
+.ef-detalle-caja { width: 0; min-width: 100%; overflow-x: auto; }
 .ef-dias { width: 100%; border-collapse: collapse; font-size: 13px; background: var(--pa-card); border-radius: 10px; overflow: hidden; box-shadow: 0 0 0 1px var(--pa-linea); }
 .ef-dias th { padding: 9px 10px; text-align: left; color: var(--pa-gris); font: 400 11px/1.2 var(--font-etiqueta); letter-spacing: 0.15em; text-transform: uppercase; border-bottom: 1px solid var(--pa-linea); white-space: nowrap; }
 .ef-dias td { padding: 7px 10px; border-bottom: 1px solid var(--pa-linea); vertical-align: middle; }

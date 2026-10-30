@@ -122,16 +122,16 @@ export default function EfectividadPage() {
               <thead>
                 <tr>
                   <th scope="col" className="ef-col-aud">Auditor</th>
-                  <th scope="col" className="c" title="Días con alguna visita, una jornada iniciada o posiciones del seguimiento">Días en campo</th>
+                  <th scope="col" className="c col-dias" title="Días con alguna visita, una jornada iniciada o posiciones del seguimiento">Días en campo</th>
                   <th scope="col" className="c" title="Suma de las jornadas iniciadas y terminadas en la app">Horas en jornada</th>
                   <th scope="col" className="c" title="Suma de los tramos del seguimiento en tiempo real, sin posiciones imprecisas ni saltos">Km recorridos</th>
-                  <th scope="col" className="c" title="Hora promedio de la primera y de la última posición de cada día">Inicio · fin</th>
-                  <th scope="col" className="c" title="Casos cerrados en el periodo, sobre los pendientes al inicio más los asignados">Casos cerrados</th>
+                  <th scope="col" className="c col-ini" title="Hora promedio de la primera y de la última posición de cada día">Inicio · fin</th>
+                  <th scope="col" className="c col-cerrados" title="Casos cerrados en el periodo, sobre los pendientes al inicio más los asignados">Casos cerrados</th>
                   <th scope="col" className="c">Cumplimiento</th>
                   <th scope="col" className="c">Visitas</th>
                   <th scope="col" className="ef-col-res">Resultados</th>
                   <th scope="col" className="c" title="Visitas conformes sobre el total de visitas">Conformidad</th>
-                  <th scope="col" className="c" title="Visitas fuera de la geocerca o con GPS simulado">Alertas</th>
+                  <th scope="col" className="c col-alertas" title="Visitas fuera de la geocerca o con GPS simulado">Alertas</th>
                   <th scope="col" className="ef-col-mas"><span className="sr-only">Detalle por día</span></th>
                 </tr>
               </thead>
@@ -146,21 +146,21 @@ export default function EfectividadPage() {
                         <td className="ef-col-aud">
                           <div className="ef-aud"><Avatar nombre={a.nombre} /><div><b>{a.nombre}</b><small>{a.usuario}{a.zona ? ` · ${a.zona}` : ""}{a.activo ? "" : " · inactivo"}</small></div></div>
                         </td>
-                        <td className="c">{num(a.campo.dias_en_campo)}</td>
+                        <td className="c col-dias">{num(a.campo.dias_en_campo)}</td>
                         <td className="c">{num(a.campo.horas_jornada, 1)}{a.campo.jornadas_sin_cierre ? <small className="ef-nota" title="Jornadas que no se terminaron en la app: no suman horas">+{a.campo.jornadas_sin_cierre} sin cerrar</small> : null}</td>
                         <td className="c">{a.campo.km == null ? <span className="subtle">sin datos</span> : num(a.campo.km, 1)}</td>
-                        <td className="c ef-horas">{a.campo.inicio_promedio || a.campo.fin_promedio ? `${a.campo.inicio_promedio || "—"} · ${a.campo.fin_promedio || "—"}` : "—"}</td>
-                        <td className="c">{num(a.casos.finalizados)} <span className="subtle">/ {num(carga)}</span></td>
+                        <td className="c ef-horas col-ini">{a.campo.inicio_promedio || a.campo.fin_promedio ? `${a.campo.inicio_promedio || "—"} · ${a.campo.fin_promedio || "—"}` : "—"}</td>
+                        <td className="c col-cerrados">{num(a.casos.finalizados)} <span className="subtle">/ {num(carga)}</span></td>
                         <td className="c"><span className={`pa-pastilla ${tonoPct(a.casos.cumplimiento)}`}>{pct(a.casos.cumplimiento)}</span></td>
                         <td className="c"><b>{num(a.visitas.total)}</b></td>
                         <td className="ef-col-res"><Resultados total={a.visitas.total} conforme={a.visitas.conforme} observado={a.visitas.observado} no_ubicado={a.visitas.no_ubicado} rechazado={a.visitas.rechazado} /></td>
                         <td className="c"><span className={`pa-pastilla ${tonoPct(a.visitas.conformidad)}`}>{pct(a.visitas.conformidad)}</span></td>
-                        <td className="c">{alertas ? <span className="pa-pastilla mal" title={`${a.visitas.fuera_geocerca} fuera de la geocerca · ${a.visitas.gps_simulado} con GPS simulado`}>{alertas}</span> : <span className="subtle">0</span>}</td>
+                        <td className="c col-alertas">{alertas ? <span className="pa-pastilla mal" title={`${a.visitas.fuera_geocerca} fuera de la geocerca · ${a.visitas.gps_simulado} con GPS simulado`}>{alertas}</span> : <span className="subtle">0</span>}</td>
                         <td className="ef-col-mas">
                           <button type="button" className="ef-mas" aria-expanded={on} aria-label={on ? "Ocultar el detalle por día" : "Ver el detalle por día"} onClick={(e) => { e.stopPropagation(); setAbierto(on ? null : a.id); }}><Icon name={on ? "arriba" : "abajo"} size={16} /></button>
                         </td>
                       </tr>
-                      {on ? <tr className="ef-detalle"><td colSpan={12}><DetalleDias dias={diasDe(a.id)} /></td></tr> : null}
+                      {on ? <tr className="ef-detalle"><td colSpan={12}><div className="ef-detalle-caja"><DetalleDias dias={diasDe(a.id)} /></div></td></tr> : null}
                     </Fragment>
                   );
                 })}
@@ -169,16 +169,16 @@ export default function EfectividadPage() {
                 <tfoot>
                   <tr className="ef-total">
                     <td className="ef-col-aud">Total</td>
-                    <td className="c">{num(t.dias_en_campo)}</td>
+                    <td className="c col-dias">{num(t.dias_en_campo)}</td>
                     <td className="c">{num(t.horas_jornada, 1)}</td>
                     <td className="c">{t.km == null ? "—" : num(t.km, 1)}</td>
-                    <td />
-                    <td className="c">{num(t.finalizados)} <span className="subtle">/ {num(t.pendientes_inicio + t.asignados)}</span></td>
+                    <td className="col-ini" />
+                    <td className="c col-cerrados">{num(t.finalizados)} <span className="subtle">/ {num(t.pendientes_inicio + t.asignados)}</span></td>
                     <td className="c">{pct(t.cumplimiento)}</td>
                     <td className="c"><b>{num(t.visitas)}</b></td>
                     <td className="ef-col-res"><Resultados total={t.visitas} conforme={t.conforme} observado={t.observado} no_ubicado={t.no_ubicado} rechazado={t.rechazado} /></td>
                     <td className="c">{pct(t.conformidad)}</td>
-                    <td className="c">{num(t.fuera_geocerca + t.gps_simulado)}</td>
+                    <td className="c col-alertas">{num(t.fuera_geocerca + t.gps_simulado)}</td>
                     <td />
                   </tr>
                 </tfoot>
