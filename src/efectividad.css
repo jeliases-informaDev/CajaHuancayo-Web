@@ -1,0 +1,72 @@
+/* Efectividad de auditores — misma familia visual que Usuarios y Asignaciones (piezas comunes en pantalla.css, prefijo pa-). Lo propio lleva ef-.
+   La barra de arriba se acomoda en varias filas en pantallas angostas; las tarjetas de totales se reparten solas; la tabla es ancha y se desplaza
+   de lado dentro de su tarjeta (pa-scroll) en vez de apretarse. */
+.ef-pagina { display: flex; flex-direction: column; gap: 18px; }
+.ef-barra { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; }
+.ef-campo { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--pa-gris); }
+.ef-campo .pa-entrada { height: 34px; padding: 0 10px; width: auto; }
+.ef-tramo { margin: 0; flex: 1 1 240px; color: var(--pa-gris); font-size: 13px; }
+.ef-descargar { margin-left: auto; }
+
+/* Totales */
+.ef-totales { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
+.ef-tarjeta { display: flex; flex-direction: column; gap: 4px; min-width: 0; padding: 14px 16px; border-radius: 12px; background: var(--pa-card); box-shadow: var(--pa-sombra); border-left: 4px solid var(--pa-linea); }
+.ef-tarjeta.ok { border-left-color: #2f9e6b; }
+.ef-tarjeta.aviso { border-left-color: #d9a21b; }
+.ef-tarjeta.mal { border-left-color: var(--pa-mal); }
+.ef-t-titulo { font: 400 11.5px/1 var(--font-etiqueta); letter-spacing: 0.2em; text-transform: uppercase; color: var(--pa-gris); }
+.ef-t-valor { font-size: 26px; line-height: 1.15; color: var(--pa-tinta); font-weight: 600; }
+.ef-t-detalle { font-size: 12.5px; line-height: 1.35; color: var(--pa-gris); }
+
+/* Tabla por auditor */
+.ef-tabla { table-layout: auto; min-width: 1120px; }
+.ef-tabla th.c, .ef-tabla td.c { text-align: center; }
+.ef-tabla td { height: 64px; }
+.ef-col-aud { min-width: 230px; }
+.ef-col-res { min-width: 170px; }
+.ef-col-mas { width: 54px; }
+.ef-aud { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.ef-aud b { display: block; font-weight: 600; }
+.ef-aud small { display: block; color: var(--pa-gris); font-size: 12px; }
+.ef-fila { cursor: pointer; }
+.ef-fila:hover td, .ef-fila.on td { background: var(--pa-hover); }
+.ef-fila.inactivo .ef-aud b { color: var(--pa-gris); }
+.ef-nota { display: block; color: var(--pa-gris); font-size: 11px; }
+.ef-horas { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.ef-res { display: flex; flex-direction: column; gap: 5px; min-width: 150px; }
+.ef-res-barra { display: flex; height: 6px; border-radius: 3px; overflow: hidden; background: var(--pa-linea); }
+.ef-res-barra i { display: block; min-width: 3px; }
+.ef-res-barra i.ok { background: #2f9e6b; }
+.ef-res-barra i.aviso { background: #d9a21b; }
+.ef-res-barra i.gris { background: #8a90ad; }
+.ef-res-barra i.mal { background: #c94a56; }
+.ef-res-num { display: flex; gap: 10px; font-size: 12px; }
+.ef-res-num .ok b { color: #267254; }
+.ef-res-num .aviso b { color: #8a5917; }
+.ef-res-num .gris b { color: #3b4a8a; }
+.ef-res-num .mal b { color: #a33c43; }
+:root[data-theme="dark"] .ef-res-num .ok b { color: #7fd4a8; }
+:root[data-theme="dark"] .ef-res-num .aviso b { color: #e9c270; }
+:root[data-theme="dark"] .ef-res-num .gris b { color: #aab3e6; }
+:root[data-theme="dark"] .ef-res-num .mal b { color: #f0a0a6; }
+.ef-mas { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border: 1px solid var(--pa-borde); border-radius: 8px; background: var(--pa-card); color: var(--pa-gris); cursor: pointer; }
+.ef-mas:hover { color: var(--pa-tinta); }
+.ef-total td { height: 52px; font-weight: 600; background: var(--pa-hover); }
+
+/* Detalle por día (dentro de la fila abierta) */
+.ef-detalle td { height: auto; padding: 0 14px 16px 33px; background: var(--pa-hover); }
+.ef-dias { width: 100%; border-collapse: collapse; font-size: 13px; background: var(--pa-card); border-radius: 10px; overflow: hidden; box-shadow: 0 0 0 1px var(--pa-linea); }
+.ef-dias th { padding: 9px 10px; text-align: left; color: var(--pa-gris); font: 400 11px/1.2 var(--font-etiqueta); letter-spacing: 0.15em; text-transform: uppercase; border-bottom: 1px solid var(--pa-linea); white-space: nowrap; }
+.ef-dias td { padding: 7px 10px; border-bottom: 1px solid var(--pa-linea); vertical-align: middle; }
+.ef-dias th.c, .ef-dias td.c { text-align: center; }
+.ef-dias tr:last-child td { border-bottom: 0; }
+.ef-dia { white-space: nowrap; text-transform: capitalize; }
+.ef-vacio, .ef-sin-dias { margin: 0; padding: 22px; color: var(--pa-gris); }
+.ef-pie { margin: 0; font-size: 12.5px; line-height: 1.5; }
+
+@media (max-width: 720px) {
+  .ef-descargar { margin-left: 0; width: 100%; }
+  .ef-tramo { flex-basis: 100%; }
+  .ef-campo { flex: 1 1 140px; }
+  .ef-campo .pa-entrada { flex: 1; }
+}
