@@ -16,6 +16,7 @@ import PrivacyPage from "./pages/PrivacyPage";
 import NotFoundPage from "./pages/NotFoundPage";
 import EmpresasPage from "./pages/EmpresasPage";
 import SsoPage from "./pages/SsoPage";
+import EfectividadPage from "./pages/EfectividadPage";
 import TerminosGate from "./components/TerminosGate";
 
 function Protected({ children, adminOnly = false, universalOnly = false }: { children: React.ReactNode; adminOnly?: boolean; universalOnly?: boolean }) {
@@ -44,6 +45,7 @@ export default function App() {
       <Route path="/asignaciones" element={<Protected><AsignacionesPage /></Protected>} />
       <Route path="/visitas" element={<Protected><VisitasPage /></Protected>} />
       <Route path="/visitas/:id" element={<Protected><VisitaDetailPage /></Protected>} />
+      <Route path="/efectividad" element={<Protected><EfectividadPage /></Protected>} />
       <Route path="/usuarios" element={<Protected adminOnly><UsuariosPage /></Protected>} />
       <Route path="/seguridad" element={<Protected adminOnly><SeguridadPage /></Protected>} />
       <Route path="/empresas" element={<Protected universalOnly><EmpresasPage /></Protected>} />
