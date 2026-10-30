@@ -12,6 +12,7 @@ import { API_URL, getToken, request } from "../api";
 import { Avatar } from "../components/ui";
 import { Icon } from "../components/icons";
 import { horaCorta } from "../lib/format";
+import { fmtDuracion, trazarRuta, type RutaCalles } from "../lib/rutas";
 
 type Ubicacion = {
   id: string; username: string; nombres: string; apellidos: string; rol: string;
@@ -20,7 +21,11 @@ type Ubicacion = {
   en_jornada?: boolean; jornada_inicio?: string | null; jornada_fin?: string | null;
   bateria?: number | null; cargando?: boolean; movimiento?: Movimiento | null;
 };
-type Punto = { latitud: number; longitud: number; precision: number | null; fecha: string };
+// Un punto del recorrido ya limpio por el servidor (sin imprecisos, saltos ni simulados); `tramo` cambia tras más de 5 min sin señal.
+type Punto = { latitud: number; longitud: number; precision: number | null; fecha: string; tramo?: number };
+type Descartados = { simulados: number; imprecisos: number; saltos: number };
+// El recorrido ajustado a las calles por el motor de rutas (una línea por tramo); sin motor, `ajustado` es false y la línea son los puntos.
+type Trazado = { disponible: boolean; lineas: { tramo: number; ajustado: boolean; coordenadas: [number, number][] }[] };
 type ZonaMapa = { departamento: string | null; provincia: string | null; distrito: string | null; n: number };
 // `estado` y `fecha_fin` solo vienen cuando se pidió lo visitado hoy: FINALIZADA = la visita ya se registró.
 type Asignacion = {
@@ -458,6 +463,10 @@ export default function SeguimientoPage() {
   const [fechaRuta, setFechaRuta] = useState(hoy);
   const [idxRepeticion, setIdxRepeticion] = useState<number | null>(null);
   const [reproduciendo, setReproduciendo] = useState(false);
+  const [trazado, setTrazado] = useState<Trazado | null>(null);
+  const [descartados, setDescartados] = useState<Descartados | null>(null);
+  // Ruta del día por calles (motor de rutas del servidor); null = sin motor o todavía no llega: se dibuja la recta de siempre.
+  const [rutaCalles, setRutaCalles] = useState<RutaCalles | null>(null);
   // Buscar y filtrar auditores por estado; capas visibles del mapa; reencuadre y vuelo a un cliente.
   const [busca, setBusca] = useState("");
   const [chipsAud, setChipsAud] = useState<string[]>([]); // EN_LINEA | SIN_GPS | SIN_ASIGNACIONES | ALERTA: sin ninguno se ven todos; con varios se suman
@@ -591,10 +600,17 @@ export default function SeguimientoPage() {
 
   useEffect(() => {
     setIdxRepeticion(null); setReproduciendo(false);
+    setTrazado(null); setDescartados(null);
     if (!seleccionado) { setRuta([]); return; }
+    let vigente = true;
     request("/api/usuarios/" + seleccionado + "/tracking?fecha=" + fechaRuta)
-      .then((r: any) => setRuta(r.data))
-      .catch(() => setRuta([]));
+      .then((r: any) => { if (!vigente) return; setRuta(r.data); setDescartados(r.descartados ?? null); })
+      .catch(() => { if (vigente) setRuta([]); });
+    // El mismo recorrido ajustado a las calles llega aparte (tarda un poco más): mientras, se ven los puntos.
+    request("/api/usuarios/" + seleccionado + "/tracking/trazado?fecha=" + fechaRuta)
+      .then((r: any) => { if (vigente) setTrazado(r.data); })
+      .catch(() => { if (vigente) setTrazado(null); });
+    return () => { vigente = false; };
   }, [seleccionado, fechaRuta]);
   // Reproducción: un punto cada 250 ms hasta el final del día.
   useEffect(() => {
@@ -657,7 +673,16 @@ export default function SeguimientoPage() {
     return mapa;
   }, [asignaciones, ubicaciones, roster]);
   const todosLosAuditores = useMemo(() => Array.from(auditorPorId.values()), [auditorPorId]);
-  const polyline = useMemo<[number, number][]>(() => ruta.map((p) => [p.latitud, p.longitud]), [ruta]);
+  // Qué se dibuja del recorrido: las líneas ajustadas a las calles si ya llegaron; si no, los puntos limpios, un trazo por tramo (las pausas sin señal no se unen con una recta).
+  const lineasRecorrido = useMemo<{ coordenadas: [number, number][]; ajustado: boolean }[]>(() => {
+    if (trazado?.lineas.length) return trazado.lineas.filter((l) => l.coordenadas.length > 1).map((l) => ({ coordenadas: l.coordenadas, ajustado: l.ajustado }));
+    const tramos = new Map<number, [number, number][]>();
+    ruta.forEach((p) => { const t = p.tramo ?? 1; if (!tramos.has(t)) tramos.set(t, []); tramos.get(t)!.push([p.latitud, p.longitud]); });
+    return Array.from(tramos.values()).filter((c) => c.length > 1).map((coordenadas) => ({ coordenadas, ajustado: false }));
+  }, [trazado, ruta]);
+  const textoDescartados = descartados && descartados.imprecisos + descartados.saltos + descartados.simulados > 0
+    ? [descartados.imprecisos ? descartados.imprecisos + " imprecisos" : "", descartados.saltos ? descartados.saltos + " saltos" : "", descartados.simulados ? descartados.simulados + " simulados" : ""].filter(Boolean).join(", ")
+    : "";
   const pausas = useMemo(() => pausasSinSenal(ruta), [ruta]);
   const puntoRepeticion = idxRepeticion != null && ruta[idxRepeticion] ? ruta[idxRepeticion] : null;
   const rutaRecorrida = useMemo<[number, number][]>(() => (idxRepeticion == null ? [] : ruta.slice(0, idxRepeticion + 1).map((p) => [p.latitud, p.longitud] as [number, number])), [ruta, idxRepeticion]);
@@ -784,6 +809,19 @@ export default function SeguimientoPage() {
     if (!origenRuta || !enRuta.length) return [];
     return [[origenRuta.latitud, origenRuta.longitud], ...enRuta.map((a) => [a.latitud, a.longitud] as [number, number])];
   }, [origenRuta, enRuta]);
+  // La misma ruta por calles: se pide al servidor cuando cambian las paradas o el punto de partida se mueve más de ~100 m (el GPS en vivo baila y no
+  // tiene sentido pedirla con cada posición). Sin motor de rutas queda la recta punteada de siempre.
+  const claveRuta = rutaSugerida.length > 1 ? rutaSugerida.map((p, i) => (i === 0 ? p[0].toFixed(3) + "," + p[1].toFixed(3) : p[0].toFixed(5) + "," + p[1].toFixed(5))).join("|") : "";
+  useEffect(() => {
+    if (!claveRuta) { setRutaCalles(null); return; }
+    let vigente = true;
+    const t = setTimeout(() => {
+      trazarRuta(rutaSugerida.slice(0, 40).map(([latitud, longitud]) => ({ latitud, longitud })))
+        .then((r) => { if (vigente) setRutaCalles(r); })
+        .catch(() => { if (vigente) setRutaCalles(null); });
+    }, 400);
+    return () => { vigente = false; clearTimeout(t); };
+  }, [claveRuta]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Vista general (sin auditor elegido): se encuadra todo lo de la zona al cargar y al cambiar de zona, no con cada posición nueva.
   const coordsTodos = useMemo<[number, number][]>(() => [
@@ -887,7 +925,8 @@ export default function SeguimientoPage() {
   const visitadosEnMapa = seleccionado ? clientesConEstado.filter((a) => a.id_usuario_auditor === seleccionado && a.visitado).length : 0;
   const visitadosHoy = Math.max(llegadasHoy, visitadosEnMapa);
   const proximo = enRuta[0] || null;
-  const rutaKm = rutaSugerida.reduce((suma, p, i) => (i === 0 ? 0 : suma + distanciaMetros(rutaSugerida[i - 1][0], rutaSugerida[i - 1][1], p[0], p[1])), 0);
+  // Largo de la ruta: por calles si el motor respondió; si no, la suma de las rectas.
+  const rutaKm = rutaCalles ? rutaCalles.distancia_m : rutaSugerida.reduce((suma, p, i) => (i === 0 ? 0 : suma + distanciaMetros(rutaSugerida[i - 1][0], rutaSugerida[i - 1][1], p[0], p[1])), 0);
   const lejanos = origenRuta ? clientesDelAuditorSeleccionado.filter((c) => distanciaMetros(origenRuta.latitud, origenRuta.longitud, c.latitud, c.longitud) > LEJOS_M).length : 0;
 
   const nombreDeAuditor = (id: string) => { const a = auditorPorId.get(id); return a ? (a.nombres || a.username) : "—"; };
@@ -1089,8 +1128,10 @@ export default function SeguimientoPage() {
           ))}
           {enRuta.slice(0, 8).map((a) => <Circle key={"g-" + a.id_asignacion} center={[a.latitud, a.longitud]} radius={GEOCERCA_M} pathOptions={{ color: INDIGO_CLARO, weight: 1, dashArray: "4 4", fillOpacity: 0.06 }} />)}
           {capas.clientes ? <ClientesAgrupados clientes={clientesSinRuta} nombreAuditor={nombreDeAuditor} onVerAuditor={(id) => elegirAuditor(id)} origen={origenRuta} onVer={verExpediente} /> : null}
-          {rutaSugerida.length > 1 ? <Polyline positions={rutaSugerida} pathOptions={{ color: INDIGO_CLARO, weight: 3, opacity: 0.95, dashArray: "9 9" }} /> : null}
-          {polyline.length > 1 ? <Polyline positions={polyline} pathOptions={{ color: INDIGO, weight: 3.5, opacity: idxRepeticion == null ? 0.9 : 0.3 }} /> : null}
+          {rutaCalles && rutaCalles.coordenadas.length > 1
+            ? <Polyline positions={rutaCalles.coordenadas} pathOptions={{ color: INDIGO_CLARO, weight: 4, opacity: 0.95, lineJoin: "round", lineCap: "round" }} />
+            : rutaSugerida.length > 1 ? <Polyline positions={rutaSugerida} pathOptions={{ color: INDIGO_CLARO, weight: 3, opacity: 0.95, dashArray: "9 9" }} /> : null}
+          {lineasRecorrido.map((l, i) => <Polyline key={"rec-" + i} positions={l.coordenadas} pathOptions={{ color: INDIGO, weight: l.ajustado ? 4 : 3.5, opacity: idxRepeticion == null ? 0.9 : 0.3, lineJoin: "round", lineCap: "round" }} />)}
           {rutaRecorrida.length > 1 ? <Polyline positions={rutaRecorrida} pathOptions={{ color: INDIGO, weight: 5, opacity: 0.95 }} /> : null}
           {puntoRepeticion ? <CircleMarker center={[puntoRepeticion.latitud, puntoRepeticion.longitud]} radius={9} pathOptions={{ color: "#ffffff", weight: 3, fillColor: INDIGO, fillOpacity: 1 }} /> : null}
           {reproduciendo && puntoRepeticion ? <SeguirPunto latitud={puntoRepeticion.latitud} longitud={puntoRepeticion.longitud} /> : null}
@@ -1134,11 +1175,11 @@ export default function SeguimientoPage() {
                   <div><dt>Movimiento</dt><dd>{mov || "—"}</dd></div>
                 </dl>
                 {lugar && lugar.tipo === "LLEGADA" ? <p className="resumen-linea">En la visita de <b>{lugar.cliente || "un cliente"}</b> desde {horaCorta(lugar.fecha)}</p> : null}
-                {proximo ? <p className="resumen-linea">Siguiente: <b>{proximo.expediente.nombres_cliente}</b> · {fmtDistancia(proximo.distanciaDesdeAsesor)}{rutaKm > 0 ? " · ruta de " + fmtDistancia(rutaKm) + " en total" : ""}</p> : null}
+                {proximo ? <p className="resumen-linea">Siguiente: <b>{proximo.expediente.nombres_cliente}</b> · {fmtDistancia(proximo.distanciaDesdeAsesor)}{rutaKm > 0 ? " · ruta de " + fmtDistancia(rutaKm) + " en total" + (rutaCalles ? " por calles, ≈ " + fmtDuracion(rutaCalles.duracion_s) + " en vehículo" : "") : ""}</p> : null}
                 {lejanos > 0 ? <p className="resumen-linea apagado">{lejanos} {lejanos === 1 ? "cliente está" : "clientes están"} a más de 60 km: no entran en el encuadre.</p> : null}
                 <div className="resumen-acciones">
                   {auditorSel.enVivo ? <button type="button" className="sv-btn" onClick={() => mover({ modo: "auditor", punto: [auditorSel.latitud as number, auditorSel.longitud as number] })}>Centrar en él</button> : null}
-                  {rutaSugerida.length > 1 ? <button type="button" className="sv-btn claro" onClick={() => mover({ modo: "ruta", coords: rutaSugerida })}>Ver ruta completa</button> : null}
+                  {rutaSugerida.length > 1 ? <button type="button" className="sv-btn claro" onClick={() => mover({ modo: "ruta", coords: rutaCalles && rutaCalles.coordenadas.length > 1 ? rutaCalles.coordenadas : rutaSugerida })}>Ver ruta completa</button> : null}
                 </div>
                 <details className="seg-sec">
                   <summary>Recorrido real</summary>
@@ -1154,6 +1195,8 @@ export default function SeguimientoPage() {
                         </div>
                         <p className="subtle" role="status">
                           {puntoRepeticion ? horaConSegundos(puntoRepeticion.fecha) + (puntoRepeticion.precision ? " · ±" + Math.round(puntoRepeticion.precision) + " m" : "") : "Mueve la barra para ver dónde estaba."} · {ruta.length} puntos de {horaCorta(ruta[0].fecha)} a {horaCorta(ruta[ruta.length - 1].fecha)}
+                          {textoDescartados ? <span title="Posiciones que el celular mandó pero no sirven para el recorrido: imprecisas (peores que la regla de la empresa), saltos imposibles o GPS simulado."> · {textoDescartados} fuera</span> : null}
+                          {trazado?.lineas.some((l) => l.ajustado) ? " · ajustado a las calles" : ""}
                         </p>
                         {pausas.length ? (
                           <ul className="pausas" aria-label="Tramos sin señal">
@@ -1186,13 +1229,13 @@ export default function SeguimientoPage() {
                       <p className="subtle" style={{ marginBottom: 6 }}>En ruta ({enRuta.length}), del más cercano al más lejano</p>
                       {!clientesDelAuditorSeleccionado.length ? <p className="subtle">Sin clientes asignados en esta zona.</p> : null}
                       <div>
-                        {enRuta.map((a) => (
+                        {enRuta.map((a, i) => (
                           <div key={a.id_asignacion} className="stop">
                             <span className="n">{a.orden}</span>
                             <div>
                               <b>{a.expediente.nombres_cliente}</b>
                               <small><span translate="no">{a.expediente.codigo_expediente}</span> · {a.expediente.distrito || "-"}</small>
-                              <em>{fmtDistancia(a.distanciaDesdeAsesor)} desde el punto de partida</em>
+                              <em>{fmtDistancia(a.distanciaDesdeAsesor)} desde el punto de partida{rutaCalles?.tramos[i] ? " · " + fmtDistancia(rutaCalles.tramos[i].distancia_m) + " por calles desde la parada anterior" : ""}</em>
                             </div>
                           </div>
                         ))}
