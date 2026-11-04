@@ -1,13 +1,17 @@
 import { Icon } from "../icons";
 import { iniciales } from "../../lib/format";
 import { PRIORIDADES, expedientes, nombreAuditor, zonaAuditor, type Auditor, type Seleccion } from "../../lib/asignaciones";
+import { tituloBloqueo, type Licencia } from "../../lib/licencia";
 
 // Columna «Resumen de asignación» de Asignaciones (diseño de Figma): el auditor elegido, los clientes marcados (cada uno se puede quitar), cuántos casos tendrá el auditor
 // al confirmar, la prioridad y el botón para asignar. Mientras no se confirma no se guarda nada: es solo la revisión de lo que se va a hacer.
-export default function ResumenAsignacion({ auditor, seleccion, prioridad, onPrioridad, onQuitar, onLimpiar, onAsignar, asignando, onVerCasos }: {
+// `soloLectura`: la licencia no permite registrar y el servidor rechazaría la asignación; el botón se apaga y el pie lo explica con el motivo exacto
+// (`licencia`: vencida, suspendida o cancelada).
+export default function ResumenAsignacion({ auditor, seleccion, prioridad, onPrioridad, onQuitar, onLimpiar, onAsignar, asignando, soloLectura = false, licencia = null, onVerCasos }: {
   auditor: Auditor | null; seleccion: Seleccion; prioridad: string; onPrioridad: (p: string) => void; onQuitar: (id: number) => void; onLimpiar: () => void;
-  onAsignar: () => void; asignando: boolean; onVerCasos: () => void;
+  onAsignar: () => void; asignando: boolean; soloLectura?: boolean; licencia?: Licencia | null; onVerCasos: () => void;
 }) {
+  const motivoBloqueo = tituloBloqueo(licencia);
   const n = seleccion.size;
   const actuales = auditor?.activos ?? 0;
   const items = [...seleccion.values()];
@@ -58,8 +62,9 @@ export default function ResumenAsignacion({ auditor, seleccion, prioridad, onPri
         </div>
       </div>
       <div className="as-res-pie">
-        {!auditor && n ? <p className="as-aviso-pie" role="status">Elige un auditor para poder asignar.</p> : null}
-        <button type="button" className="as-asignar" disabled={asignando || !auditor || !n} onClick={onAsignar}>
+        {soloLectura ? <p className="as-aviso-pie" role="status">{motivoBloqueo}: no se pueden asignar expedientes.</p>
+          : !auditor && n ? <p className="as-aviso-pie" role="status">Elige un auditor para poder asignar.</p> : null}
+        <button type="button" className="as-asignar" disabled={asignando || !auditor || !n || soloLectura} title={soloLectura ? motivoBloqueo : undefined} onClick={onAsignar}>
           <Icon name="ok" size={17} strokeWidth={2.2} />{asignando ? "Asignando…" : n ? `Asignar ${expedientes(n)}` : "Asignar expedientes"}
         </button>
         <button type="button" className="as-enlace centro" onClick={onLimpiar} disabled={!n || asignando}>Limpiar selección</button>

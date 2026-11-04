@@ -10,6 +10,7 @@ import ResumenAsignacion from "../components/asignaciones/ResumenAsignacion";
 import TomaDeCasos from "../components/asignaciones/TomaDeCasos";
 import { LOTE_ASIGNAR, expedientes, nombreAuditor, trozos, type Auditor, type Pendiente, type Seleccion } from "../lib/asignaciones";
 import { useParametros } from "../lib/useParametros";
+import { useLicencia } from "../lib/licencia";
 import "../pantalla.css";
 import "../asignaciones.css";
 
@@ -20,6 +21,7 @@ import "../asignaciones.css";
 export default function AsignacionesPage() {
   const { user, empresaElegida } = useAuth();
   const esAdmin = user?.rol === "ADMINISTRADOR" || (user?.rol === "UNIVERSAL" && Boolean(empresaElegida));
+  const { licencia, soloLectura } = useLicencia(true); // con la licencia vencida el servidor rechaza asignar y liberar casos: la interfaz lo adelanta
   const { params, fijar } = useParametros();
   const auditorId = params.get("auditor") || "";
   const [auditor, setAuditor] = useState<Auditor | null>(null);
@@ -96,7 +98,7 @@ export default function AsignacionesPage() {
           {aviso ? <div role="status" className="as-msg ok"><Icon name="ok" size={16} /><span>{aviso}</span><button type="button" onClick={() => setAviso("")} aria-label="Cerrar el aviso"><Icon name="cerrar" size={14} /></button></div> : null}
         </div>
         <div className="as-enlaces">
-          <TomaDeCasos esAdmin={esAdmin} refrescar={refrescar} onAviso={setAviso} />
+          <TomaDeCasos esAdmin={esAdmin} soloLectura={soloLectura} licencia={licencia} refrescar={refrescar} onAviso={setAviso} />
           <button type="button" className="as-enlace" onClick={() => setLista("todas")}><Icon name="reloj" size={15} />Asignaciones</button>
         </div>
       </div>
@@ -104,7 +106,7 @@ export default function AsignacionesPage() {
       <div className="as-planner">
         <ColumnaAuditores auditorId={auditorId} onElegir={elegir} refrescar={refrescar} />
         <ColumnaExpedientes seleccion={seleccion} onAlternar={alternar} onPagina={marcarPagina} onLimpiar={limpiar} refrescar={refrescar} />
-        <ResumenAsignacion auditor={auditor} seleccion={seleccion} prioridad={prioridad} onPrioridad={setPrioridad} onQuitar={quitarMarca} onLimpiar={limpiar} onAsignar={asignar} asignando={asignando} onVerCasos={() => setLista("auditor")} />
+        <ResumenAsignacion auditor={auditor} seleccion={seleccion} prioridad={prioridad} onPrioridad={setPrioridad} onQuitar={quitarMarca} onLimpiar={limpiar} onAsignar={asignar} asignando={asignando} soloLectura={soloLectura} licencia={licencia} onVerCasos={() => setLista("auditor")} />
       </div>
 
       {lista ? <ListaAsignaciones auditor={lista === "auditor" ? auditor : null} onClose={() => setLista(null)} onCambio={() => setRefrescar((n) => n + 1)} onQuitar={abrirQuitar} /> : null}

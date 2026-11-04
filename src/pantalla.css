@@ -175,6 +175,7 @@
 .pa-alerta.info { background: var(--pa-caja); color: var(--pa-texto); }
 .pa-alerta.info p { margin: 0; color: var(--pa-gris); }
 .pa-error { padding: 11px 14px; border-radius: 8px; background: var(--pa-mal-fondo); color: var(--pa-mal); font-size: 13.5px; line-height: 1.4; }
+.pa-error a, .pa-alerta a { color: inherit; text-decoration: underline; text-underline-offset: 3px; font-weight: 600; }
 
 /* ---------- Campos de formulario ---------- */
 .pa-campos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }

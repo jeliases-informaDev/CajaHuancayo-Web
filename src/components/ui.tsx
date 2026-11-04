@@ -6,8 +6,8 @@ import { iniciales, tonoAvatar } from "../lib/format";
 type Tono = "ok" | "warn" | "bad" | "neutral" | "blue" | "plum";
 const TONOS: Record<string, Tono> = {
   ACTIVA: "ok", VISITADO: "ok", CONFORME: "ok", ACTIVO: "ok", AUDITOR: "ok", COMPLETADO: "ok",
-  ASIGNADO: "warn", PENDIENTE: "warn", OBSERVADO: "warn", MEDIA: "warn", PROCESANDO: "warn",
-  CANCELADA: "bad", NO_UBICADO: "bad", RECHAZADO: "bad", ALTA: "bad", ERROR: "bad", INTERRUMPIDA: "bad",
+  ASIGNADO: "warn", PENDIENTE: "warn", OBSERVADO: "warn", MEDIA: "warn", PROCESANDO: "warn", SOLO_LECTURA: "warn",
+  CANCELADA: "bad", NO_UBICADO: "bad", RECHAZADO: "bad", ALTA: "bad", ERROR: "bad", INTERRUMPIDA: "bad", SUSPENDIDA: "bad",
   CERRADO: "neutral", INACTIVO: "neutral", BAJA: "neutral",
   FINALIZADA: "blue", SUPERVISOR: "blue", ADMINISTRADOR: "plum",
 };

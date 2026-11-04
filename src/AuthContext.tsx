@@ -1,5 +1,8 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { ApiError, clearToken, getEmpresaElegida, getToken, request, setEmpresaElegida, setToken } from "./api";
+import { olvidarLicencia, recordarLicencia } from "./lib/licencia";
+import { olvidarModoPruebas } from "./lib/limpieza";
+import { olvidarResumen } from "./lib/resumen";
 import { aplicarColorMarca } from "./marca";
 
 type User = { id: string; username: string; rol: string; nombres?: string; apellidos?: string; empresa_id?: string | null };
@@ -18,6 +21,10 @@ type AuthValue = {
 };
 
 const Context = createContext<AuthValue | null>(null);
+
+// /api/auth/me trae también la licencia de la empresa (null = licencias apagadas): se guarda para que la franja no espere otra llamada. Si el servidor todavía
+// no manda el campo, la pide quien la necesite.
+const guardarLicencia = (data: any) => { if (data?.licencia !== undefined) recordarLicencia(data.licencia ?? null); };
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -43,6 +50,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         ensureAccesoWeb(data.user);
         setUser(data.user);
         setEmpresa(data.empresa || null);
+        guardarLicencia(data);
       } catch {
         clearToken();
       } finally {
@@ -62,7 +70,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Al entrar o cambiar de empresa se vuelve a pedir la sesión: trae la empresa (nombre, marca, reglas) que corresponde.
   const refrescarEmpresa = async () => {
-    try { const data: any = await request("/api/auth/me"); setEmpresa(data.empresa || null); } catch { setEmpresa(null); }
+    try { const data: any = await request("/api/auth/me"); setEmpresa(data.empresa || null); guardarLicencia(data); } catch { setEmpresa(null); }
   };
   const elegirEmpresa = (id: string | null) => { setEmpresaElegida(id); setEmpresaElegidaEstado(id); refrescarEmpresa(); };
 
@@ -102,6 +110,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     logout: async () => {
       try { await request("/api/auth/logout", { method: "POST" }); } catch (e) { if (!(e instanceof ApiError)) {/* ignore network errors on logout */} }
       clearToken();
+      // Lo que el panel recordaba de la sesión (resumen, modo pruebas, licencia) se olvida aquí, en toda salida: el menú, rechazar los términos…
+      olvidarResumen(); olvidarModoPruebas(); olvidarLicencia();
       setUser(null);
       setEmpresa(null);
     },
