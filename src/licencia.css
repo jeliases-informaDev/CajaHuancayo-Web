@@ -1,0 +1,21 @@
+/* Licencia de GeoMatrix (servicio de licencias de Sulotec): franja entre la barra superior y el contenido, y pastilla de la barra cuando está por vencer.
+   El relleno horizontal es el de .topbar (41/42 px; 16 px hasta 1024 px) para que el texto quede alineado con las migas. */
+/* La franja mide siempre --lic-franja-alto (una línea de texto): Seguimiento y Asignaciones se lo restan al alto de la ventana cuando .main-col lleva «con-franja». */
+:root { --lic-franja-alto: 40px; }
+.lic-franja { padding: 9px 41px 9px 42px; font-size: 13.5px; line-height: 1.5; border-bottom: 1px solid transparent; min-height: var(--lic-franja-alto); box-sizing: border-box; }
+.lic-franja.aviso { background: var(--warn-wash); color: var(--warn); border-color: color-mix(in srgb, var(--warn) 25%, transparent); }
+.lic-franja.mal { background: var(--bad-wash); color: var(--bad); border-color: color-mix(in srgb, var(--bad) 25%, transparent); }
+.lic-franja a { color: inherit; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+.lic-franja a:hover { text-decoration-thickness: 2px; }
+.lic-sep { margin: 0 8px; opacity: 0.6; }
+
+.lic-pastilla { display: inline-flex; align-items: center; height: 26px; padding: 0 12px; margin-left: 14px; border-radius: 999px; border: 1px solid color-mix(in srgb, var(--warn) 30%, transparent); background: var(--warn-wash); color: var(--warn); font-size: 12px; font-weight: 500; text-decoration: none; white-space: nowrap; }
+.lic-pastilla:hover { text-decoration: none; filter: brightness(0.97); }
+.lic-pastilla:focus-visible { outline: none; box-shadow: var(--ring); }
+
+@media (max-width: 1024px) {
+  .lic-franja { padding: 8px 16px; }
+}
+@media (max-width: 600px) {
+  .lic-pastilla { margin-left: 8px; }
+}

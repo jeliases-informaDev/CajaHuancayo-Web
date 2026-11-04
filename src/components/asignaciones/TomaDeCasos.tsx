@@ -1,11 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { request } from "../../api";
 import { Icon } from "../icons";
+import { tituloBloqueo, type Licencia } from "../../lib/licencia";
 
 // Burbuja «Toma de casos» de Asignaciones: lo que ya existía arriba de la pantalla (cuántos casos tomaron los propios auditores, el interruptor para que puedan tomarlos,
 // el máximo de casos abiertos por asesor y liberar los pendientes que solo asigna un supervisor) ahora en una burbuja que se abre y se cierra, para no abultar el
 // diseño de tres columnas. El interruptor y el máximo son solo del administrador y pasan por una confirmación, porque afectan a todos los auditores.
-export default function TomaDeCasos({ esAdmin, refrescar, onAviso }: { esAdmin: boolean; refrescar: number; onAviso: (texto: string) => void }) {
+// `soloLectura`: la licencia no permite registrar y el servidor rechazaría liberar los casos; el botón se apaga con el motivo exacto (`licencia`: vencida,
+// suspendida o cancelada).
+export default function TomaDeCasos({ esAdmin, soloLectura = false, licencia = null, refrescar, onAviso }: { esAdmin: boolean; soloLectura?: boolean; licencia?: Licencia | null; refrescar: number; onAviso: (texto: string) => void }) {
   const [abierto, setAbierto] = useState(false);
   const [resumen, setResumen] = useState<any>(null);
   const [error, setError] = useState("");
@@ -81,7 +84,7 @@ export default function TomaDeCasos({ esAdmin, refrescar, onAviso }: { esAdmin: 
               </p>
               {resumen.pendientes_reservados > 0 ? (
                 <p className="as-txt">Hay {resumen.pendientes_reservados.toLocaleString("es-PE")} casos pendientes que solo asigna un supervisor (se cargaron sin marcar «disponibles»): los auditores no los ven en «Disponibles».{" "}
-                  {esAdmin ? <button type="button" className="as-enlace en-linea" disabled={liberando} onClick={liberar}>{liberando ? "Liberando…" : "Liberarlos a los auditores"}</button> : "Pide al administrador que los libere."}</p>
+                  {esAdmin ? <button type="button" className="as-enlace en-linea" disabled={liberando || soloLectura} title={soloLectura ? tituloBloqueo(licencia) : undefined} onClick={liberar}>{liberando ? "Liberando…" : "Liberarlos a los auditores"}</button> : "Pide al administrador que los libere."}</p>
               ) : null}
               {resumen.auditores.some((x: any) => x.autoasignadas > 0) ? (
                 <ul className="as-top" aria-label="Casos tomados por auditor">

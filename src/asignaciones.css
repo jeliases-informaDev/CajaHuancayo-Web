@@ -234,6 +234,8 @@
 /* ---------- Tres columnas (960 px o más): el diseño de Figma a la altura de la ventana; los laterales ceden un poco antes de pasar a dos columnas ---------- */
 @container planner (min-width: 960px) {
   .as-planner { grid-template-columns: minmax(236px, 268px) minmax(400px, 1fr) minmax(284px, 318px); grid-template-areas: "aud pool res"; gap: 17px; height: calc(100vh - 53px - 35px - 46px - 28px); min-height: 640px; align-items: stretch; }
+  /* Con la franja de licencia bajo la barra superior (.main-col «con-franja») el planificador le cede su alto. */
+  .main-col.con-franja .as-planner { height: calc(100vh - 53px - var(--lic-franja-alto) - 35px - 46px - 28px); }
   .as-pool { min-height: 0; }
   .as-lista-aud { max-height: none; }
   .as-res-cuerpo { overflow-y: auto; }

@@ -11,6 +11,7 @@ import PlantillasModal from "../components/expedientes/PlantillasModal";
 import VistaExpediente from "../components/expedientes/VistaExpediente";
 import { PastillaEstado, PastillaTipo, PastillaUbicacion } from "../components/expedientes/pastillas";
 import { refrescarResumen, useResumen } from "../lib/resumen";
+import { tituloBloqueo, useLicencia } from "../lib/licencia";
 import { dash, GEO_ESTADO, nombrePropio } from "../lib/format";
 import { ESTADOS, SIN_FILTROS_EXP, consultaExpedientes, useFiltrosExpedientes } from "../lib/filtrosExpedientes";
 import { TAMANOS, paginasVisibles } from "../lib/paginas";
@@ -27,6 +28,8 @@ export default function ExpedientesPage() {
   const { search } = useLocation();
   const { filtros, pagina, filas, fijarFiltros, irAPagina, fijarFilas, quitarParametro } = useFiltrosExpedientes();
   const { resumen } = useResumen();
+  const { licencia, soloLectura } = useLicencia(true); // con la licencia vencida el servidor rechaza crear e importar: los botones lo adelantan
+  const motivoBloqueo = soloLectura ? tituloBloqueo(licencia) : undefined; // título de los botones apagados (vencida, suspendida o cancelada)
   const [data, setData] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
   const [paginas, setPaginas] = useState(1);
@@ -69,8 +72,8 @@ export default function ExpedientesPage() {
   // Si la URL cambia desde afuera (por ejemplo «Limpiar filtros»), la caja la sigue; sin pisar lo que se está escribiendo.
   useEffect(() => { setTexto((t) => (t.trim() === filtros.q || (t.trim().length < 2 && filtros.q === "") ? t : filtros.q)); }, [filtros.q]);
 
-  // «?nuevo=1» (la paleta y otros enlaces) abre el alta de un expediente.
-  useEffect(() => { if (new URLSearchParams(search).get("nuevo") === "1") { setVentana("nuevo"); quitarParametro("nuevo"); } }, [search, quitarParametro]);
+  // «?nuevo=1» (la paleta y otros enlaces) abre el alta de un expediente; en solo lectura no se abre (el botón está apagado), solo se limpia la URL.
+  useEffect(() => { if (new URLSearchParams(search).get("nuevo") === "1") { if (!soloLectura) setVentana("nuevo"); quitarParametro("nuevo"); } }, [search, quitarParametro, soloLectura]);
 
   // Ctrl/Cmd + K lleva al buscador de esta pantalla (en vez de abrir la paleta general), como en Seguimiento y Visitas.
   useEffect(() => {
@@ -118,8 +121,8 @@ export default function ExpedientesPage() {
             <button type="button" className="ex-enlace" onClick={() => setVentana("plantillas")}><Icon name="descargar" size={15} />Plantillas</button>
           </div>
           <div className="ex-botones">
-            <button type="button" className="ex-boton" onClick={() => setVentana("nuevo")}><Icon name="mas" size={15} /><span>Nuevo expediente</span></button>
-            <button type="button" className="ex-boton primario" onClick={() => setVentana("cargar")}><Icon name="subir" size={15} /><span>Cargar archivo</span></button>
+            <button type="button" className="ex-boton" onClick={() => setVentana("nuevo")} disabled={soloLectura} title={motivoBloqueo}><Icon name="mas" size={15} /><span>Nuevo expediente</span></button>
+            <button type="button" className="ex-boton primario" onClick={() => setVentana("cargar")} disabled={soloLectura} title={motivoBloqueo}><Icon name="subir" size={15} /><span>Cargar archivo</span></button>
           </div>
         </div>
       </div>
@@ -166,7 +169,7 @@ export default function ExpedientesPage() {
         <Empty tipo={hayFiltros ? "busqueda" : "vacio"} title="Sin expedientes"
           text={hayFiltros ? "Ningún expediente coincide con estos filtros." : "Carga un archivo de Excel para empezar (en «Plantillas» tienes el formato listo para llenar)."}
           action={hayFiltros ? <button type="button" className="btn ghost" onClick={limpiarTodo}>Limpiar filtros</button>
-            : <div className="row" style={{ justifyContent: "center", gap: 10 }}><button type="button" className="btn" onClick={() => setVentana("cargar")}><Icon name="subir" size={17} />Cargar archivo</button><button type="button" className="btn ghost" onClick={() => setVentana("plantillas")}><Icon name="descargar" size={17} />Plantillas</button></div>} />
+            : <div className="row" style={{ justifyContent: "center", gap: 10 }}><button type="button" className="btn" onClick={() => setVentana("cargar")} disabled={soloLectura} title={motivoBloqueo}><Icon name="subir" size={17} />Cargar archivo</button><button type="button" className="btn ghost" onClick={() => setVentana("plantillas")}><Icon name="descargar" size={17} />Plantillas</button></div>} />
       ) : (
         <div className="ex-tarjeta" ref={tarjeta} aria-busy={cargando}>
           <div className="ex-scroll">
@@ -218,7 +221,7 @@ export default function ExpedientesPage() {
       {vista !== null ? <VistaExpediente id={vista} onClose={() => setVista(null)} /> : null}
       {ventana === "cargar" ? <CargarArchivo onClose={() => setVentana(null)} onDone={recargar} onVerPlantillas={() => setVentana("plantillas")} /> : null}
       {ventana === "historial" ? <HistorialCargas onClose={() => setVentana(null)} /> : null}
-      {ventana === "plantillas" ? <PlantillasModal onClose={() => setVentana(null)} onCargar={() => setVentana("cargar")} /> : null}
+      {ventana === "plantillas" ? <PlantillasModal onClose={() => setVentana(null)} onCargar={soloLectura ? undefined : () => setVentana("cargar")} /> : null}
       {ventana === "nuevo" ? <NuevoExpediente onClose={() => setVentana(null)} onCreado={recargar} /> : null}
     </div>
   );

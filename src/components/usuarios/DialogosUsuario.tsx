@@ -1,8 +1,9 @@
 import { useState, type ReactNode } from "react";
-import { request } from "../../api";
+import { ApiError, request } from "../../api";
 import Dialogo, { type TonoDialogo } from "../Dialogo";
 import { Icon } from "../icons";
 import { iniciales } from "../../lib/format";
+import { refrescarLicencia, textoCupo, type Licencia } from "../../lib/licencia";
 import { ROL, nombreDe, type Usuario } from "../../lib/usuarios";
 
 // Ventanas de Usuarios (diseño de Figma): nuevo usuario, cambiar contraseña y las confirmaciones de desactivar, activar, restablecer la verificación en dos pasos y
@@ -41,6 +42,18 @@ function CampoClave({ id, etiqueta, valor, onChange, ayuda, error }: { id: strin
 
 const pideConfirmar = (hay: boolean) => !hay || window.confirm("Hay datos sin guardar. ¿Cerrar y descartarlos?");
 
+// Error de una ventana: el texto del servidor y, si vino de la licencia (sin cupo, solo lectura…), el enlace a Sulotec para resolverlo.
+type ErrorVentana = { texto: string; enlace?: string; accion: string } | null;
+const errorDe = (x: any, porDefecto: string): ErrorVentana => {
+  const data = x instanceof ApiError ? x.data : undefined;
+  // Si el servidor rechazó por la licencia (sin cupo, solo lectura…), lo que el panel sabía de ella quedó viejo: se vuelve a pedir.
+  if (String(data?.code || "").startsWith("LICENCIA_")) void refrescarLicencia();
+  return { texto: x?.message || porDefecto, enlace: typeof data?.enlace === "string" ? data.enlace : undefined, accion: data?.code === "LICENCIA_SIN_CUPO" ? "Ampliar mi licencia" : "Ver mi licencia" };
+};
+const AvisoError = ({ error }: { error: ErrorVentana }) => (error
+  ? <div role="alert" className="pa-error">{error.texto}{error.enlace ? <>{" "}<a href={error.enlace} target="_blank" rel="noreferrer">{error.accion}</a></> : null}</div>
+  : null);
+
 // ---------------------------------------------------------------- Nuevo usuario
 const VACIO = { username: "", nombres: "", apellidos: "", email: "", rol: "AUDITOR", password: "", confirmar: "" };
 const AYUDA_ROL: Record<string, string> = {
@@ -48,11 +61,14 @@ const AYUDA_ROL: Record<string, string> = {
   UNIVERSAL: "Administra todas las empresas de Sulotec.",
 };
 
-export function NuevoUsuario({ prefijo, esUniversal, onClose, onCreado }: { prefijo?: string | null; esUniversal: boolean; onClose: () => void; onCreado: (mensaje: string) => void }) {
+// `puedeCrear` y `licencia`: sin cupo en la licencia la ventana lo avisa y no deja crear (el servidor también lo rechazaría).
+export function NuevoUsuario({ prefijo, esUniversal, puedeCrear = true, licencia = null, onClose, onCreado }: {
+  prefijo?: string | null; esUniversal: boolean; puedeCrear?: boolean; licencia?: Licencia | null; onClose: () => void; onCreado: (mensaje: string) => void;
+}) {
   const [form, setForm] = useState(VACIO);
   const [mfa, setMfa] = useState(true);
   const [guardando, setGuardando] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState<ErrorVentana>(null);
   const [intento, setIntento] = useState(false);
   const cambia = (k: keyof typeof VACIO) => (e: { target: { value: string } }) => setForm((f) => ({ ...f, [k]: e.target.value }));
   const sucio = JSON.stringify(form) !== JSON.stringify(VACIO) || !mfa;
@@ -64,20 +80,23 @@ export function NuevoUsuario({ prefijo, esUniversal, onClose, onCreado }: { pref
   const enviar = async (e: React.FormEvent) => {
     e.preventDefault();
     setIntento(true);
-    if (form.password.length < 12 || form.confirmar !== form.password) return;
-    setGuardando(true); setError("");
+    if (!puedeCrear || form.password.length < 12 || form.confirmar !== form.password) return;
+    setGuardando(true); setError(null);
     try {
       await request("/api/usuarios", { method: "POST", body: JSON.stringify({ username: form.username.trim(), password: form.password, rol: form.rol, nombres: form.nombres.trim(), apellidos: form.apellidos.trim(), email: form.email.trim(), mfa_habilitado: mfa }) });
       onCreado("Usuario creado.");
-    } catch (x: any) { setError(x?.message || "No se pudo crear el usuario."); } finally { setGuardando(false); }
+    } catch (x: any) { setError(errorDe(x, "No se pudo crear el usuario.")); } finally { setGuardando(false); }
   };
 
   return (
     <Dialogo icono="usuarioMas" titulo="Nuevo usuario" subtitulo="Completa los datos para dar acceso al sistema." ancho={720} ocupado={guardando} onClose={cerrar}
-      pie={<><button type="button" className="pa-boton" onClick={cerrar} disabled={guardando}>Cancelar</button><button type="submit" form="form-nuevo-usuario" className="pa-boton primario" disabled={guardando}>{guardando ? "Creando…" : "Crear usuario"}</button></>}>
+      pie={<><button type="button" className="pa-boton" onClick={cerrar} disabled={guardando}>Cancelar</button><button type="submit" form="form-nuevo-usuario" className="pa-boton primario" disabled={guardando || !puedeCrear}>{guardando ? "Creando…" : "Crear usuario"}</button></>}>
       <form id="form-nuevo-usuario" onSubmit={enviar} noValidate style={{ display: "grid", gap: 16 }}>
         <p className="nota"><span className="req">*</span> Campo obligatorio · Opcionales indicados</p>
-        {error ? <div role="alert" className="pa-error">{error}</div> : null}
+        {!puedeCrear && licencia ? (
+          <div className="pa-alerta aviso" role="alert"><Icon name="alertaCirculo" size={19} /><div><b>Sin cupo de usuarios</b><p>{textoCupo(licencia)}{licencia.enlace ? <>{" "}<a href={licencia.enlace} target="_blank" rel="noreferrer">Ampliar mi licencia</a></> : null}</p></div></div>
+        ) : null}
+        <AvisoError error={error} />
         <div className="pa-seccion"><h3>Identidad</h3><span>Datos de la persona</span></div>
         <div className="pa-campos">
           <div className="pa-campo">
@@ -174,10 +193,10 @@ export function ConfirmarAccion({ usuario, icono, tono = "normal", titulo, subti
   ejecutar: () => Promise<string>; onClose: () => void; onHecho: (mensaje: string) => void;
 }) {
   const [guardando, setGuardando] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState<ErrorVentana>(null);
   const confirmar = async () => {
-    setGuardando(true); setError("");
-    try { onHecho(await ejecutar()); } catch (x: any) { setError(x?.message || "No se pudo completar la acción."); setGuardando(false); }
+    setGuardando(true); setError(null);
+    try { onHecho(await ejecutar()); } catch (x: any) { setError(errorDe(x, "No se pudo completar la acción.")); setGuardando(false); }
   };
   return (
     <Dialogo icono={icono} tono={tono} titulo={titulo} subtitulo={subtitulo} ocupado={guardando} onClose={onClose}
@@ -186,7 +205,7 @@ export function ConfirmarAccion({ usuario, icono, tono = "normal", titulo, subti
       <p>{pregunta}</p>
       {alerta ? <div className={`pa-alerta ${alerta.tono}`} role="note"><Icon name={alerta.icono} size={19} /><div><b>{alerta.titulo}</b><p>{alerta.texto}</p></div></div> : null}
       {nota ? <p className="nota">{nota}</p> : null}
-      {error ? <div role="alert" className="pa-error">{error}</div> : null}
+      <AvisoError error={error} />
     </Dialogo>
   );
 }

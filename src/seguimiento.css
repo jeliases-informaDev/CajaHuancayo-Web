@@ -10,6 +10,8 @@
   --sv-sombra: 0 1px 3px rgba(40, 50, 110, 0.24), 0 0 0 1px rgba(40, 50, 110, 0.05);
   position: relative; height: calc(100vh - 53px); min-height: 560px; overflow: hidden; background: #e9eaef;
 }
+/* Con la franja de licencia bajo la barra superior (Layout marca .main-col con «con-franja») el mapa le cede su alto. */
+.main-col.con-franja .sv-pagina { height: calc(100vh - 53px - var(--lic-franja-alto)); }
 :root[data-theme="dark"] .sv-pagina {
   --sv-card: var(--surface); --sv-tinta: var(--ink); --sv-sec: var(--ink-2); --sv-gris: var(--muted); --sv-linea: var(--line-2); --sv-hover: var(--surface-2);
   --sv-sel: rgba(127, 147, 255, 0.2); --sv-sel-borde: rgba(127, 147, 255, 0.55); --sv-sel-tinta: #c3ccff; --sv-enlace: #9fb0ff; --sv-ok: #78e8bd;

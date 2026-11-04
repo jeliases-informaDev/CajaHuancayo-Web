@@ -139,4 +139,4 @@ kbd {
   .top-nota { display: none; }
   .page { --pad: 16px; --pad-d: 16px; padding-top: 22px; }
 }
-@media print { body::after, .sidebar, .topbar { display: none; } .app { display: block; } }
+@media print { body::after, .sidebar, .topbar, .lic-franja { display: none; } .app { display: block; } }

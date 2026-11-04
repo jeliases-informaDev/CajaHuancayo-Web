@@ -6,9 +6,11 @@ import { Icon } from "./icons";
 import { Avatar } from "./ui";
 import Palette from "./Palette";
 import { useRail, useTheme, type Tema } from "../lib/theme";
-import { olvidarResumen, useResumen } from "../lib/resumen";
-import { olvidarModoPruebas, useModoPruebas } from "../lib/limpieza";
+import { useResumen } from "../lib/resumen";
+import { useModoPruebas } from "../lib/limpieza";
+import { hayFranja, useLicencia } from "../lib/licencia";
 import { PRODUCTO, tituloDe } from "../lib/producto";
+import FranjaLicencia, { PastillaLicencia } from "./FranjaLicencia";
 
 type Enlace = { universalOnly?: boolean; to: string; label: string; icon: string; end?: boolean; adminOnly?: boolean };
 // Las secciones van en una sola lista, sin títulos de grupo (diseño de Figma). El orden es el de los íconos de la barra compacta.
@@ -76,9 +78,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     return () => document.removeEventListener("keydown", onKey);
   }, []);
 
-  const salir = async () => { await logout(); olvidarResumen(); olvidarModoPruebas(); navigate("/login"); };
+  const salir = async () => { await logout(); navigate("/login"); }; // logout ya olvida el resumen, el modo pruebas y la licencia (también al rechazar los términos)
   const esAdmin = user?.rol === "ADMINISTRADOR" || (esUniversal && Boolean(empresaElegida));
   const { activo: modoPruebas } = useModoPruebas(esAdmin);
+  // La licencia la ve todo el que está dentro de una empresa (el universal, después de elegir una): franja si está vencida o suspendida; pastilla si está por vencer.
+  const { licencia } = useLicencia(Boolean(user) && (!esUniversal || Boolean(empresaElegida)));
   // Marca que ve el usuario: la de su empresa (o la elegida por el universal); sin empresa, la de la plantilla.
   const marcaNombre = empresa?.marca?.nombre || empresa?.nombre_corto || (esUniversal ? "Sulotec" : "");
   const marcaProducto = PRODUCTO; // el producto es siempre GeoMatrix; lo que cambia es el nombre de la empresa
@@ -143,14 +147,17 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
       <div className="scrim" onClick={() => setAbierto(false)} aria-hidden="true" />
-      <div className="main-col">
+      {/* «con-franja»: hay franja de licencia bajo la barra; Seguimiento y Asignaciones le restan su alto (--lic-franja-alto). */}
+      <div className={"main-col" + (hayFranja(licencia, esAdmin) ? " con-franja" : "")}>
         <header className="topbar">
           <button className="burger" onClick={() => setAbierto((v) => !v)} aria-label="Abrir el menú" aria-expanded={abierto}><Icon name="menu" size={19} /></button>
           {migas}
           {modoPruebas ? <Link to="/seguridad" className="mp-pastilla" title="Se pueden borrar empleados y datos. Apágalo en Seguridad cuando termine la prueba.">Modo pruebas encendido</Link> : null}
+          {esAdmin ? <PastillaLicencia licencia={licencia} /> : null}
           <div className="top-spacer" />
           {ruta.nota ? <p className="top-nota">{ruta.nota}</p> : null}
         </header>
+        <FranjaLicencia licencia={licencia} esAdmin={esAdmin} />
         <main className={"page" + (partes[0] === "seguimiento" ? " page-mapa" : partes[0] === "asignaciones" ? " page-planner" : "")} id="contenido" tabIndex={-1}>{children}</main>
       </div>
       <Palette abierta={paleta} onClose={() => setPaleta(false)} esAdmin={esAdmin} />

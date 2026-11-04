@@ -11,6 +11,7 @@ import { BorrarEmpleadosModal, BorrarUsuarioModal } from "../components/limpieza
 import { QuitarCasosModal } from "../components/quitarcasos";
 import { JornadasDrawer } from "../components/jornadas";
 import { useModoPruebas } from "../lib/limpieza";
+import { refrescarLicencia, textoCupo, tituloBloqueo, useLicencia } from "../lib/licencia";
 import { TAMANOS } from "../lib/paginas";
 import { iniciales } from "../lib/format";
 import { ROL, fechaHoraCorta, nombreDe, ultimoAcceso, useFiltrosUsuarios, zonaDe, type Usuario } from "../lib/usuarios";
@@ -39,6 +40,8 @@ export default function UsuariosPage() {
   const [borrarTodos, setBorrarTodos] = useState(false);
   const [quitarCasosA, setQuitarCasosA] = useState<Usuario | null>(null); // asesor al que se le quitan los casos abiertos
   const { activo: modoPruebas } = useModoPruebas(true); // esta pantalla es solo del administrador
+  // Licencia de GeoMatrix (por usuarios): sin cupo no se crea ni se reactiva; en solo lectura tampoco. Desactivar y eliminar siguen siempre.
+  const { licencia, puedeCrear, soloLectura } = useLicencia(true);
   const [texto, setTexto] = useState(q);
   const entradaBusca = useRef<HTMLInputElement>(null);
   const tarjeta = useRef<HTMLDivElement>(null);
@@ -66,7 +69,7 @@ export default function UsuariosPage() {
   }, [consulta, recarga]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const recargar = useCallback(() => setRecarga((n) => n + 1), []);
-  const hecho = (mensaje: string) => { setDialogo(null); setError(""); setOk(mensaje); recargar(); };
+  const hecho = (mensaje: string) => { setDialogo(null); setError(""); setOk(mensaje); recargar(); refrescarLicencia(); }; // el cupo cambia con cada alta, activación o baja
 
   // Búsqueda por texto: espera un momento después de la última tecla (o Enter) y se guarda en la URL.
   useEffect(() => {
@@ -94,6 +97,8 @@ export default function UsuariosPage() {
   const hayFiltros = Boolean(q || rol);
   const limpiar = () => { setTexto(""); fijarQ(""); fijarRol(""); };
   const anuncio = cargando ? "Cargando usuarios…" : `${total.toLocaleString("es-PE")} ${total === 1 ? "usuario encontrado" : "usuarios encontrados"}`;
+  // Por qué está apagado «Nuevo usuario» (su título): licencia en solo lectura o sin cupo.
+  const motivoNoCrear = soloLectura ? `${tituloBloqueo(licencia)}: no se pueden crear usuarios.` : !puedeCrear && licencia ? `${textoCupo(licencia)} Amplíala en Sulotec para crear más.` : undefined;
 
   const opciones = (u: Usuario): OpcionMenu[] => [
     { etiqueta: "Cambiar contraseña", icono: "llave", onClick: () => { setOk(""); setDialogo({ tipo: "clave", u }); } },
@@ -101,9 +106,10 @@ export default function UsuariosPage() {
     { etiqueta: "Liberar dispositivo", icono: "celular", oculto: u.rol === "ADMINISTRADOR", onClick: () => { setOk(""); setDialogo({ tipo: "dispositivo", u }); } },
     { etiqueta: "Ver jornadas", icono: "reloj", oculto: u.rol !== "AUDITOR", onClick: () => { setOk(""); setJornadasDe(u); } },
     { etiqueta: "Quitar casos…", icono: "cambiar", oculto: u.rol !== "AUDITOR", onClick: () => { setOk(""); setQuitarCasosA(u); } },
+    // Reactivar ocupa cupo de la licencia: sin cupo (o en solo lectura) no se ofrece; desactivar y eliminar siguen siempre.
     u.estado === "ACTIVO"
       ? { etiqueta: "Desactivar usuario", icono: "usuarioX", peligro: true, oculto: u.id === user?.id, onClick: () => { setOk(""); setDialogo({ tipo: "desactivar", u }); } }
-      : { etiqueta: "Activar usuario", icono: "usuarioOk", onClick: () => { setOk(""); setDialogo({ tipo: "activar", u }); } },
+      : { etiqueta: "Activar usuario", icono: "usuarioOk", oculto: !puedeCrear || soloLectura, onClick: () => { setOk(""); setDialogo({ tipo: "activar", u }); } },
     // «Eliminar» no borra nada de la base: la cuenta deja de verse en el panel (el servidor la marca ELIMINADO y conserva su historial). Borrar de verdad solo existe en modo pruebas.
     { etiqueta: "Eliminar cuenta definitivamente", icono: "papelera", peligro: true, oculto: u.id === user?.id, onClick: () => { setOk(""); setDialogo({ tipo: "eliminar", u }); } },
     { etiqueta: "Borrar de la base (solo pruebas)", icono: "papelera", peligro: true, oculto: !modoPruebas || u.id === user?.id, onClick: () => { setOk(""); setBorrarA(u); } },
@@ -116,7 +122,7 @@ export default function UsuariosPage() {
 
       <div className="us-acciones">
         {modoPruebas ? <button type="button" className="pa-boton chico suave mp-borrar" onClick={() => setBorrarTodos(true)}>Borrar a todos los asesores y supervisores…</button> : null}
-        <button type="button" className="pa-boton cabecera primario" onClick={() => { setOk(""); setDialogo({ tipo: "nuevo" }); }}><Icon name="mas" size={15} /><span>Nuevo usuario</span></button>
+        <button type="button" className="pa-boton cabecera primario" disabled={!puedeCrear || soloLectura} title={motivoNoCrear} onClick={() => { setOk(""); setDialogo({ tipo: "nuevo" }); }}><Icon name="mas" size={15} /><span>Nuevo usuario</span></button>
       </div>
 
       <div className="us-barra">
@@ -175,9 +181,15 @@ export default function UsuariosPage() {
         </div>
       )}
 
+      {licencia && licencia.usuarios_max != null ? (
+        <p className="us-ayuda">
+          Tu licencia permite {licencia.usuarios_max.toLocaleString("es-PE")} {licencia.usuarios_max === 1 ? "usuario activo" : "usuarios activos"}{licencia.usuarios_activos != null ? ` y hoy tienes ${licencia.usuarios_activos.toLocaleString("es-PE")}` : ""}.{" "}
+          {licencia.enlace ? <a href={licencia.enlace} target="_blank" rel="noreferrer">Ampliar licencia</a> : null}
+        </p>
+      ) : null}
       {!modoPruebas ? <p className="us-ayuda">Para borrar usuarios de prueba, enciende el <Link to="/seguridad">modo pruebas</Link> en Seguridad.</p> : null}
 
-      {dialogo?.tipo === "nuevo" ? <NuevoUsuario prefijo={empresa?.prefijo} esUniversal={user?.rol === "UNIVERSAL"} onClose={() => setDialogo(null)} onCreado={hecho} /> : null}
+      {dialogo?.tipo === "nuevo" ? <NuevoUsuario prefijo={empresa?.prefijo} esUniversal={user?.rol === "UNIVERSAL"} puedeCrear={puedeCrear} licencia={licencia} onClose={() => setDialogo(null)} onCreado={hecho} /> : null}
       {dialogo?.tipo === "clave" ? <CambiarClave usuario={dialogo.u} onClose={() => setDialogo(null)} onHecho={hecho} /> : null}
       {dialogo?.tipo === "mfa" ? (
         <ConfirmarAccion usuario={dialogo.u} icono="escudoOk" titulo="Restablecer verificación de dos pasos" subtitulo="Confirmación de seguridad" boton="Restablecer verificación"

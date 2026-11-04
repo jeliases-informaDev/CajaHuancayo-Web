@@ -25,7 +25,8 @@ const COLUMNAS: { columna: string; tecnica: string; ejemplo: string; como: strin
   { columna: "Otros datos", tecnica: "tipo_documento_cliente · oficina · telefono_cliente · provincia · departamento · monto_desembolso · moneda", ejemplo: "DNI · AG. COMAS · 987654321 · LIMA · LIMA · 12500.50 · PEN", como: "Opcionales; la plantilla ya trae las columnas." },
 ];
 
-export default function PlantillasModal({ onClose, onCargar }: { onClose: () => void; onCargar: () => void }) {
+// `onCargar` abre «Cargar archivo» desde la nota; sin él (licencia en solo lectura) la nota lo nombra sin botón.
+export default function PlantillasModal({ onClose, onCargar }: { onClose: () => void; onCargar?: () => void }) {
   const { empresa } = useAuth();
   const aceptados: string[] = empresa?.reglas?.formatos_importacion?.length ? empresa.reglas.formatos_importacion : ["SIMPLE", "CORE_262"];
   const modelos = MODELOS.filter((m) => aceptados.includes(m.formato));
@@ -40,7 +41,7 @@ export default function PlantillasModal({ onClose, onCargar }: { onClose: () => 
 
   return (
     <Ventana migas={["Plantillas"]} titulo="Plantillas" subtitulo="Elige un modelo para preparar el archivo que luego revisarás en Cargar archivo." onClose={onClose}
-      nota={<>Después de completar el modelo, vuelve a <button type="button" className="ex-enlace en-linea" onClick={onCargar}>Cargar archivo</button> para validarlo.</>}
+      nota={<>Después de completar el modelo, vuelve a {onCargar ? <button type="button" className="ex-enlace en-linea" onClick={onCargar}>Cargar archivo</button> : "«Cargar archivo»"} para validarlo.</>}
       acciones={<button type="button" className="ex-boton claro" onClick={onClose}>Cerrar</button>}>
       {error ? <div role="alert" className="error-box">{error}</div> : null}
       <p className="ex-nota-chica">Para que la ficha del auditor salga completa usa un modelo completo. Si un crédito ya existe, volver a cargarlo con el modelo completo le agrega lo que faltaba (mientras nadie lo haya visitado).</p>
